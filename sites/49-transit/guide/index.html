@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How TRANSIT was made — guide</title>
+<meta name="description" content="How the TRANSIT site was designed and built: an algorithmic Vignelli-style subway diagram drawn entirely from hub coordinates, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #0039a6; --red: #e4002b; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#efe9db; color:#1c1a17;
+    font-family:'Archivo', sans-serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'IBM Plex Mono', monospace; font-size:.7rem; letter-spacing:.16em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#6b6558; text-decoration:none; border-bottom:1px solid rgba(28,26,23,.18); padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'IBM Plex Mono', monospace; font-size:.72rem; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--red); margin-bottom:1.2rem;
+  }
+  h1 { font-weight:800; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.12; margin-bottom:.6rem; letter-spacing:-.01em; }
+  .sub { font-style:italic; color:#6b6558; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:700; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid rgba(28,26,23,.16);
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'IBM Plex Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'IBM Plex Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code { font-family:'IBM Plex Mono', monospace; font-size:.92em; background:#e2dbc9; padding:.1em .35em; border-radius:4px; }
+  .meta {
+    font-family:'IBM Plex Mono', monospace; font-size:.8rem; line-height:1.9; color:#3a362f;
+    background:#e6e0d0; border:1px solid rgba(28,26,23,.16); border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid rgba(28,26,23,.16);
+    font-family:'IBM Plex Mono', monospace; font-size:.7rem; letter-spacing:.1em;
+    text-transform:uppercase; color:#6b6558; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#efe9db; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to TRANSIT</a>
+    <a href="../../">all 50 sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 49 of 50 · how it was made</div>
+  <h1>TRANSIT</h1>
+  <p class="sub">Every route drawn straight</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Wing II's asset pipeline runs a Higgsfield-generated image through hand-written HTML/CSS/JS, but TRANSIT inverts the usual ratio: the generated asset — an aged, grain-textured paper background — is deliberately kept in the back seat, and the entire diagram in front of it is drawn algorithmically. Fourteen hub coordinates and one elbow-routing function produce six flat-color subway lines in the Massimo Vignelli tradition: no line was hand-drawn, every 45°/90° jog is computed.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>A single generated image (aged transit-map paper, subtle grain) sits behind everything at low opacity with <code>mix-blend-mode: multiply</code> and a sepia filter — texture only, never the subject</li>
+    <li>Every line and station is built at runtime from a plain JS object of named hub coordinates (<code>NORTH</code>, <code>UNION</code>, <code>DOCKS</code>, …) and a list of six lines, each just an ordered array of hub keys</li>
+    <li>An elbow-router (<code>routeD</code>) walks each line's points pairwise and inserts a diagonal-then-straight midpoint whenever a segment isn't already purely horizontal, vertical, or 45° — the same convention Vignelli-style diagrams use, generated instead of drafted</li>
+    <li>Stations that appear on more than one line are auto-detected from the hub→line index and rendered as larger interchange rings; single-line stations pick up their line's color automatically</li>
+    <li>Line paths animate in with a classic SVG stroke-dash reveal on load, staggered per line, then respond to hover/focus/click by dimming every other line and station — driven by one shared <code>setActive()</code> function fed by both mouse and keyboard events</li>
+    <li>A small ambient train marker eases along the trunk line's path using <code>getPointAtLength</code>, purely cosmetic motion that's skipped entirely (not just slowed) under <code>prefers-reduced-motion</code></li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Archivo (display/UI) + IBM Plex Mono (labels/legend) · aged paper #efe9db, ink #1c1a17, six flat transit-line hues (red #e4002b, blue #0039a6, green #00933c, orange #ff6319, yellow #c99a00, purple #a626aa)</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Define hub coordinates as data, not markup — a plain object mapping a key to <code>[x, y, label]</code></li>
+    <li>Define each line as an ordered list of hub keys; build a station→lines index by inverting that list once</li>
+    <li>Write an elbow-router that only inserts a bend when a segment isn't already axis-aligned or diagonal, so straight runs stay a single clean segment</li>
+    <li>Render lines and stations into one <code>&lt;svg&gt;</code> with <code>document.createElementNS</code>, tag each with <code>data-line</code>/<code>data-key</code>, and drive all highlight state from those two data attributes</li>
+    <li>Layer one generated paper-texture image behind the SVG at reduced opacity via <code>mix-blend-mode</code>, gate every animation (dash reveal, train marker) behind a <code>prefers-reduced-motion</code> check</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration passes</h2>
+  <ul>
+    <li><b>Build pass</b> — first draft of the elbow router inserted a bend on every segment including already-diagonal ones, producing visibly wrong double-kinks on the 45° runs; fixed the condition to skip axis-aligned and already-45° segments</li>
+    <li><b>Code-review pass</b> — confirmed every interactive element (line paths, stations) has a real <code>tabindex</code>/<code>role</code>/<code>aria-label</code> rather than depending on hover alone, checked the legend buttons meet contrast against the paper background at both rest and <code>.on</code> states, and verified the stroke-dash reveal and train marker are both fully skipped (not just slowed) under reduced motion</li>
+    <li><b>Live-browser pass</b> — served the folder locally, resized down to a phone width and found station labels overlapping at the tightest hub cluster; added a smaller mobile label size and confirmed the legend wraps to multiple rows instead of overflowing, then checked <code>guide/</code>'s relative links resolve correctly back to the site and the collection index from this nested folder</li>
+  </ul>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 5), Anthropic · Wing II asset pipeline —
+    one generated paper-texture image used only as background grain, the diagram itself is
+    100% algorithmic SVG · 3 documented iteration passes before sign-off ·
+    <a href="../../guide/">read the master guide →</a>
+  </div>
+</div>
+</body>
+</html>

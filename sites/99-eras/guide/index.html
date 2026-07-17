@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%236c5ce7%22/></svg>">
+<title>How THE LONG SCROLL was made — guide</title>
+<meta name="description" content="How the THE LONG SCROLL site was designed and built: Thirty years of web design on one page — 1996, 2003, 2010, 2016, 2026 — each section period-correct">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#6c5ce7; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0c; color:#f3efe9; font-family:'Bricolage Grotesque', sans-serif; font-size:1.05rem; line-height:1.72; padding:0 1.5rem}
+  .wrap{max-width:680px; margin:0 auto; padding:9vh 0 12vh}
+  .crumb{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem}
+  .crumb a{color:#8f8b8d; text-decoration:none; border-bottom:1px solid #262327; padding-bottom:2px}
+  .crumb a:hover{color:var(--accent); border-color:var(--accent)}
+  .kicker{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem}
+  h1{font-weight:800; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.08; margin-bottom:.6rem; letter-spacing:-.01em}
+  .sub{color:#a19c9d; font-size:1.12rem; margin-bottom:3.6rem}
+  h2{font-size:1.05rem; font-weight:800; letter-spacing:.01em; margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #211d20; display:flex; align-items:baseline; gap:.75rem}
+  h2 .no{font-family:'JetBrains Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none; margin-bottom:1rem}
+  ul li{padding-left:1.6rem; position:relative; margin-bottom:.85rem}
+  ul li::before{content:'—'; position:absolute; left:0; color:var(--accent)}
+  code{font-family:'JetBrains Mono', monospace; font-size:.88em; background:#17141a; padding:.1em .4em; border-radius:4px}
+  .meta{font-family:'JetBrains Mono', monospace; font-size:.8rem; line-height:1.9; color:#cfc9cb; background:#141216; border:1px solid #211d20; border-left:3px solid var(--accent); padding:1.1rem 1.4rem; border-radius:6px}
+  .foot{margin-top:5rem; padding-top:2.4rem; border-top:1px solid #211d20; font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:#7a757a; line-height:2.4}
+  .foot a{color:var(--accent); text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent); color:#111}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to THE LONG SCROLL</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 99 · Wave 6 · how it was made</div>
+  <h1>THE LONG SCROLL</h1>
+  <p class="sub">Thirty years of web design on one page — 1996, 2003, 2010, 2016, 2026 — each section period-correct</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>A scrollable museum where the exhibit is the medium itself: GeoCities blue with a blink tag and a hit counter, a 2003 glossy gradient box with badge wall, 2010 skeuomorphic leather-and-stitching, a 2016 flat purple startup with a pill CTA, and a 2026 mesh-gradient shader section. The fixed year readout flips as you cross each border.</p>
+
+  <h2><span class="no">02</span> How it works</h2>
+  <ul>
+    <li>Each era is scoped CSS cosplay: period fonts, period shadows, period sins (the 1996 marquee is a real animation; the 2010 icon's gloss is the canonical two-stop overlay).</li>
+    <li>An IntersectionObserver drives the giant mix-blend year numeral and the dot rail.</li>
+    <li>2026 is a live canvas of four drifting radial-gradient blobs — the mesh-gradient look without WebGL.</li>
+    <li>Details carry the comedy: '0 drop shadows' stat card, 'best viewed at 800×600', visitors: 000042.</li></ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <ul>
+    <li>Times → Verdana → Lobster → Inter → Space Grotesk: the fonts ARE the timeline.</li>
+    <li>Each era keeps its own palette; the shared year HUD in difference-blend survives all five.</li></ul>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <ul>
+    <li>Verified each era lands its references (ridge borders, gradient bar text-shadow, gloss overlay, flat purple) and the year/dots track section boundaries at the 55% threshold.</li></ul>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <ul>
+    <li>The scoped-era pattern is great for 'evolution' storytelling — changelogs, brand history, portfolio retrospectives.</li>
+    <li>Difference-blend fixed HUDs survive any background — steal that for multi-theme pages.</li>
+    <li>Period accuracy is a research task: one wrong border-radius and 2003 becomes 2013.</li></ul>
+
+  <div class="meta">stack — one HTML file · five scoped design systems · IntersectionObserver wayfinding · canvas mesh finale<br>signature — the medium exhibited in itself</div>
+
+  <div class="foot">
+    site 99 / fable 25 · built by claude (fable 5), commissioned by jeremy xiang<br>
+    <a href="../">launch THE LONG SCROLL</a> · <a href="../../">the other sites</a>
+  </div>
+</div>
+</body>
+</html>

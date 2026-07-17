@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How ILLUMINATED was made — guide</title>
+<meta name="description" content="How the ILLUMINATED site was designed and built: CSS gold-leaf shimmer, hand-drawn SVG ornament, animated drop cap, generated manuscript image, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=EB+Garamond&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #c8952e; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#161009; color:#efe6d6;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'EB Garamond', serif; font-size:.78rem; letter-spacing:.18em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#ad9e83; text-decoration:none; border-bottom:1px solid #2c2317; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'EB Garamond', serif; font-size:.85rem; letter-spacing:.26em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#ad9e83; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #241d13;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'EB Garamond', serif; font-size:.82rem; color:var(--accent); letter-spacing:.08em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'EB Garamond', serif; font-size:.85rem; color:var(--accent); letter-spacing:.04em;
+  }
+  .meta {
+    font-family:'EB Garamond', serif; font-size:.92rem; line-height:1.9; color:#d6c9ac;
+    background:#1c1610; border:1px solid #2c2317; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #2c2317;
+    font-family:'EB Garamond', serif; font-size:.85rem; letter-spacing:.1em;
+    text-transform:uppercase; color:#a1927a; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  code { font-family:'EB Garamond',serif; font-style:italic; background:#1c1610; padding:.1rem .4rem; border-radius:4px; font-size:.95em; }
+  ::selection { background:var(--accent); color:#161009; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to ILLUMINATED</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 39 of 50 · how it was made</div>
+  <h1>ILLUMINATED</h1>
+  <p class="sub">A page kept the old way</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Real gold leaf isn't static — burnished agate-smooth, it throws back whatever light passes over it, so the gilded parts of a manuscript page seem to shift as a candle moves or a reader turns a leaf. ILLUMINATED tries to earn that specific behavior in CSS and SVG: a single generated reference image of an illuminated capital sets the palette, hand-drawn corner ornament frames it, and one animated gradient sweeps across both the headline text and the ornament so they read as gilded by the same light.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Headline gold-leaf shine: <code>background-clip:text</code> on a 260%-wide linear gradient, animated via <code>background-position</code> — a loop long enough (5.5s) that it doesn't read as a "scanning" effect</li>
+    <li>Ornament gold-leaf shine: the SVG corner flourishes share the exact same visual language but can't use CSS background-clip on stroked paths, so the shine is a <code>&lt;linearGradient&gt;</code> with an SMIL <code>&lt;animateTransform&gt;</code> sliding the gradient's <code>gradientTransform</code> — same bright-band-over-gold idea, different mechanism because SVG strokes need it</li>
+    <li>The drop cap is invisible until an <code>IntersectionObserver</code> confirms the intro paragraph is on screen, then scales and fades in — a small piece of theater matching how a real illuminator saved the capital for last</li>
+    <li>Blackletter (UnifrakturMaguntia) is used exactly twice — the wordmark and the drop cap — never in body copy, which stays in EB Garamond for actual readability, per the brief's "used sparingly"</li>
+  </ul>
+  <p><strong>What the three passes caught:</strong> the build pass found the SVG shine animation kept running even when the CSS text shine was correctly disabled under reduced motion, because SMIL animations aren't touched by the CSS media query — added an explicit JS call to <code>pauseAnimations()</code> on the SVG when reduced motion is detected. The code-review pass flagged body text contrast: <code>--dim</code> at 72% opacity over the lightest parchment corner measured under 4.5:1 for the smaller UI labels — darkened the base ink slightly and reserved full-opacity ink for anything under 1rem. The live-browser pass caught the drop cap's <code>float:left</code> colliding with the paragraph's first line on narrow phones, pushing the "A" awkwardly close to the following word — added a small explicit margin and reduced the drop cap's font size in the mobile breakpoint.</p>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">UnifrakturMaguntia (sparingly) + EB Garamond · parchment #ece0c4, ink #2b1d12, gold #c8952e, oxblood #7a1f2b</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Generate one illuminated-manuscript detail image (nano_banana_pro), optimize with <code>sips</code> to keep it well under a megabyte</li>
+    <li>Frame it in hand-drawn SVG corner flourishes rather than another image — cheaper, sharper at any size, and easy to re-tint</li>
+    <li>Give text gold shine with an animated <code>background-clip:text</code> gradient; give stroked SVG shapes the equivalent with an animated gradient transform</li>
+    <li>Gate a large decorative letter behind scroll visibility so it reads as arriving, not just present</li>
+    <li>Reserve the display/blackletter face for exactly one or two moments; run all reading copy in a genuinely legible serif</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable), Anthropic · Wing II asset pipeline: one Higgsfield (nano_banana_pro) manuscript-detail image, optimized locally with sips · hand-written HTML/CSS/JS, no frameworks, no build step ·
+    3 iteration passes in a real browser before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

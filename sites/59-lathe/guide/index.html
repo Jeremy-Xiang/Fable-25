@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How LATHE was made — guide</title>
+<meta name="description" content="How the LATHE site was designed and built: live LatheGeometry from a hand-shaped profile, wet-clay shading, and a screenshot critique pass.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Inconsolata:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #d98a5c; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#141014; color:#e9e4dd;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Inconsolata', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9a938c; text-decoration:none; border-bottom:1px solid #2a2620; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Inconsolata', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#9a938c; font-size:1.15rem; margin-bottom:3.6rem; }
+  p { max-width:60ch; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #262219;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Inconsolata', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; max-width:58ch; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Inconsolata', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Inconsolata', monospace; font-size:.8rem; line-height:1.9; color:#c7c0b7;
+    background:#1b1712; border:1px solid #262219; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #262219;
+    font-family:'Inconsolata', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#9a938c; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#141014; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to LATHE</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 59 of 62 · how it was made</div>
+  <h1>LATHE</h1>
+  <p class="sub">Throw a vessel by hand — the profile is the whole vessel</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>A body of revolution is defined by one 2D curve. LATHE exposes that curve directly: drag anywhere on the clay and you're editing a radial profile — 44 control points from foot to rim — which Three.js's <code>LatheGeometry</code> revolves into a full 3D vessel, live, every frame it changes. Drag sideways to push the wall in or pull it out; drag upward near the rim to pull the whole form taller, the way a real thrower's hands raise the wall.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Pointer position maps to profile height by screen-space band (top 14% of viewport = rim, bottom 86% = foot), so shaping works regardless of the mesh's live rotation — a real lathe is radially symmetric, so spin never fights the interaction</li>
+    <li>A Gaussian brush falloff spreads each drag across neighboring profile points, so edits read as smooth clay deformation rather than single-point spikes</li>
+    <li>Dragging upward near the rim increases a global <code>heightScale</code>, stretching the whole revolve taller — a second, coarser control layered on top of the radial one, echoing the actual two-handed motion of throwing</li>
+    <li>Full keyboard path: focus the canvas and use arrow keys — up/down move a focus band along the wall, left/right push and pull the clay at that band, so the piece is operable with no pointer at all</li>
+    <li>Studio lighting is a proper three-point rig (warm spotlight key with shadows, cool point-light fill, warm rim light) plus a low hemisphere fill so the clay reads with real form, not flat color</li>
+  </ul>
+
+  <h2><span class="no">03</span> The complexity upgrade</h2>
+  <p>Every drag also writes into a per-point "roughness" value proportional to drag speed. That array is painted into a small canvas texture — banded noise whose contrast scales with roughness — and fed to the clay material as both a bump map and a roughness map. Drag fast and the clay visibly roughens with throwing lines; drag gently and it stays glassy-smooth. It's a detail nobody has to notice to enjoy the piece, but it rewards close attention, which is the point of a deliberate complexity pass.</p>
+
+  <h2><span class="no">04</span> Type &amp; color</h2>
+  <p class="meta">Vollkorn + Inconsolata · studio umber #1c140f, wet clay #b0603a, clay highlight #d98a5c, cream #efe3d2</p>
+
+  <h2><span class="no">05</span> Reproduce it</h2>
+  <ol>
+    <li>Keep a flat array of profile points (radius + a roughness scalar); rebuild a fresh <code>THREE.LatheGeometry</code> from it whenever it changes and swap it onto the existing mesh</li>
+    <li>Map pointer Y to a point in that array by screen-space band, not by raycasting against the rotating mesh</li>
+    <li>Apply drag delta with a Gaussian falloff across nearby points for a smooth "brush," not a hard edit at one index</li>
+    <li>Accumulate a roughness value per point, repaint it into a canvas each throttle tick, and feed the canvas texture to the material as a bump/roughness map</li>
+  </ol>
+
+  <h2><span class="no">06</span> Screenshot pass</h2>
+  <p>The default silhouette was tuned after looking at a real render, not just source: the first pass read as a plain cylinder from the hero camera angle, so the default profile was rebuilt into an actual vase silhouette (narrow foot, full belly, tapered neck, flared lip) so the piece reads as "a vessel" before anyone touches it.</p>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 5), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    build → code review → live screenshot critique, three passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

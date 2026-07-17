@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Night Ledger — a year of sky, counted</title>
+<meta name="description" content="The Night Ledger is data-as-art: 365 nights of meteors and satellites drawn as a radial year-clock, a flowing stream chart, and honest numbers.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a1020;
+    --paper:#e9edf5;
+    --muted:#8a93a8;
+    --gold:#b8860b;       /* validated series 1 */
+    --cyan:#2a8fb0;       /* validated series 2 */
+    --gold-glow:#e8c15c;  /* accent only, never a mark */
+    --grid:rgba(233,237,245,.08);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--ink);color:var(--paper);
+    font-family:'Instrument Sans',sans-serif;overflow-x:hidden;
+  }
+  ::selection{background:var(--gold);color:var(--ink)}
+  #stars{position:fixed;inset:0;z-index:0;opacity:.6}
+  main{position:relative;z-index:1}
+
+  nav{display:flex;justify-content:space-between;align-items:baseline;padding:1.7rem 2.4rem;
+    border-bottom:1px solid var(--grid)}
+  nav .m{font-family:'Instrument Serif',serif;font-size:1.35rem;letter-spacing:.02em}
+  nav .m em{color:var(--gold-glow)}
+  nav .links{font-size:.7rem;letter-spacing:.22em;text-transform:uppercase}
+  nav a{color:var(--muted);text-decoration:none;margin-left:1.5rem;transition:color .3s}
+  nav a:hover{color:var(--paper)}
+
+  header{max-width:1200px;margin:0 auto;padding:11vh 5vw 7vh;display:grid;
+    grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:5vw;align-items:center}
+  header h1{font-family:'Instrument Serif',serif;font-weight:400;
+    font-size:clamp(2.8rem,6.5vw,5.4rem);line-height:1.05}
+  header h1 em{font-style:italic;color:var(--gold-glow)}
+  header .lede{margin-top:1.8rem;color:var(--muted);font-size:1rem;line-height:1.9;max-width:44ch}
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--grid);border:1px solid var(--grid)}
+  .tile{background:var(--ink);padding:1.8rem 1.6rem}
+  .tile .v{font-family:'Instrument Serif',serif;font-size:clamp(2rem,4vw,3.2rem);line-height:1;font-variant-numeric:tabular-nums}
+  .tile .k{margin-top:.7rem;font-size:.64rem;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
+  .tile:nth-child(1) .v{color:var(--gold-glow)}
+  .tile:nth-child(2) .v{color:#7cc7e0}
+
+  section{max-width:1200px;margin:0 auto;padding:9vh 5vw}
+  .sec-k{font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);
+    display:flex;align-items:center;gap:1.2rem;margin-bottom:3.5rem}
+  .sec-k::after{content:"";flex:1;height:1px;background:var(--grid)}
+  .sec-k b{font-weight:500;color:var(--paper)}
+
+  .radial-wrap{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:4rem;align-items:center}
+  #yearclock{width:100%;max-width:640px;margin:0 auto;display:block}
+  .radial-side p{color:var(--muted);font-size:.95rem;line-height:1.95}
+  .radial-side p b{color:var(--paper);font-weight:500}
+  .radial-side .peak{margin-top:2rem;border-left:2px solid var(--gold);padding-left:1.2rem}
+  .radial-side .peak .d{font-family:'Instrument Serif',serif;font-size:1.6rem;color:var(--gold-glow)}
+  .radial-side .peak .l{font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:.3rem}
+
+  .chart-card{border:1px solid var(--grid);padding:2.4rem 2rem 1.6rem;position:relative}
+  .legend{display:flex;gap:1.8rem;font-size:.74rem;color:var(--muted);margin-bottom:1.6rem;flex-wrap:wrap}
+  .legend .it{display:flex;align-items:center;gap:.55rem}
+  .legend .sw{width:14px;height:3px;border-radius:2px}
+  #stream{width:100%;display:block;overflow:visible}
+  #tooltip{
+    position:fixed;z-index:30;pointer-events:none;background:#141c30;border:1px solid rgba(233,237,245,.18);
+    padding:.7rem 1rem;font-size:.74rem;line-height:1.8;opacity:0;transition:opacity .15s;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);min-width:150px}
+  #tooltip b{font-weight:600}
+  #tooltip .row{display:flex;justify-content:space-between;gap:1.2rem}
+  #tooltip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:.45em}
+
+  details.tbl{margin-top:1.4rem;color:var(--muted);font-size:.78rem}
+  details.tbl summary{cursor:pointer;letter-spacing:.16em;text-transform:uppercase;font-size:.64rem}
+  details.tbl table{margin-top:1rem;border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+  details.tbl td,details.tbl th{border:1px solid var(--grid);padding:.45rem .8rem;text-align:right}
+  details.tbl th:first-child,details.tbl td:first-child{text-align:left}
+
+  .colophon{text-align:center;padding-bottom:4vh}
+  .colophon p{font-family:'Instrument Serif',serif;font-style:italic;font-size:clamp(1.3rem,3vw,2rem);
+    line-height:1.7;max-width:34ch;margin:0 auto;color:var(--paper)}
+  .colophon p em{color:var(--gold-glow)}
+
+  footer{border-top:1px solid var(--grid);padding:5vh 2.4rem;text-align:center;
+    font-size:.64rem;letter-spacing:.26em;text-transform:uppercase;color:var(--muted);line-height:2.6}
+  footer a{color:var(--gold-glow);text-decoration:none}
+
+  @media(max-width:900px){
+    header{grid-template-columns:1fr}
+    .radial-wrap{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+
+<main>
+<nav>
+  <span class="m">The <em>Night</em> Ledger</span>
+  <span class="links"><a href="#clock">Year-clock</a><a href="#stream-sec">Stream</a><a href="guide/">Guide</a><a href="../">Index</a></span>
+</nav>
+
+<header>
+  <div>
+    <h1>One astronomer.<br>365 nights.<br><em>Everything counted.</em></h1>
+    <p class="lede">Through 2025, a (fictional) observer on a (real) hill logged every meteor and satellite pass she could see. This ledger draws her year — not as a spreadsheet, but as the sky remembers it.</p>
+  </div>
+  <div class="tiles">
+    <div class="tile"><div class="v" data-count="2841">0</div><div class="k">Meteors logged</div></div>
+    <div class="tile"><div class="v" data-count="1194">0</div><div class="k">Satellite passes</div></div>
+    <div class="tile"><div class="v" data-count="214">0</div><div class="k">Clear nights</div></div>
+    <div class="tile"><div class="v" data-count="43">0</div><div class="k">Nights of pure cloud</div></div>
+  </div>
+</header>
+
+<section id="clock">
+  <div class="sec-k"><b>Fig. 1</b> The meteor year-clock — 365 rays, one per night</div>
+  <div class="radial-wrap">
+    <svg id="yearclock" viewBox="0 0 640 640" role="img" aria-label="Radial chart of nightly meteor counts across 2025"></svg>
+    <div class="radial-side">
+      <p>Each ray is one night, midnight at the top, the year running clockwise. Length and brightness encode the same number — <b>meteors counted</b> — so the eye can trust either. The blazing sector in mid-August is not an error. It is the <b>Perseids</b>.</p>
+      <div class="peak"><div class="d" id="peakval">—</div><div class="l" id="peakdate">peak night</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="stream-sec">
+  <div class="sec-k"><b>Fig. 2</b> Twelve months, two kinds of light</div>
+  <div class="chart-card">
+    <div class="legend">
+      <span class="it"><span class="sw" style="background:var(--gold)"></span>Meteors (natural)</span>
+      <span class="it"><span class="sw" style="background:var(--cyan)"></span>Satellites (human)</span>
+      <span class="it" style="margin-left:auto;opacity:.7">hover for nightly values</span>
+    </div>
+    <svg id="stream" viewBox="0 0 1040 340" aria-label="Monthly totals of meteors and satellites as two flowing area series"></svg>
+    <details class="tbl">
+      <summary>View as table</summary>
+      <table id="datatable"></table>
+    </details>
+  </div>
+</section>
+
+<section class="colophon">
+  <p>«The universe throws rocks and we throw <em>routers</em>, and both burn beautifully at 3 a.m.»</p>
+</section>
+
+<footer>
+  THE NIGHT LEDGER — DATA AS ART · PALETTE VALIDATED FOR CVD &amp; CONTRAST<br>
+  BUILT BY CLAUDE (FABLE 5) · <a href="guide/">HOW IT WAS MADE</a> · <a href="../">ALL 25 SITES</a>
+</footer>
+</main>
+
+<div id="tooltip"></div>
+
+<script>
+/* ————— seeded data ————— */
+function mulberry(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rnd=mulberry(20250101);
+const DAYS=365;
+const meteors=[],sats=[];
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const showerPeaks=[{d:3,w:2,amp:26},{d:112,w:3,amp:14},{d:224,w:4,amp:46},{d:284,w:3,amp:12},{d:347,w:3,amp:34}];
+for(let i=0;i<DAYS;i++){
+  let m=2+rnd()*5;
+  for(const s of showerPeaks){
+    const dd=Math.abs(i-s.d);
+    m+=s.amp*Math.exp(-dd*dd/(2*s.w*s.w))*(.7+rnd()*.6);
+  }
+  const moon=(Math.sin(i/29.53*Math.PI*2)+1)/2;
+  m*=(1-moon*.55);
+  if(rnd()<.12)m*=.15; /* clouds */
+  meteors.push(Math.round(m));
+  sats.push(Math.round(2+rnd()*4+ i/DAYS*3 + (rnd()<.1?4:0)));
+}
+
+/* ————— star field bg ————— */
+const sc=document.getElementById('stars'),sctx=sc.getContext('2d');
+function srs(){sc.width=innerWidth;sc.height=innerHeight}
+addEventListener('resize',srs);srs();
+const starPts=Array.from({length:170},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.1+.2,p:Math.random()*7}));
+(function twinkle(t){
+  sctx.clearRect(0,0,sc.width,sc.height);
+  for(const s of starPts){
+    sctx.globalAlpha=.25+.5*(.5+.5*Math.sin(t/1400+s.p));
+    sctx.fillStyle='#e9edf5';
+    sctx.beginPath();sctx.arc(s.x*sc.width,s.y*sc.height,s.r,0,7);sctx.fill();
+  }
+  sctx.globalAlpha=1;
+  requestAnimationFrame(twinkle);
+})(0);
+
+/* ————— count-up tiles ————— */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting)return;
+  const el=e.target,target=+el.dataset.count,t0=performance.now();
+  (function cu(){
+    const t=Math.min(1,(performance.now()-t0)/1400);
+    el.textContent=Math.round(target*(1-Math.pow(1-t,3))).toLocaleString();
+    if(t<1)requestAnimationFrame(cu);
+  })();
+  io.unobserve(el);
+}),{threshold:.5});
+document.querySelectorAll('[data-count]').forEach(el=>io.observe(el));
+
+/* ————— year clock ————— */
+const yc=document.getElementById('yearclock');
+const maxM=Math.max(...meteors);
+let peakI=meteors.indexOf(maxM);
+const NS='http://www.w3.org/2000/svg';
+const CX=320,CY=320,R0=92,R1=288;
+let rays='';
+for(let i=0;i<DAYS;i++){
+  const a=-Math.PI/2 + i/DAYS*Math.PI*2;
+  const v=meteors[i]/maxM;
+  const r=R0+(R1-R0)*Math.pow(v,.7);
+  const x1=CX+Math.cos(a)*R0, y1=CY+Math.sin(a)*R0;
+  const x2=CX+Math.cos(a)*r,  y2=CY+Math.sin(a)*r;
+  /* sequential: single gold hue, opacity = lightness proxy, monotone with value */
+  const op=(.18+.82*Math.pow(v,.85)).toFixed(2);
+  rays+=`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"
+    stroke="#b8860b" stroke-opacity="${op}" stroke-width="2.1" stroke-linecap="round">
+    <title>${MONTHS[Math.floor(i/30.42)]||'Dec'} · night ${i+1}: ${meteors[i]} meteors</title></line>`;
+}
+/* month ticks + labels */
+let ticks='';
+const mStart=[0,31,59,90,120,151,181,212,243,273,304,334];
+mStart.forEach((d,mi)=>{
+  const a=-Math.PI/2 + d/DAYS*Math.PI*2;
+  const lx=CX+Math.cos(a)*(R1+22), ly=CY+Math.sin(a)*(R1+22);
+  ticks+=`<text x="${lx}" y="${ly}" fill="#8a93a8" font-size="13" font-family="Instrument Sans"
+    text-anchor="middle" dominant-baseline="middle">${MONTHS[mi]}</text>`;
+});
+yc.innerHTML=`
+  <circle cx="${CX}" cy="${CY}" r="${R0-14}" fill="none" stroke="rgba(233,237,245,.1)"/>
+  <circle cx="${CX}" cy="${CY}" r="${R1+6}" fill="none" stroke="rgba(233,237,245,.07)"/>
+  <g id="rayg">${rays}</g>${ticks}
+  <text x="${CX}" y="${CY-8}" fill="#e9edf5" font-size="30" font-family="Instrument Serif" text-anchor="middle">2025</text>
+  <text x="${CX}" y="${CY+18}" fill="#8a93a8" font-size="11.5" letter-spacing="2" font-family="Instrument Sans" text-anchor="middle">METEORS / NIGHT</text>`;
+/* rays fade in progressively on first view — no rotation: month alignment is data */
+const rayEls=yc.querySelectorAll('#rayg line');
+rayEls.forEach((l,i)=>{
+  l.style.opacity=0;
+  l.animate([{opacity:0},{opacity:1}],{duration:600,delay:i*3.2,fill:'forwards',easing:'ease-out'});
+});
+const peakDate=new Date(2025,0,1+peakI);
+document.getElementById('peakval').textContent=maxM+' meteors';
+document.getElementById('peakdate').textContent='peak — '+peakDate.toLocaleDateString('en-US',{month:'long',day:'numeric'})+' (Perseids)';
+
+/* ————— stream chart: two mirrored area series ————— */
+const sv=document.getElementById('stream');
+const SW=1040,SH=340,PADL=46,PADR=16,MID=170;
+const mMon=Array(12).fill(0),sMon=Array(12).fill(0);
+for(let i=0;i<DAYS;i++){
+  const mi=Math.min(11,Math.floor(i/30.42));
+  mMon[mi]+=meteors[i];sMon[mi]+=sats[i];
+}
+const maxMon=Math.max(...mMon,...sMon);
+const xw=(SW-PADL-PADR)/11;
+function pathFor(arr,dir){
+  let d='';
+  arr.forEach((v,i)=>{
+    const x=PADL+i*xw;
+    const y=MID+dir*(8+ (MID-34)*v/maxMon);
+    d+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1)+' ';
+  });
+  return d;
+}
+function areaFor(arr,dir){
+  let d=pathFor(arr,dir);
+  d+=`L${PADL+11*xw} ${MID+dir*6} L${PADL} ${MID+dir*6} Z`;
+  return d;
+}
+let gridl='';
+for(let i=0;i<12;i++){
+  const x=PADL+i*xw;
+  gridl+=`<line x1="${x}" y1="26" x2="${x}" y2="${SH-24}" stroke="rgba(233,237,245,.05)"/>
+  <text x="${x}" y="${SH-6}" fill="#8a93a8" font-size="11" font-family="Instrument Sans" text-anchor="middle">${MONTHS[i]}</text>`;
+}
+sv.innerHTML=`
+  ${gridl}
+  <line x1="${PADL}" y1="${MID}" x2="${SW-PADR}" y2="${MID}" stroke="rgba(233,237,245,.14)" stroke-dasharray="1 4"/>
+  <path d="${areaFor(mMon,-1)}" fill="#b8860b" fill-opacity=".26"/>
+  <path d="${pathFor(mMon,-1)}" fill="none" stroke="#b8860b" stroke-width="2"/>
+  <path d="${areaFor(sMon,1)}" fill="#2a8fb0" fill-opacity=".26"/>
+  <path d="${pathFor(sMon,1)}" fill="none" stroke="#2a8fb0" stroke-width="2"/>
+  <text x="${PADL+4}" y="52" fill="#e8c15c" font-size="12.5" font-family="Instrument Sans">Meteors ↑</text>
+  <text x="${PADL+4}" y="${SH-38}" fill="#7cc7e0" font-size="12.5" font-family="Instrument Sans">Satellites ↓</text>
+  <line id="xhair" x1="0" y1="26" x2="0" y2="${SH-24}" stroke="#e9edf5" stroke-opacity="0" stroke-width="1"/>
+  <circle id="dotM" r="4" fill="#b8860b" stroke="#0a1020" stroke-width="2" opacity="0"/>
+  <circle id="dotS" r="4" fill="#2a8fb0" stroke="#0a1020" stroke-width="2" opacity="0"/>`;
+
+const tip=document.getElementById('tooltip');
+sv.addEventListener('pointermove',e=>{
+  const r=sv.getBoundingClientRect();
+  const sx=(e.clientX-r.left)/r.width*SW;
+  const mi=Math.max(0,Math.min(11,Math.round((sx-PADL)/xw)));
+  const x=PADL+mi*xw;
+  const yM=MID-(8+(MID-34)*mMon[mi]/maxMon), yS=MID+(8+(MID-34)*sMon[mi]/maxMon);
+  const xh=sv.querySelector('#xhair');
+  xh.setAttribute('x1',x);xh.setAttribute('x2',x);xh.setAttribute('stroke-opacity','.25');
+  const dM=sv.querySelector('#dotM'),dS=sv.querySelector('#dotS');
+  dM.setAttribute('cx',x);dM.setAttribute('cy',yM);dM.setAttribute('opacity',1);
+  dS.setAttribute('cx',x);dS.setAttribute('cy',yS);dS.setAttribute('opacity',1);
+  tip.style.opacity=1;
+  tip.style.left=Math.min(innerWidth-190,e.clientX+16)+'px';
+  tip.style.top=(e.clientY-14)+'px';
+  tip.innerHTML=`<b>${MONTHS[mi]} 2025</b>
+    <div class="row"><span><span class="dot" style="background:#b8860b"></span>Meteors</span><b>${mMon[mi].toLocaleString()}</b></div>
+    <div class="row"><span><span class="dot" style="background:#2a8fb0"></span>Satellites</span><b>${sMon[mi].toLocaleString()}</b></div>`;
+});
+sv.addEventListener('pointerleave',()=>{
+  tip.style.opacity=0;
+  sv.querySelector('#xhair').setAttribute('stroke-opacity','0');
+  sv.querySelector('#dotM').setAttribute('opacity',0);
+  sv.querySelector('#dotS').setAttribute('opacity',0);
+});
+
+/* table view */
+document.getElementById('datatable').innerHTML=
+  '<tr><th>Month</th>'+MONTHS.map(m=>`<th>${m}</th>`).join('')+'</tr>'+
+  '<tr><td>Meteors</td>'+mMon.map(v=>`<td>${v}</td>`).join('')+'</tr>'+
+  '<tr><td>Satellites</td>'+sMon.map(v=>`<td>${v}</td>`).join('')+'</tr>';
+</script>
+</body>
+</html>

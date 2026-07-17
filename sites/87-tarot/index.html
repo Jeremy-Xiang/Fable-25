@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARCANA.DEV — a tarot deck for people who ship</title>
+<meta name="description" content="Draw three cards from the developer's tarot: holographic foil that follows your pointer, 3D flips, and readings like 'The Merge Conflict, reversed'. Your sprint, foretold.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23140f1e'/%3E%3Crect x='9' y='5' width='14' height='22' rx='2.5' fill='none' stroke='%23c9a2ff' stroke-width='1.6'/%3E%3Ccircle cx='16' cy='16' r='3.4' fill='none' stroke='%23ffd76a' stroke-width='1.4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#140f1e; --ink:#efe7f7; --dim:#9b8db2; --dim2:#5c5372;
+  --violet:#c9a2ff; --gold:#ffd76a; --line:rgba(239,231,247,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:
+    radial-gradient(70% 50% at 50% 0%, rgba(201,162,255,.08), transparent 65%),
+    var(--bg);
+  color:var(--ink); font-family:'Cormorant Garamond',serif; min-height:100vh;
+  display:flex; flex-direction:column; overflow-x:hidden}
+::selection{background:var(--violet); color:#1c0f33}
+a:focus-visible,button:focus-visible{outline:2px solid var(--gold); outline-offset:3px}
+
+header{display:flex; justify-content:space-between; align-items:center; padding:1.3rem 1.6rem}
+.mark{font-weight:700; font-size:1.1rem; letter-spacing:.14em}
+.mark em{font-style:normal; color:var(--gold)}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'JetBrains Mono',monospace; font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--gold)}
+
+.hero{text-align:center; padding:.5rem 1.2rem 2rem}
+.hero h1{font-weight:500; font-size:clamp(1.8rem,5vw,3.1rem); line-height:1.15}
+.hero h1 em{font-style:italic; color:var(--violet)}
+.hero p{font-family:'JetBrains Mono',monospace; font-size:.6rem; letter-spacing:.26em; text-transform:uppercase; color:var(--dim2); margin-top:.7rem}
+
+.table{flex:1; display:flex; gap:clamp(.9rem,3vw,2.2rem); align-items:center; justify-content:center;
+  flex-wrap:wrap; padding:0 1.2rem 1rem; perspective:1400px}
+.slot{display:flex; flex-direction:column; align-items:center; gap:.9rem}
+.slot .role{font-family:'JetBrains Mono',monospace; font-size:.58rem; letter-spacing:.28em; text-transform:uppercase; color:var(--dim2)}
+
+.card{
+  position:relative; width:min(200px,26vw); aspect-ratio:5/8; cursor:pointer;
+  transform-style:preserve-3d; transition:transform .8s cubic-bezier(.4,0,.2,1);
+}
+.card.flipped{transform:rotateY(180deg)}
+.face{
+  position:absolute; inset:0; border-radius:12px; backface-visibility:hidden;
+  border:1px solid var(--line); overflow:hidden;
+}
+.back{
+  background:
+    repeating-linear-gradient(45deg, rgba(201,162,255,.16) 0 2px, transparent 2px 11px),
+    repeating-linear-gradient(-45deg, rgba(255,215,106,.1) 0 2px, transparent 2px 11px),
+    #1b1430;
+  display:flex; align-items:center; justify-content:center;
+}
+.back .eye{width:44%; opacity:.9}
+.front{
+  transform:rotateY(180deg);
+  background:linear-gradient(160deg, #241a3d, #171126);
+  display:flex; flex-direction:column; align-items:center; justify-content:space-between;
+  padding:1rem .8rem .9rem; text-align:center;
+}
+/* holographic foil sweep driven by pointer via --mx/--my */
+.front::before{
+  content:''; position:absolute; inset:0; pointer-events:none; mix-blend-mode:color-dodge;
+  background:radial-gradient(60% 45% at calc(var(--mx,.5)*100%) calc(var(--my,.5)*100%),
+    rgba(255,215,106,.5), rgba(201,162,255,.35) 35%, rgba(120,220,232,.2) 60%, transparent 78%);
+  opacity:.85;
+}
+.card.rev .front .art, .card.rev .front .cname{transform:rotate(180deg)}
+.front .cno{font-family:'JetBrains Mono',monospace; font-size:.58rem; letter-spacing:.3em; color:var(--gold)}
+.front .art{width:74%; aspect-ratio:1; margin:.2rem 0}
+.front .art svg{width:100%; height:100%; overflow:visible}
+.front .art path,.front .art circle,.front .art rect,.front .art line{stroke:var(--violet); fill:none; stroke-width:2.4}
+.front .art .gold{stroke:var(--gold)}
+.front .cname{font-weight:700; font-size:clamp(1rem,2.2vw,1.3rem); line-height:1.1}
+.front .rv{font-family:'JetBrains Mono',monospace; font-size:.52rem; letter-spacing:.24em; color:var(--dim); text-transform:uppercase}
+
+.reading{max-width:36rem; margin:0 auto; text-align:center; padding:0 1.4rem 1.6rem; min-height:4.2em}
+.reading p{font-size:1.14rem; line-height:1.65; font-style:italic; color:#cfc2e2}
+.reading p b{color:var(--gold); font-style:normal}
+
+.ctaRow{display:flex; justify-content:center; padding-bottom:1.6rem}
+.btn{font-family:'JetBrains Mono',monospace; font-size:.64rem; letter-spacing:.2em; text-transform:uppercase;
+  background:none; border:1px solid var(--line); color:var(--ink); border-radius:999px; padding:.75rem 1.5rem; cursor:pointer; transition:.2s}
+.btn:hover{border-color:var(--gold); color:var(--gold); box-shadow:0 0 24px rgba(255,215,106,.15)}
+
+footer{display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem; padding:0 1.6rem 1.4rem;
+  font-family:'JetBrains Mono',monospace; font-size:.56rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim2)}
+footer a{color:var(--gold); text-decoration:none}
+@media (prefers-reduced-motion:reduce){ .card{transition:none} }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">ARCANA<em>.DEV</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>Your sprint, <em>foretold.</em></h1>
+  <p>tap each card · holo foil follows your pointer</p>
+</div>
+
+<div class="table" id="table">
+  <div class="slot"><div class="role">the past</div><div class="card" data-i="0"></div></div>
+  <div class="slot"><div class="role">the present</div><div class="card" data-i="1"></div></div>
+  <div class="slot"><div class="role">the future</div><div class="card" data-i="2"></div></div>
+</div>
+
+<div class="reading"><p id="readout">The deck is shuffled. Turn the cards.</p></div>
+
+<div class="ctaRow"><button class="btn" id="bDraw">☾ draw again</button></div>
+
+<footer>
+  <span>site 87 / fable 25 · built by claude (fable 5)</span>
+  <span><a href="guide/">how it was made</a></span>
+</footer>
+
+<script>
+/* ═════ ARCANA.DEV — the developer's tarot ═════ */
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const ART = {
+  refactor: '<circle cx="50" cy="50" r="30"/><path class="gold" d="M50 20 A30 30 0 0 1 80 50" stroke-width="4"/><path d="M74 24 L80 50 L58 40" class="gold"/>',
+  ship:     '<path d="M20 62 H80 L68 80 H32 Z"/><line x1="50" y1="62" x2="50" y2="22"/><path class="gold" d="M50 22 L74 40 L50 48 Z"/>',
+  merge:    '<path d="M30 20 V50 Q30 70 50 70 H54"/><path d="M70 20 V50 Q70 70 50 70" class="gold"/><circle cx="30" cy="16" r="6"/><circle cx="70" cy="16" r="6" class="gold"/><circle cx="58" cy="70" r="6"/>',
+  bug:      '<circle cx="50" cy="54" r="20"/><line x1="50" y1="34" x2="50" y2="20"/><line x1="32" y1="44" x2="20" y2="36"/><line x1="68" y1="44" x2="80" y2="36" class="gold"/><line x1="32" y1="62" x2="20" y2="68"/><line x1="68" y1="62" x2="80" y2="68" class="gold"/>',
+  deadline: '<circle cx="50" cy="50" r="30"/><line x1="50" y1="50" x2="50" y2="28" class="gold" stroke-width="4"/><line x1="50" y1="50" x2="66" y2="58" stroke-width="4"/>',
+  intern:   '<circle cx="50" cy="34" r="12"/><path d="M28 78 Q50 52 72 78"/><path class="gold" d="M62 24 L70 12 M50 20 L50 8 M38 24 L30 12"/>',
+  rubber:   '<circle cx="46" cy="46" r="22"/><circle cx="54" cy="40" r="3" class="gold"/><path d="M64 60 Q74 64 78 76"/><path class="gold" d="M20 80 Q40 70 60 78"/>',
+  legacy:   '<rect x="26" y="30" width="48" height="46"/><path d="M26 44 H74 M40 30 V76" /><path class="gold" d="M50 54 L60 64 M60 54 L50 64"/>',
+};
+
+const CARDS = [
+  ['The Refactor','refactor','You will touch one function and awaken forty tests. Proceed — the code wants to be clean.','You cleaned what did not ask to be cleaned. The diff is enormous and nobody will review it.'],
+  ['The Shipping','ship','A release approaches under a favorable moon. Cut the branch; the demo gods smile.','You shipped on a Friday. What happens next was always going to happen.'],
+  ['The Merge Conflict','merge','Two truths collide in one file. Choose with care — both authors believed.','You clicked "accept both changes." The build knows what you did.'],
+  ['The Heisenbug','bug','It appears only when unobserved. Add one console.log and it will hide for a season.','It reproduces on your machine now. Only on yours. Forever.'],
+  ['The Deadline','deadline','Time bends near the sprint\'s end. Scope will be shed; velocity will be invented.','The estimate was a wish. The wish has been reversed.'],
+  ['The Intern','intern','A newcomer asks "why is it like this?" — and no one remembers. Beginner\'s mind blesses the repo.','The intern has force-pushed to main. In their defense, the docs said nothing.'],
+  ['The Rubber Duck','rubber','Speak the problem aloud and the answer will arrive before the sentence ends.','You explained it to the duck and the duck agreed with the bug. Seek a second duck.'],
+  ['The Legacy Code','legacy','An ancient system holds the business together. Honor it; add tests before you touch.','You deleted the weird if-statement. It was the business.'],
+];
+
+const EYE = '<svg viewBox="0 0 100 100"><path d="M10 50 Q50 16 90 50 Q50 84 10 50 Z" fill="none" stroke="#c9a2ff" stroke-width="2.4"/><circle cx="50" cy="50" r="13" fill="none" stroke="#ffd76a" stroke-width="2.4"/><circle cx="50" cy="50" r="4" fill="#ffd76a"/></svg>';
+
+const cards = [...document.querySelectorAll('.card')];
+let spread = [];
+
+function deal(){
+  const deck = [...CARDS].sort(()=>Math.random()-.5).slice(0,3);
+  spread = deck.map(c=>({ c, rev: Math.random()<.4, open:false }));
+  cards.forEach((el,i)=>{
+    const { c, rev } = spread[i];
+    el.classList.remove('flipped');
+    el.classList.toggle('rev', rev);
+    el.innerHTML = `
+      <div class="face back">${EYE}</div>
+      <div class="face front">
+        <span class="cno">№ ${String(CARDS.indexOf(c)+1).padStart(2,'0')} ${rev?'· REVERSED':''}</span>
+        <div class="art"><svg viewBox="0 0 100 100">${ART[c[1]]}</svg></div>
+        <div>
+          <div class="cname">${c[0]}</div>
+          <div class="rv">${rev ? 'reversed' : 'upright'}</div>
+        </div>
+      </div>`;
+  });
+  document.getElementById('readout').innerHTML = 'The deck is shuffled. Turn the cards.';
+}
+
+function updateReading(){
+  const open = spread.filter(s=>s.open);
+  if (!open.length) return;
+  const last = open[open.length-1];
+  const text = last.rev ? last.c[3] : last.c[2];
+  document.getElementById('readout').innerHTML =
+    `<b>${last.c[0]}${last.rev?', reversed':''}.</b> ${text}`;
+}
+
+cards.forEach((el,i)=>{
+  el.addEventListener('click', ()=>{
+    if (!spread[i].open){
+      spread[i].open = true;
+      el.classList.add('flipped');
+      updateReading();
+    } else {
+      el.classList.toggle('flipped');
+    }
+  });
+  /* holo foil follows pointer */
+  el.addEventListener('pointermove', e=>{
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--mx', ((e.clientX-r.left)/r.width).toFixed(3));
+    el.style.setProperty('--my', ((e.clientY-r.top)/r.height).toFixed(3));
+    if (!reduce && el.classList.contains('flipped')){
+      const rx = ((e.clientY-r.top)/r.height - .5)*-10;
+      const ry = ((e.clientX-r.left)/r.width - .5)*12;
+      el.style.transform = `rotateY(${180+ry}deg) rotateX(${rx}deg)`;
+    }
+  });
+  el.addEventListener('pointerleave', ()=>{
+    if (el.classList.contains('flipped')) el.style.transform = 'rotateY(180deg)';
+  });
+});
+
+document.getElementById('bDraw').addEventListener('click', deal);
+deal();
+</script>
+</body>
+</html>

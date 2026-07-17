@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MARQUEE HALL — sixty thousand diodes, one message</title>
+<meta name="description" content="A stadium LED wall in the browser: every pixel is a diode with bloom, scanline refresh and burn-in. Type your own message, or drag across the wall to spray light by hand.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%23090607'/%3E%3Ccircle cx='10' cy='12' r='2.2' fill='%23ff3b30'/%3E%3Ccircle cx='16' cy='12' r='2.2' fill='%23ff9500'/%3E%3Ccircle cx='22' cy='12' r='2.2' fill='%23ff3b30'/%3E%3Ccircle cx='13' cy='19' r='2.2' fill='%23ff9500'/%3E%3Ccircle cx='19' cy='19' r='2.2' fill='%23ff3b30'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --hall:#090607; --ink:#f2e8e2; --dim:#82736d; --dim2:#4c413d;
+  --red:#ff3b30; --amber:#ff9500; --line:rgba(242,232,226,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--hall); color:var(--ink); font-family:'IBM Plex Mono',monospace; min-height:100vh;
+  display:flex; flex-direction:column; overflow-x:hidden}
+::selection{background:var(--amber); color:#241300}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--amber); outline-offset:3px}
+
+header{display:flex; justify-content:space-between; align-items:center; padding:1.2rem 1.6rem}
+.mark{font-family:'Bebas Neue',sans-serif; font-size:1.25rem; letter-spacing:.2em}
+.mark em{font-style:normal; color:var(--amber)}
+nav{display:flex; gap:1.5rem}
+nav a{font-size:.62rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--amber)}
+
+main{flex:1; display:flex; flex-direction:column; align-items:center; gap:1.2rem; padding:0 1.2rem 1.4rem}
+.wallWrap{
+  border:10px solid #17110f; border-radius:8px; box-shadow:0 34px 90px rgba(0,0,0,.7), inset 0 0 30px #000;
+  background:#050303; max-width:96vw;
+}
+#wall{display:block; max-width:100%; height:auto; cursor:crosshair}
+
+.deck{display:flex; gap:1rem 1.6rem; align-items:center; justify-content:center; flex-wrap:wrap}
+#msg{
+  font:inherit; font-size:.8rem; letter-spacing:.12em; text-transform:uppercase;
+  background:#120d0b; border:1px solid var(--line); color:var(--ink);
+  border-radius:8px; padding:.7rem 1rem; width:min(320px,70vw);
+}
+.deck button{
+  font:inherit; font-size:.62rem; letter-spacing:.16em; text-transform:uppercase;
+  background:none; border:1px solid var(--line); color:var(--ink); border-radius:999px;
+  padding:.6rem 1.15rem; cursor:pointer; transition:.15s;
+}
+.deck button:hover{border-color:var(--amber); color:var(--amber)}
+.deck button.on{background:var(--amber); border-color:var(--amber); color:#241300}
+.note{font-size:.58rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim2)}
+
+footer{display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem; padding:1rem 1.6rem 1.4rem;
+  font-size:.56rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim2)}
+footer a{color:var(--amber); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">MARQUEE <em>HALL</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<main>
+  <div class="wallWrap">
+    <canvas id="wall" width="1120" height="440" aria-label="LED wall display; drag on it to paint diodes"></canvas>
+  </div>
+  <div class="deck" role="group" aria-label="Wall controls">
+    <input id="msg" maxlength="24" value="YOU LOOK GREAT TONIGHT" aria-label="Message to display">
+    <button id="bShow">display it</button>
+    <button id="bMode" class="on">scroll mode</button>
+    <button id="bSpray">spray: amber</button>
+    <button id="bWipe">wipe</button>
+  </div>
+  <span class="note">drag across the wall to spray diodes by hand</span>
+</main>
+
+<footer>
+  <span>site 91 / fable 25 · built by claude (fable 5)</span>
+  <span><a href="guide/">how it was made</a></span>
+</footer>
+
+<script>
+/* ═════ MARQUEE HALL — LED wall simulation ═════
+   A low-res framebuffer (140×55) renders text via an offscreen canvas,
+   then each cell becomes a diode: round dot, additive bloom, slight
+   per-diode brightness lottery, a rolling scanline refresh band, and
+   phosphor-style decay so painted light fades like burn-in. */
+
+const wall = document.getElementById('wall');
+const wx = wall.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const GW = 140, GH = 55;               // diode grid
+const CELL = wall.width / GW;          // 8px
+const buf = new Float32Array(GW*GH);   // current brightness 0..1
+const tgt = new Float32Array(GW*GH);   // text target layer
+const spray = new Float32Array(GW*GH); // hand-painted layer (decays)
+const hueMap = new Uint8Array(GW*GH);  // 0 red, 1 amber (for spray)
+
+/* text rasterizer: draw to a tiny canvas, threshold into tgt */
+const tcv = document.createElement('canvas');
+tcv.width = 600; tcv.height = GH;
+const tctx = tcv.getContext('2d', { willReadFrequently:true });
+let textW = 0;
+
+function setText(str){
+  tctx.clearRect(0,0,tcv.width,tcv.height);
+  tctx.font = '46px "Bebas Neue", sans-serif';
+  tctx.textBaseline = 'middle';
+  tctx.fillStyle = '#fff';
+  tctx.fillText(str, 2, GH/2 + 3);
+  textW = Math.min(tcv.width, Math.ceil(tctx.measureText(str).width) + 8);
+}
+
+let scrollMode = true;
+let scrollX = -GW;
+
+function stampText(){
+  tgt.fill(0);
+  const data = tctx.getImageData(0,0,tcv.width,GH).data;
+  const off = scrollMode ? Math.floor(scrollX) : Math.floor((GW-textW)/2);
+  for (let y=0;y<GH;y++){
+    for (let sx=0;sx<textW;sx++){
+      const gx2 = sx + off;
+      if (gx2<0||gx2>=GW) continue;
+      const a = data[(y*tcv.width+sx)*4+3]/255;
+      if (a > .25) tgt[y*GW+gx2] = a;
+    }
+  }
+}
+
+/* render diodes */
+let scan = 0;
+function render(now){
+  wx.fillStyle = '#050303';
+  wx.fillRect(0,0,wall.width,wall.height);
+  scan = (scan + (reduce?0:3.2)) % (GH+30);
+
+  for (let y=0;y<GH;y++){
+    const scanBoost = Math.max(0, 1 - Math.abs(y - scan)/4) * .25;
+    for (let gx=0; gx<GW; gx++){
+      const i = y*GW+gx;
+      // blend text target + spray, decay toward target
+      const target = Math.max(tgt[i], spray[i]);
+      buf[i] += (target - buf[i]) * .3;
+      const b = buf[i];
+      if (b < .03) {
+        // dead diode ghost
+        wx.fillStyle = 'rgba(255,120,90,.05)';
+        wx.fillRect(gx*CELL+CELL*.36, y*CELL+CELL*.36, CELL*.28, CELL*.28);
+        continue;
+      }
+      const flick = .92 + .08*Math.sin(i*7.3 + now/120);
+      const v = Math.min(1, (b + scanBoost) * flick);
+      const amber = spray[i] > tgt[i] && hueMap[i]===1;
+      const R = 255, G = amber ? 149 : Math.round(59*v+40*v), B = amber ? 0 : 30;
+      // bloom
+      const r = CELL*(.55 + .5*v);
+      const g2 = wx.createRadialGradient(gx*CELL+CELL/2, y*CELL+CELL/2, 0, gx*CELL+CELL/2, y*CELL+CELL/2, r);
+      g2.addColorStop(0, `rgba(${R},${G},${B},${v})`);
+      g2.addColorStop(.45, `rgba(${R},${G},${B},${v*.5})`);
+      g2.addColorStop(1, 'transparent');
+      wx.fillStyle = g2;
+      wx.fillRect(gx*CELL-CELL, y*CELL-CELL, CELL*3, CELL*3);
+    }
+  }
+  // spray burn-in decay
+  for (let i=0;i<spray.length;i++) spray[i] *= .994;
+}
+
+function loop(now){
+  requestAnimationFrame(loop);
+  if (scrollMode && !reduce){
+    scrollX += .45;
+    if (scrollX > GW + 10) scrollX = -textW - 6;
+  }
+  stampText();
+  render(now);
+}
+
+setText(document.getElementById('msg').value);
+requestAnimationFrame(loop);
+
+/* controls */
+document.getElementById('bShow').addEventListener('click', ()=>{
+  setText(document.getElementById('msg').value.toUpperCase() || 'HELLO');
+  if (!scrollMode) stampText();
+});
+document.getElementById('msg').addEventListener('keydown', e=>{
+  if (e.key==='Enter') document.getElementById('bShow').click();
+});
+const bMode = document.getElementById('bMode');
+bMode.addEventListener('click', ()=>{
+  scrollMode = !scrollMode;
+  bMode.textContent = scrollMode ? 'scroll mode' : 'static mode';
+  bMode.classList.toggle('on', scrollMode);
+  scrollX = -textW;
+});
+let sprayHue = 1;
+const bSpray = document.getElementById('bSpray');
+bSpray.addEventListener('click', ()=>{
+  sprayHue = 1 - sprayHue;
+  bSpray.textContent = 'spray: ' + (sprayHue ? 'amber' : 'red');
+});
+document.getElementById('bWipe').addEventListener('click', ()=>spray.fill(0));
+
+/* hand spray */
+let down = false;
+function daub(e){
+  const r = wall.getBoundingClientRect();
+  const gx = Math.floor((e.clientX-r.left)/r.width*GW);
+  const gy = Math.floor((e.clientY-r.top)/r.height*GH);
+  for (let dy=-2;dy<=2;dy++) for (let dx=-2;dx<=2;dx++){
+    const nx = gx+dx, ny = gy+dy;
+    if (nx<0||nx>=GW||ny<0||ny>=GH) continue;
+    const d = Math.hypot(dx,dy);
+    if (d>2.4) continue;
+    const i = ny*GW+nx;
+    spray[i] = Math.max(spray[i], 1 - d*.28);
+    hueMap[i] = sprayHue;
+  }
+}
+wall.addEventListener('pointerdown', e=>{ down=true; daub(e); try{wall.setPointerCapture(e.pointerId)}catch{} });
+wall.addEventListener('pointermove', e=>{ if(down) daub(e); });
+wall.addEventListener('pointerup', ()=>down=false);
+</script>
+</body>
+</html>

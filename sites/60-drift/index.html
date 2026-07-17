@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIFT — an ambient album that plays itself</title>
+<meta name="description" content="DRIFT is a self-playing generative ambient piece: layered Web Audio synthesis visualized as a waveform-terrain that deforms in real time with the music's spectrum.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Chivo+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#060815;
+    --aur1:#5eead4;
+    --aur2:#a78bfa;
+    --aur3:#f472b6;
+    --txt:#e6f2f0;
+    --dim:#8593a8;
+    --line:rgba(230,242,240,.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--txt);font-family:'Chivo Mono',monospace;overflow:hidden}
+  ::selection{background:var(--aur2);color:#0a0612}
+  #stage{position:fixed;inset:0;z-index:0}
+
+  header{position:fixed;top:0;left:0;right:0;z-index:3;display:flex;justify-content:space-between;
+    align-items:center;padding:1.3rem 2rem;pointer-events:none}
+  header *{pointer-events:auto}
+  .m{font-family:'Orbitron',sans-serif;font-weight:700;font-size:1.1rem;letter-spacing:.08em}
+  .m i{color:var(--aur1);font-style:normal}
+  nav{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--txt);text-decoration:none;opacity:.75;margin-left:1.5rem}
+  nav a:hover{opacity:1;color:var(--aur1)}
+
+  .hero{position:fixed;top:6.5rem;left:2rem;z-index:2;max-width:340px;pointer-events:none}
+  .hero h1{font-family:'Orbitron',sans-serif;font-weight:700;font-size:clamp(1.6rem,3.6vw,2.5rem);
+    line-height:1.15;text-shadow:0 2px 30px rgba(0,0,0,.6)}
+  .hero h1 em{font-style:normal;color:var(--aur1)}
+  .hero p{font-size:.72rem;letter-spacing:.05em;line-height:1.8;color:var(--dim);margin-top:1rem}
+
+  #boot{position:fixed;inset:0;z-index:50;background:rgba(6,8,21,.92);display:grid;place-items:center;
+    text-align:center;cursor:pointer;transition:opacity .8s,visibility .8s}
+  #boot.off{opacity:0;visibility:hidden}
+  #boot .inner h2{font-family:'Orbitron',sans-serif;font-weight:700;font-size:clamp(1.6rem,4.6vw,3rem)}
+  #boot .inner h2 span{color:var(--aur1)}
+  #boot .inner p{font-size:.7rem;letter-spacing:.28em;text-transform:uppercase;margin-top:1.6rem;
+    opacity:.7;animation:pulsehint 2.2s ease-in-out infinite}
+  @keyframes pulsehint{50%{opacity:.3}}
+
+  .panel{position:fixed;bottom:1.6rem;left:50%;transform:translateX(-50%);z-index:3;
+    display:flex;gap:1.3rem;align-items:center;background:rgba(10,14,28,.72);
+    backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:99px;
+    padding:.7rem 1.3rem;max-width:94vw;flex-wrap:wrap;justify-content:center}
+  #playBtn{width:38px;height:38px;border-radius:50%;background:var(--aur1);border:none;cursor:pointer;
+    display:grid;place-items:center;flex-shrink:0;transition:.2s;position:relative}
+  #playBtn:hover{background:var(--aur2)}
+  #playBtn svg{width:14px;height:14px}
+  .knob{display:flex;flex-direction:column;gap:.3rem;align-items:center}
+  .knob label{font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  input[type=range]{-webkit-appearance:none;width:80px;background:transparent;cursor:ew-resize}
+  input[type=range]::-webkit-slider-runnable-track{height:2px;background:rgba(230,242,240,.25);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+    background:var(--aur1);margin-top:-5px;cursor:pointer}
+  input[type=range]::-moz-range-track{height:2px;background:rgba(230,242,240,.25)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:var(--aur1)}
+  .divider{width:1px;height:26px;background:var(--line)}
+
+  footer{position:fixed;bottom:.5rem;right:1.4rem;z-index:2;font-size:.56rem;letter-spacing:.16em;
+    text-transform:uppercase;opacity:.4}
+  footer a{color:var(--txt)}
+
+  @media(max-width:760px){
+    .hero{left:1.2rem;top:6rem;max-width:230px}
+    .hero h1{font-size:1.4rem}
+    .panel{gap:.9rem;padding:.6rem 1rem;bottom:1rem}
+    input[type=range]{width:60px}
+    footer{display:none}
+  }
+  @media (prefers-reduced-motion: reduce){
+    #boot .inner p{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+
+<div id="boot">
+  <div class="inner">
+    <h2>The album is <span>already playing.</span></h2>
+    <p>tap to let it reach your speakers</p>
+  </div>
+</div>
+
+<header>
+  <span class="m">DR<i>IFT</i></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>Ambient music <em>that makes itself.</em></h1>
+  <p>a generative synth engine drifts through an evolving chord bed and sparse bell tones — the terrain below is its spectrum, deforming in real time</p>
+</div>
+
+<div class="panel">
+  <button id="playBtn" aria-label="Play or pause DRIFT" aria-pressed="true">
+    <svg id="playIcon" viewBox="0 0 24 24" fill="#06121a"><path d="M8 5v14l11-7z"/></svg>
+    <svg id="pauseIcon" viewBox="0 0 24 24" fill="#06121a" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+  </button>
+  <div class="divider"></div>
+  <div class="knob"><label>Density</label><input type="range" id="kDensity" min="0" max="100" value="42"></div>
+  <div class="knob"><label>Warmth</label><input type="range" id="kWarmth" min="0" max="100" value="55"></div>
+  <div class="knob"><label>Space</label><input type="range" id="kSpace" min="0" max="100" value="60"></div>
+</div>
+
+<footer>DRIFT — SITE 60 OF 62 · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* =========================================================
+   AUDIO ENGINE — generative ambient pad + bell scheduler
+   ========================================================= */
+let AC, master, analyser, started = false, playing = false;
+let padGains = [], padOscs = [], filterNode, reverbWet, reverbDry;
+let density = 42, warmth = 55, space = 60;
+
+const CHORDS = [
+  [130.81, 164.81, 196.00, 246.94],   // C3 E3 G3 B3
+  [146.83, 174.61, 220.00, 261.63],   // D3 F3 A3 C4
+  [110.00, 164.81, 196.00, 261.63],   // A2 E3 G3 C4
+  [123.47, 155.56, 196.00, 233.08],   // B2 Eb3 G3 Bb3
+];
+let chordIdx = 0;
+const SCALE = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25]; // C major pentatonic-ish, wide
+
+function buildAudioGraph(){
+  AC = new (window.AudioContext||window.webkitAudioContext)();
+  master = AC.createGain(); master.gain.value = 0.001;
+  analyser = AC.createAnalyser(); analyser.fftSize = 512;
+  master.connect(analyser); analyser.connect(AC.destination);
+
+  // warmth filter sits between pad and master
+  filterNode = AC.createBiquadFilter();
+  filterNode.type = 'lowpass';
+  filterNode.frequency.value = 400 + warmth*38;
+  filterNode.Q.value = 0.4;
+  filterNode.connect(master);
+
+  // simple algorithmic reverb: three parallel delay lines with feedback
+  reverbWet = AC.createGain(); reverbWet.gain.value = space/140;
+  reverbDry = AC.createGain(); reverbDry.gain.value = 1;
+  reverbDry.connect(master);
+  const reverbBus = AC.createGain();
+  reverbBus.connect(reverbWet); reverbWet.connect(master);
+  [0.31, 0.47, 0.63].forEach(t=>{
+    const d = AC.createDelay(2); d.delayTime.value = t;
+    const fb = AC.createGain(); fb.gain.value = 0.36;
+    d.connect(fb); fb.connect(d);
+    reverbBus.connect(d); d.connect(master);
+  });
+  window.__reverbBus = reverbBus;
+  window.__reverbDry = reverbDry;
+
+  // pad: 4 detuned voices per chord tone, slow amplitude LFOs (breathing)
+  const chord = CHORDS[chordIdx];
+  chord.forEach((freq,i)=>{
+    const o1 = AC.createOscillator(); o1.type='sine'; o1.frequency.value = freq;
+    const o2 = AC.createOscillator(); o2.type='triangle'; o2.frequency.value = freq*1.003;
+    const g = AC.createGain(); g.gain.value = 0;
+    o1.connect(g); o2.connect(g);
+    g.connect(filterNode); g.connect(window.__reverbBus);
+    o1.start(); o2.start();
+    // breathing LFO
+    const lfo = AC.createOscillator(); lfo.type='sine'; lfo.frequency.value = 0.05 + i*0.015;
+    const lfoGain = AC.createGain(); lfoGain.gain.value = 0.028;
+    const base = AC.createConstantSource(); base.offset.value = 0.05 + i*0.006;
+    lfo.connect(lfoGain); lfoGain.connect(g.gain); base.connect(g.gain);
+    lfo.start(); base.start();
+    padOscs.push(o1,o2,lfo,base); padGains.push(g);
+  });
+
+  scheduleChordChange();
+  scheduleBell();
+}
+
+function scheduleChordChange(){
+  if(!AC) return;
+  const nextIn = 26 + Math.random()*14;
+  setTimeout(()=>{
+    chordIdx = (chordIdx+1) % CHORDS.length;
+    const chord = CHORDS[chordIdx];
+    padGains.forEach((g,i)=>{});
+    // retune existing oscillators toward the new chord (2 osc per tone)
+    for(let i=0;i<chord.length;i++){
+      const o1 = padOscs[i*4], o2 = padOscs[i*4+1];
+      if(o1) o1.frequency.exponentialRampToValueAtTime(chord[i], AC.currentTime+6);
+      if(o2) o2.frequency.exponentialRampToValueAtTime(chord[i]*1.003, AC.currentTime+6);
+    }
+    scheduleChordChange();
+  }, nextIn*1000);
+}
+
+const ripples = []; // visual sync: {x:-1..1, t:0}
+function scheduleBell(){
+  if(!AC) return;
+  const gap = Math.max(0.35, 5.4 - density*0.05) * (0.6 + Math.random()*0.8);
+  setTimeout(()=>{
+    if(playing) fireBell();
+    scheduleBell();
+  }, gap*1000);
+}
+function fireBell(){
+  const freq = SCALE[Math.floor(Math.random()*SCALE.length)] * (Math.random()<0.5?1:2);
+  const o = AC.createOscillator(); o.type='sine'; o.frequency.value = freq;
+  const g = AC.createGain(); g.gain.setValueAtTime(0, AC.currentTime);
+  g.gain.linearRampToValueAtTime(0.16, AC.currentTime+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime+2.6);
+  const pan = AC.createStereoPanner(); pan.pan.value = (Math.random()*2-1)*0.7;
+  o.connect(g); g.connect(pan); pan.connect(window.__reverbDry); pan.connect(window.__reverbBus);
+  o.start(); o.stop(AC.currentTime+2.7);
+  // sync a visual ripple to the note: map frequency to a -1..1 x position
+  const norm = (freq - 220) / (1320-220);
+  ripples.push({ x: Math.max(-1,Math.min(1,norm*2-1)), t: 0, hue: (freq%660)/660 });
+}
+
+function boot(){
+  if(started) return; started = true;
+  buildAudioGraph();
+  playing = true;
+  master.gain.setTargetAtTime(0.62, AC.currentTime, 1.2);
+  document.getElementById('boot').classList.add('off');
+  document.getElementById('playIcon').style.display = 'none';
+  document.getElementById('pauseIcon').style.display = 'block';
+}
+document.getElementById('boot').addEventListener('click', boot);
+
+function togglePlay(){
+  if(!started){ boot(); return; }
+  playing = !playing;
+  if(playing){ AC.resume(); master.gain.setTargetAtTime(0.62, AC.currentTime, 0.8); }
+  else { master.gain.setTargetAtTime(0.0005, AC.currentTime, 0.8); }
+  document.getElementById('playIcon').style.display = playing ? 'none':'block';
+  document.getElementById('pauseIcon').style.display = playing ? 'block':'none';
+  document.getElementById('playBtn').setAttribute('aria-pressed', String(playing));
+}
+document.getElementById('playBtn').addEventListener('click', togglePlay);
+
+document.getElementById('kDensity').addEventListener('input', e=> density = +e.target.value);
+document.getElementById('kWarmth').addEventListener('input', e=>{
+  warmth = +e.target.value;
+  if(filterNode) filterNode.frequency.setTargetAtTime(400+warmth*38, AC.currentTime, 0.3);
+});
+document.getElementById('kSpace').addEventListener('input', e=>{
+  space = +e.target.value;
+  if(reverbWet) reverbWet.gain.setTargetAtTime(space/140, AC.currentTime, 0.3);
+});
+
+/* =========================================================
+   VISUALIZATION — waveform terrain + starfield + sun
+   ========================================================= */
+const canvas = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060815);
+scene.fog = new THREE.FogExp2(0x060815, 0.032);
+
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 4.6, 8.5);
+camera.lookAt(0, -0.2, -10);
+
+/* terrain */
+const COLS = 90, ROWS = 56, SPAN_X = 24, SPAN_Z = 26;
+const geo = new THREE.PlaneGeometry(SPAN_X, SPAN_Z, COLS, ROWS);
+geo.rotateX(-Math.PI/2);
+const posAttr = geo.getAttribute('position');
+const baseY = new Float32Array(posAttr.count);
+for(let i=0;i<posAttr.count;i++) baseY[i] = posAttr.getY(i);
+const colorAttr = new THREE.BufferAttribute(new Float32Array(posAttr.count*3), 3);
+geo.setAttribute('color', colorAttr);
+const mat = new THREE.MeshBasicMaterial({ vertexColors:true, fog:true });
+const terrain = new THREE.Mesh(geo, mat);
+terrain.position.z = -15;
+scene.add(terrain);
+
+const wireGeo = geo.clone();
+const wireMat = new THREE.MeshBasicMaterial({ color:0x5eead4, wireframe:true, transparent:true, opacity:0.16, fog:true });
+const wireMesh = new THREE.Mesh(wireGeo, wireMat);
+wireMesh.position.z = -15;
+scene.add(wireMesh);
+
+/* starfield */
+const STAR_N = 400;
+const starGeo = new THREE.BufferGeometry();
+const starPos = new Float32Array(STAR_N*3);
+for(let i=0;i<STAR_N;i++){
+  starPos[i*3]   = (Math.random()-0.5)*60;
+  starPos[i*3+1] = Math.random()*22 + 2;
+  starPos[i*3+2] = -Math.random()*70 - 5;
+}
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+const starMat = new THREE.PointsMaterial({ color:0xe6f2f0, size:0.06, transparent:true, opacity:0.7, sizeAttenuation:true });
+const stars = new THREE.Points(starGeo, starMat);
+scene.add(stars);
+
+/* distant aurora sun/glow */
+function makeGlowSprite(color, size){
+  const c = document.createElement('canvas'); c.width=c.height=256;
+  const gctx = c.getContext('2d');
+  const g = gctx.createRadialGradient(128,128,0,128,128,128);
+  g.addColorStop(0, color+'ff'); g.addColorStop(0.4, color+'55'); g.addColorStop(1, color+'00');
+  gctx.fillStyle=g; gctx.fillRect(0,0,256,256);
+  const tex = new THREE.CanvasTexture(c);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false }));
+  spr.scale.set(size,size,1);
+  return spr;
+}
+const glow1 = makeGlowSprite('#5eead4', 20); glow1.position.set(-6, 6, -24); scene.add(glow1);
+const glow2 = makeGlowSprite('#a78bfa', 26); glow2.position.set(8, 8, -30); scene.add(glow2);
+
+/* resize */
+function onResize(){
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
+addEventListener('resize', onResize);
+onResize();
+
+/* animation */
+const freqData = new Uint8Array(256);
+let hueShift = 0;
+let staticRendered = false;
+
+function updateTerrain(t, dt){
+  if(analyser && playing) analyser.getByteFrequencyData(freqData);
+  hueShift += dt*0.00004; // slow aurora drift — a full cycle takes ~25s
+  for(let iz=0; iz<=ROWS; iz++){
+    for(let ix=0; ix<=COLS; ix++){
+      const idx = iz*(COLS+1)+ix;
+      const nx = ix/COLS, nz = iz/ROWS; // 0..1
+      const wx = (nx-0.5)*SPAN_X, wz = (nz-0.5)*SPAN_Z;
+      // procedural base terrain: layered sine drift
+      let h = Math.sin(wx*0.35 + t*0.06)*0.35 + Math.sin(wz*0.28 - t*0.045)*0.3
+             + Math.sin((wx+wz)*0.18 + t*0.03)*0.25;
+      // audio spectral displacement: map x position to a frequency bin
+      const bin = Math.min(255, Math.floor(((wx/SPAN_X)+0.5) * 180));
+      const amp = (freqData[bin]||0)/255;
+      h += amp*amp*1.7 * (1 - nz*0.55); // stronger near camera, fades toward horizon
+      // note-synced ripples
+      for(let r=0;r<ripples.length;r++){
+        const rp = ripples[r];
+        const rx = rp.x * (SPAN_X/2);
+        const dist = Math.hypot(wx-rx, wz+SPAN_Z*0.15);
+        const wave = rp.t*9 - dist;
+        if(wave > -3 && wave < 3){
+          h += Math.exp(-dist*0.09) * Math.exp(-rp.t*0.55) * Math.sin(wave*1.6) * 1.4;
+        }
+      }
+      posAttr.setY(idx, baseY[idx] + h);
+      // color: height-based aurora ramp + slow global hue drift
+      const hue = (0.46 + h*0.045 + hueShift + nx*0.16) % 1;
+      const light = 0.34 + Math.min(0.4, amp*0.55) + Math.max(0,h)*0.05;
+      const c = new THREE.Color();
+      c.setHSL((hue+1)%1, 0.72, Math.min(0.72,light));
+      colorAttr.setXYZ(idx, c.r, c.g, c.b);
+    }
+  }
+  posAttr.needsUpdate = true;
+  colorAttr.needsUpdate = true;
+  wireGeo.getAttribute('position').array.set(posAttr.array);
+  wireGeo.getAttribute('position').needsUpdate = true;
+}
+
+let last = performance.now();
+function tick(now){
+  const dt = Math.min(48, now-last); last = now;
+  const t = now/1000;
+  if(!reduceMotion || !staticRendered){
+    updateTerrain(t, dt);
+    for(let i=ripples.length-1;i>=0;i--){ ripples[i].t += dt/1000; if(ripples[i].t>3.4) ripples.splice(i,1); }
+    stars.material.opacity = 0.55 + Math.sin(t*0.6)*0.15;
+    staticRendered = true;
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

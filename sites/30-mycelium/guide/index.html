@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How MYCELIUM was made — guide</title>
+<meta name="description" content="How the MYCELIUM site was designed and built: techniques, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #7cffb2; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#080a0d; color:#e3f3ea;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#8fa89b; text-decoration:none; border-bottom:1px solid #1a2320; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#8fa89b; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #141b18;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { margin-bottom: 1rem; }
+  code { font-family:'Fragment Mono', monospace; font-size:.92em; color:#bdf5d6; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#bcd9c8;
+    background:#0d1310; border:1px solid #141b18; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #141b18;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a988f; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#080a0d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to MYCELIUM</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 30 of 50 · Wing II · how it was made</div>
+  <h1>MYCELIUM</h1>
+  <p class="sub">A network grows out of the photograph</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>The brief for this site asked for growth that looks like it's "emerging from the photo" rather than sitting on top of it — so the growth's starting points had to come from the photo, literally. Instead of hand-placing seed coordinates, the page reads the hero image's own pixels at load time, finds the bright cyan-green ones (the glowing threads and mushroom caps, not the dark soil around them), and uses those exact positions as the origins for a recursive branching system. The generative network is answering the photograph, not decorating it.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Hero: one nano_banana_pro generation, "bioluminescent mycelium threads and small glowing mushroom caps on dark forest soil, macro, cyan-green glow" — used as a full-bleed <code>object-fit:cover</code> background</li>
+    <li>Seeding: the image is drawn into a hidden 172×96 canvas, every pixel scored by <code>green*1.3 + blue*0.5 − red*0.9</code> to isolate the glow from the brown/black soil, top-scoring pixels greedily kept while enforcing a minimum spacing so seeds spread across the frame instead of clustering on one mushroom cap</li>
+    <li>Coordinate mapping: seed points are stored as 0–1 normalized image coordinates, then mapped to on-screen pixels using the exact same scale/offset math the browser applies for <code>object-fit:cover</code> — so a seed genuinely lines up with the bright pixel it was sampled from, at any viewport size</li>
+    <li>Growth: each active tip steps forward with a small random heading change every frame, occasionally forking into two tips at a shallower angle and reduced width (capped at depth 7), and retires when its life budget or width runs out — a minimal L-system-flavored rule set, no external library</li>
+    <li>Rendering is additive and never clears — segments accumulate as short strokes with <code>hsla</code> color, so the network looks etched rather than painted, and stays visually consistent with the render cost bounded by a hard cap of 140 concurrent tips</li>
+    <li>Clicking anywhere drops a new spore (three fresh tips at that point), the one deliberate piece of visitor-driven interactivity beyond the ambient growth</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Familjen Grotesk (display/body) + Martian Mono (HUD/labels) · near-black #05070a · bioluminescent green #7cffb2 · teal glow #4dffe0</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Draw the source image into an offscreen canvas and read its pixel data with <code>getImageData</code> — score pixels by the channel combination that matches your subject's glow, not just raw brightness</li>
+    <li>Greedily select high-scoring pixels while enforcing a minimum pairwise distance, so seeds spread rather than pile up on the single brightest spot</li>
+    <li>Re-derive the same <code>object-fit:cover</code> scale/offset math in JS to convert normalized image coordinates back to screen pixels — this is what keeps generated elements visually locked to the photo under it</li>
+    <li>Keep the branching rule set tiny: step, jitter the heading, occasionally fork with reduced width, retire past a life or width threshold — complexity emerges from repetition, not from the rule itself</li>
+    <li>Cap total active tips with a hard ceiling so the simulation is self-limiting instead of needing a manual stop condition</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration passes</h2>
+  <p><b>Build pass:</b> the first pixel-scoring pass used raw luminance, which also picked up bright specular highlights on wet dead leaves — switching to the green/blue-weighted, red-penalized score above cleanly isolated the bioluminescent pixels from the rest of the frame.</p>
+  <p><b>Code-review pass:</b> the canvas pixel read is wrapped in try/catch with a hardcoded normalized fallback point set, so a blocked cross-origin canvas (e.g. opening the file directly rather than through a server) degrades to a fixed, still-reasonable seed layout instead of throwing and leaving the hero blank. Verified the growth loop is <code>requestAnimationFrame</code>-only under normal motion and fully replaced by a synchronous "fast-forward to completion" pass under <code>prefers-reduced-motion</code>, so a reduced-motion visitor sees the finished network immediately with no animation loop running at all.</p>
+  <p><b>Live-browser pass:</b> served locally; on first paint before the image finished decoding, the canvas briefly rendered against a 0×0 sizing on some reloads — moved the seeding and resize call into the image's <code>load</code> handler (with an immediate check for <code>img.complete</code> as a fallback for cached loads) so seeding always runs against real pixel data.</p>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wing II), Anthropic ·
+    hero image: Higgsfield <code>nano_banana_pro</code>, ~2cr, one generation ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    3 documented iteration passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

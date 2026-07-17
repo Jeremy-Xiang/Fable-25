@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ABYSSA — the reef that makes its own light</title>
+<meta name="description" content="ABYSSA is a real-time 3D dive through a bioluminescent reef: a generated deep-sea backdrop, a drifting plankton particle field, and procedural coral, all in Three.js.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Martian+Mono:wght@300;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --abyss:#050b14;
+    --cyan:#3ff0d8;
+    --magenta:#e64fe0;
+    --ink:#dfeffb;
+    --dim:rgba(223,239,251,.62);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--abyss);color:var(--ink);
+    font-family:'Bricolage Grotesque',sans-serif;overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--magenta);color:#050b14}
+  .mono{font-family:'Martian Mono',monospace}
+
+  #scene{position:fixed;inset:0;z-index:0}
+  #fallbackImg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;display:none}
+  .vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 45%,transparent 40%,rgba(5,11,20,.88) 100%)}
+
+  main{position:relative;z-index:2}
+  nav.top{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;
+    align-items:center;padding:1.5rem 2.2rem;pointer-events:none}
+  nav.top>*{pointer-events:auto}
+  .mark{font-weight:800;font-size:1.05rem;letter-spacing:.02em}
+  .mark i{font-style:normal;color:var(--cyan)}
+  .links{font-family:'Martian Mono',monospace;font-size:.65rem;letter-spacing:.16em;text-transform:uppercase}
+  .links a{color:var(--ink);text-decoration:none;opacity:.7;margin-left:1.6rem;transition:opacity .25s,color .25s}
+  .links a:hover{opacity:1;color:var(--cyan)}
+
+  .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+    padding:0 6vw;max-width:900px}
+  .hero .kicker{font-family:'Martian Mono',monospace;font-size:.68rem;letter-spacing:.32em;
+    text-transform:uppercase;color:var(--cyan);margin-bottom:1.6rem}
+  .hero h1{font-size:clamp(2.4rem,7vw,5.4rem);font-weight:800;line-height:1.02;letter-spacing:-.01em}
+  .hero h1 em{font-style:normal;background:linear-gradient(90deg,var(--cyan),var(--magenta));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{margin-top:1.8rem;font-size:1.08rem;line-height:1.7;color:var(--dim);max-width:46ch}
+  .scrollhint{margin-top:3rem;font-family:'Martian Mono',monospace;font-size:.62rem;letter-spacing:.28em;
+    text-transform:uppercase;opacity:.55;animation:bob 2.2s ease-in-out infinite}
+  @keyframes bob{50%{transform:translateY(8px)}}
+
+  .panel{min-height:88vh;display:flex;align-items:center;padding:0 6vw}
+  .panel.right{justify-content:flex-end}
+  .panel.center{justify-content:center;text-align:center}
+  .card{max-width:480px;opacity:0;transform:translateY(36px);transition:opacity 1s ease,transform 1s cubic-bezier(.2,.7,.2,1)}
+  .card.in{opacity:1;transform:none}
+  .card .no{font-family:'Martian Mono',monospace;font-size:.65rem;letter-spacing:.28em;
+    text-transform:uppercase;color:var(--magenta);display:block;margin-bottom:1.1rem}
+  .card h2{font-size:clamp(1.7rem,3.6vw,2.6rem);font-weight:600;line-height:1.12;margin-bottom:1.1rem}
+  .card p{color:var(--dim);line-height:1.8;font-size:1rem}
+  .depthreadout{position:fixed;bottom:1.6rem;left:2.2rem;z-index:20;font-family:'Martian Mono',monospace;
+    font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
+    display:flex;flex-direction:column;gap:.3rem;pointer-events:none}
+  .depthreadout .bar{width:120px;height:2px;background:rgba(223,239,251,.16);position:relative;margin-top:.2rem}
+  .depthreadout .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--cyan);width:0%}
+
+  footer{position:relative;z-index:2;padding:10vh 6vw 6vh;border-top:1px solid rgba(223,239,251,.12);
+    display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.4rem;font-family:'Martian Mono',monospace;
+    font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}
+  footer a{color:var(--cyan);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  .noscript-note{position:fixed;bottom:1rem;right:1rem;z-index:30;font-family:'Martian Mono',monospace;
+    font-size:.6rem;color:var(--dim);background:rgba(5,11,20,.7);padding:.5rem .8rem;border-radius:6px;
+    border:1px solid rgba(223,239,251,.15);max-width:220px;display:none}
+
+  @media(max-width:760px){
+    .hero{padding:0 6vw;align-items:flex-start}
+    nav.top{padding:1.2rem 1.4rem}
+    .depthreadout{display:none}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .card{transition:opacity .3s ease;transform:none}
+    .scrollhint{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene" aria-hidden="true"></canvas>
+<div id="fallbackImg" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<main>
+  <nav class="top">
+    <span class="mark">ABYSS<i>A</i></span>
+    <span class="links"><a href="guide/">Guide</a><a href="../">Index</a></span>
+  </nav>
+
+  <section class="hero">
+    <span class="kicker">Bioluminescent reef · real-time 3D</span>
+    <h1>The reef writes its<br>own light, <em>not ours.</em></h1>
+    <p>A generated deep-sea backdrop sits behind a live particle field of drifting plankton and a handful of procedural coral — a real Three.js scene, not a video. Move your cursor. Scroll down. The camera actually swims.</p>
+    <span class="scrollhint mono">↓ descend</span>
+  </section>
+
+  <section class="panel">
+    <div class="card">
+      <span class="no">01 — Depth</span>
+      <h2>Nothing down here needs the sun.</h2>
+      <p>Past a few hundred meters, sunlight gives out entirely. What's left is a handful of species that learned to produce their own — cold, chemical, unmistakably alive. ABYSSA is a small study of that light: a still frame from Higgsfield layered with a live particle system so the glow actually moves.</p>
+    </div>
+  </section>
+
+  <section class="panel right">
+    <div class="card">
+      <span class="no">02 — Plankton</span>
+      <h2>Every point of light is doing its own thing.</h2>
+      <p>Roughly a thousand individually-driven particles drift on independent velocities and gentle noise, tinted across the cyan-to-magenta range sampled from the backdrop. None of them share a path — that's what keeps the field from reading as a loop.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="card">
+      <span class="no">03 — Coral</span>
+      <h2>Procedural growth, not modeled growth.</h2>
+      <p>The foreground shapes are torus-knots and lathes built from math, not sculpted — each one seeded with a different twist and radius so no two read the same, then lit with emissive cyan and magenta cores like the real thing.</p>
+    </div>
+  </section>
+
+  <section class="panel center">
+    <div class="card" style="max-width:560px">
+      <span class="no">04 — Depth cue</span>
+      <h2>Parallax is the whole trick.</h2>
+      <p>The backdrop plane barely moves. The plankton move more. The coral, being closest, moves most of all. Three depth layers responding at three different rates is what convinces your eye there's actually distance between them — genuine 3D, not a painted illusion.</p>
+    </div>
+  </section>
+
+  <div class="depthreadout mono" id="depthreadout">
+    DEPTH<span id="depthval">— m</span>
+    <div class="bar"><i id="depthbar"></i></div>
+  </div>
+
+  <footer>
+    <span>ABYSSA — bioluminescent reef, Three.js particle field &amp; procedural coral<br>Wing II · Site 36 of 50 · designed &amp; built by Claude</span>
+    <span><a href="guide/">How it was made →</a><br><a href="../">All sites</a></span>
+  </footer>
+</main>
+
+<div class="noscript-note" id="wglnote">WebGL isn't available here — showing the still backdrop instead.</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let webglOK = true;
+try{
+  const testCanvas = document.createElement('canvas');
+  webglOK = !!(window.WebGLRenderingContext && (testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl')));
+}catch(e){ webglOK = false; }
+
+if(!webglOK){
+  document.getElementById('scene').style.display='none';
+  const fb = document.getElementById('fallbackImg');
+  fb.style.backgroundImage = "url('assets/hero.jpg')";
+  fb.style.display = 'block';
+  document.getElementById('wglnote').style.display='block';
+  document.getElementById('depthreadout').style.display='none';
+}else{
+
+const canvas = document.getElementById('scene');
+let renderer;
+try{
+  renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+}catch(e){
+  canvas.style.display='none';
+  const fb = document.getElementById('fallbackImg');
+  fb.style.backgroundImage = "url('assets/hero.jpg')";
+  fb.style.display = 'block';
+  document.getElementById('wglnote').style.display='block';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x050b14, 0.038);
+
+const camera = new THREE.PerspectiveCamera(48,1,0.1,120);
+camera.position.set(0,0,10);
+
+/* backdrop: generated reef image on a plane far behind everything */
+const loader = new THREE.TextureLoader();
+const tex = loader.load('assets/hero.jpg');
+tex.colorSpace = THREE.SRGBColorSpace;
+const bgDist = -42;
+const bgFovH = 2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*Math.abs(camera.position.z - bgDist);
+const bgPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(1,1),
+  new THREE.MeshBasicMaterial({map:tex, fog:false})
+);
+bgPlane.position.z = bgDist;
+scene.add(bgPlane);
+function fitBg(){
+  const dist = camera.position.z - bgPlane.position.z;
+  const h = 2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*dist;
+  const w = h*camera.aspect*1.05;
+  bgPlane.scale.set(w, h*1.05, 1);
+}
+
+/* plankton particle field */
+const N = 1100;
+const positions = new Float32Array(N*3);
+const speeds = new Float32Array(N*3);
+const colors = new Float32Array(N*3);
+const cyan = new THREE.Color(0x3ff0d8), mag = new THREE.Color(0xe64fe0);
+for(let i=0;i<N;i++){
+  positions[i*3]   = (Math.random()-.5)*26;
+  positions[i*3+1] = (Math.random()-.5)*16;
+  positions[i*3+2] = -30 + Math.random()*32;
+  speeds[i*3]   = (Math.random()-.5)*.006;
+  speeds[i*3+1] = (Math.random()-.5)*.004 + .003;
+  speeds[i*3+2] = (Math.random()-.5)*.004;
+  const c = cyan.clone().lerp(mag, Math.random());
+  colors[i*3]=c.r; colors[i*3+1]=c.g; colors[i*3+2]=c.b;
+}
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+pGeo.setAttribute('color', new THREE.BufferAttribute(colors,3));
+const pMat = new THREE.PointsMaterial({
+  size:.09, vertexColors:true, transparent:true, opacity:.85,
+  blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
+});
+const plankton = new THREE.Points(pGeo, pMat);
+scene.add(plankton);
+
+/* procedural coral: torus-knots + lathes, emissive */
+const coralGroup = new THREE.Group();
+function makeCoral(x,y,z,scale,hue,type){
+  let geo;
+  if(type===0) geo = new THREE.TorusKnotGeometry(.7,.2,90,10,2,3);
+  else if(type===1) geo = new THREE.TorusKnotGeometry(.5,.16,80,8,3,2);
+  else {
+    const pts=[];
+    for(let i=0;i<8;i++) pts.push(new THREE.Vector2(.3+Math.sin(i*.8)*.25, i*.35));
+    geo = new THREE.LatheGeometry(pts, 12);
+  }
+  const mat = new THREE.MeshStandardMaterial({
+    color:new THREE.Color(hue).multiplyScalar(.35),
+    emissive:new THREE.Color(hue), emissiveIntensity:.9,
+    roughness:.4, metalness:.1
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x,y,z);
+  m.scale.setScalar(scale);
+  m.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+  m.userData.spin = (Math.random()-.5)*.08;
+  coralGroup.add(m);
+}
+makeCoral(-3.4,-2.6,-4,1.1,0x3ff0d8,0);
+makeCoral(3.2,-2.2,-7,1.4,0xe64fe0,1);
+makeCoral(-1.6,-3.2,-11,.9,0x5fe0ff,2);
+makeCoral(4.6,-1.4,-14,1.0,0xd84fe0,0);
+makeCoral(-4.8,-1.0,-18,1.3,0x3ff0d8,1);
+scene.add(coralGroup);
+
+scene.add(new THREE.AmbientLight(0x1a2a3a,1.4));
+const glow1 = new THREE.PointLight(0x3ff0d8, 2.2, 20); glow1.position.set(-3,0,-3); scene.add(glow1);
+const glow2 = new THREE.PointLight(0xe64fe0, 2.0, 20); glow2.position.set(3,-1,-8); scene.add(glow2);
+
+/* interaction: pointer parallax + scroll dive */
+let mx=0,my=0,tmx=0,tmy=0,scrollP=0;
+addEventListener('pointermove', e=>{
+  tmx=(e.clientX/innerWidth-.5)*2;
+  tmy=(e.clientY/innerHeight-.5)*2;
+});
+function getScrollP(){
+  const max = document.body.scrollHeight - innerHeight;
+  return max>0 ? Math.min(1, Math.max(0, scrollY/max)) : 0;
+}
+addEventListener('scroll', ()=>{ scrollP = getScrollP(); }, {passive:true});
+
+function resize(){
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  fitBg();
+}
+addEventListener('resize', resize); resize();
+
+const depthVal = document.getElementById('depthval');
+const depthBar = document.getElementById('depthbar');
+const clock = new THREE.Clock();
+
+renderer.setAnimationLoop(()=>{
+  const dt = reduced ? 0 : Math.min(clock.getDelta(), .05);
+  if(!reduced){
+    mx += (tmx-mx)*.04; my += (tmy-my)*.04;
+  }
+
+  /* camera dive: dolly forward through the reef as you scroll */
+  const diveZ = 10 - scrollP*24;
+  camera.position.x = mx*1.1;
+  camera.position.y = -my*.7;
+  camera.position.z = diveZ;
+  camera.lookAt(mx*1.1*.3, -my*.7*.3, diveZ-10);
+
+  if(!reduced){
+    /* plankton drift */
+    const p = pGeo.attributes.position.array;
+    for(let i=0;i<N;i++){
+      p[i*3]   += speeds[i*3];
+      p[i*3+1] += speeds[i*3+1];
+      p[i*3+2] += speeds[i*3+2];
+      if(p[i*3+1] > 9) p[i*3+1] = -9;
+      if(Math.abs(p[i*3]) > 14) speeds[i*3]*=-1;
+    }
+    pGeo.attributes.position.needsUpdate = true;
+
+    coralGroup.children.forEach(m=>{ m.rotation.y += m.userData.spin*dt; });
+    const t = clock.elapsedTime;
+    glow1.intensity = 1.8 + Math.sin(t*1.3)*.5;
+    glow2.intensity = 1.6 + Math.cos(t*1.1)*.5;
+  }
+
+  depthVal.textContent = Math.round(scrollP*380)+' m';
+  depthBar.style.width = (scrollP*100)+'%';
+
+  renderer.render(scene, camera);
+});
+
+const io = new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+}), {threshold:.25});
+document.querySelectorAll('.card').forEach(el=>io.observe(el));
+
+} // webglOK
+</script>
+</body>
+</html>

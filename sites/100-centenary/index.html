@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ONE HUNDRED — the centenary site</title>
+<meta name="description" content="Site 100 of 100. Ninety-nine tiles — one for every site that came before — assemble themselves into the number 100, then scatter into a constellation you can stir. The finale is the collection.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0a12'/%3E%3Ctext x='16' y='21' font-size='11' font-weight='800' text-anchor='middle' fill='%23ffd76a' font-family='sans-serif'%3E100%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#0b0a12; --ink:#f0ecf7; --dim:#8f8aa3; --dim2:#4f4b62; --gold:#ffd76a; --line:rgba(240,236,247,.1); }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:
+    radial-gradient(70% 55% at 50% 10%, rgba(255,215,106,.05), transparent 60%),
+    var(--bg);
+  color:var(--ink); font-family:'Fraunces',serif; height:100vh; overflow:hidden}
+::selection{background:var(--gold); color:#241a02}
+a:focus-visible,button:focus-visible{outline:2px solid var(--gold); outline-offset:3px}
+
+#stage{position:fixed; inset:0; width:100%; height:100%}
+
+header{position:fixed; top:0; left:0; right:0; z-index:5; display:flex; justify-content:space-between;
+  padding:1.3rem 1.6rem; pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-weight:600; font-size:1rem; letter-spacing:.2em}
+.mark em{font-style:normal; color:var(--gold)}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'JetBrains Mono',monospace; font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--gold)}
+
+.plate{position:fixed; left:0; right:0; bottom:7vh; z-index:5; text-align:center; pointer-events:none}
+.plate h1{font-weight:300; font-size:clamp(1.4rem,3.4vw,2.2rem); line-height:1.35}
+.plate h1 em{font-style:italic; color:var(--gold)}
+.plate p{font-family:'JetBrains Mono',monospace; font-size:.6rem; letter-spacing:.26em; text-transform:uppercase; color:var(--dim2); margin-top:.7rem}
+.plate .tip{color:var(--dim)}
+
+.deck{position:fixed; right:1.6rem; bottom:1.5rem; z-index:6; display:flex; gap:.6rem}
+.deck button{
+  font-family:'JetBrains Mono',monospace; font-size:.6rem; letter-spacing:.16em; text-transform:uppercase;
+  background:rgba(11,10,18,.8); border:1px solid var(--line); color:var(--ink); border-radius:999px;
+  padding:.6rem 1.1rem; cursor:pointer; transition:.15s;
+}
+.deck button:hover{border-color:var(--gold); color:var(--gold)}
+
+#tipname{position:fixed; z-index:7; pointer-events:none; font-family:'JetBrains Mono',monospace;
+  font-size:.62rem; letter-spacing:.16em; text-transform:uppercase; color:var(--gold);
+  background:rgba(11,10,18,.92); border:1px solid var(--line); border-radius:6px; padding:.35rem .6rem;
+  opacity:0; transition:opacity .15s; white-space:nowrap}
+</style>
+</head>
+<body>
+
+<canvas id="stage" aria-label="Ninety-nine tiles forming the number 100; hover to identify each site, click to visit"></canvas>
+<div id="tipname"></div>
+
+<header>
+  <span class="mark">ONE <em>HUNDRED</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="plate">
+  <h1>Ninety-nine sites walked in<br>so this one could <em>take a bow.</em></h1>
+  <p><span class="tip">hover a tile</span> — every dot is a real site · click to visit</p>
+</div>
+
+<div class="deck" role="group" aria-label="Finale controls">
+  <button id="bForm">form 100</button>
+  <button id="bScatter">constellation</button>
+</div>
+
+<script>
+/* ═════ ONE HUNDRED — the centenary finale ═════
+   99 tiles = the 99 previous sites (real slugs, real accents).
+   They spring between two layouts: pixel positions sampled from the
+   text "100", or a spiral constellation. Hover names a site; click
+   opens it. The collection is the artwork. */
+
+const SITES = [
+["01-lumen","#7fd4ff"],["02-monolith","#d8d4c8"],["03-raw","#ff4b3e"],["04-raster","#ffd23e"],["05-celeste","#9db4ff"],
+["06-orbital","#ffb454"],["07-phosphor","#4dff88"],["08-gilded","#e8b45a"],["09-ma","#e8e4d8"],["10-chroma","#ff4fd8"],
+["11-goo","#8fe38f"],["12-ascii","#7fffd4"],["13-spielplatz","#ff5c5c"],["14-obsidienne","#b8a8ff"],["15-missionctrl","#7fd47f"],
+["16-papier","#ffa8a8"],["17-nimbus","#a8c8ff"],["18-verba","#d8ff3e"],["19-herbarium","#6fbf6f"],["20-nightledger","#8fb4d4"],
+["21-neondistrict","#ff2fd8"],["22-tekton","#d4d4d4"],["23-liquida","#54e0c8"],["24-meadow","#ffd47f"],["25-resonance","#c89fff"],
+["26-aurora","#54ffb4"],["27-terrazzo","#e8a87f"],["28-kintsugi","#ffd76a"],["29-glacier","#a8e8ff"],["30-mycelium","#d4b48f"],
+["31-riso","#ff6f54"],["32-oscilloscope","#54ff54"],["33-tessera","#7f9fff"],["34-cartograph","#d8c8a8"],["35-orrery","#ffb46a"],
+["36-coral","#ff7f9f"],["37-murmuration","#a8b8d8"],["38-facet","#8fd4ff"],["39-manuscript","#e8d4a8"],["40-thunderhead","#9f9fd4"],
+["41-loom","#d49f7f"],["42-inkwash","#c8c8d8"],["43-holotype","#8fe8c8"],["44-magneto","#ff8f54"],["45-dunes","#e8c89f"],
+["46-cathedral","#b49fd4"],["47-cassette","#ff9f6a"],["48-murano","#7fc8e8"],["49-transit","#ffd43e"],["50-eclipse","#ff6a3e"],
+["51-mercury","#ffb8d8"],["52-marionette","#d8d0c0"],["53-salvo","#ff5c3e"],["54-censer","#9fd4b8"],["55-automaton","#e8dcc0"],
+["56-gloaming","#d49f54"],["57-drape","#ff9f3e"],["58-revenant","#6fd49f"],["59-lathe","#4f9fd4"],["60-drift","#c0b4a0"],
+["61-observatory","#a8e0e8"],["62-zenith","#8f8fd8"],["63-splash","#3ee6d8"],["64-flowmenu","#f2a33c"],["65-curveloop","#b06bff"],
+["66-magnetic","#ff5c6a"],["67-tilt","#6ec6ff"],["68-decode","#4dff88"],["69-morph","#ff4fd8"],["70-shatter","#ff7a3c"],
+["71-reel","#e0c05a"],["72-ripple","#3fa9f5"],["73-ironhand","#66e0ff"],["74-atelier","#d8ff3e"],["75-butter","#e0742c"],
+["76-chromatic","#ff3355"],["77-unfold","#1d4ed8"],["78-raymarch","#ffb454"],["79-flowfield","#6fe3c1"],["80-typestretch","#ff6b9d"],
+["81-departures","#ffd23e"],["82-xerox","#00b389"],["83-contour","#bb4d2c"],["84-system9","#669999"],["85-refract","#bfe3ff"],
+["86-pixelsort","#ff9e3d"],["87-tarot","#c9a2ff"],["88-weave","#a34a28"],["89-zoom","#7ba7ff"],["90-metamorph","#b8562e"],
+["91-ledwall","#ff9500"],["92-origami","#c9b458"],["93-antigrav","#66ffd1"],["94-halftone","#e5378a"],["95-caustics","#7fe6ff"],
+["96-marquee","#ede40e"],["97-diorama","#e8b45a"],["98-inkblot","#c9a0ae"],["99-eras","#6c5ce7"],
+];
+
+const cv = document.getElementById('stage');
+const x = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H;
+
+/* sample "100" into 99 slots */
+function sampleTargets(){
+  const t = document.createElement('canvas');
+  t.width = 300; t.height = 130;
+  const tx = t.getContext('2d', { willReadFrequently:true });
+  tx.font = '900 120px "Arial Black", sans-serif';
+  tx.textBaseline = 'middle';
+  tx.fillText('100', 8, 70);
+  const d = tx.getImageData(0,0,t.width,t.height).data;
+  const pts = [];
+  for (let py=0; py<t.height; py+=3)
+    for (let px=0; px<t.width; px+=3)
+      if (d[(py*t.width+px)*4+3] > 128) pts.push([px/t.width, py/t.height]);
+  // pick 99 evenly
+  const out = [];
+  for (let i=0;i<99;i++) out.push(pts[Math.floor(i*pts.length/99)]);
+  return out;
+}
+let formPts = sampleTargets();
+
+const tiles = SITES.map(([slug, color], i)=>({
+  slug, color, i,
+  x: Math.random(), y: Math.random(), vx:0, vy:0,
+  r: 5 + (i%5),
+}));
+
+let mode = 'form';   // 'form' | 'scatter'
+function targetOf(t, i, time){
+  if (mode==='form'){
+    const [fx, fy] = formPts[i];
+    return [ .5 + (fx-.5)*.72, .44 + (fy-.5)*.5 ];
+  }
+  // spiral constellation
+  const a = i*.35 + time*.02;
+  const r = .06 + (i/99)*.36;
+  return [ .5 + Math.cos(a)*r*1.15, .46 + Math.sin(a)*r ];
+}
+
+function resize(){ W=cv.width=innerWidth; H=cv.height=innerHeight; }
+addEventListener('resize', resize); resize();
+
+let mx=-99, my=-99, hover=null;
+addEventListener('pointermove', e=>{ mx=e.clientX; my=e.clientY; });
+
+const tip = document.getElementById('tipname');
+cv.addEventListener('click', ()=>{
+  if (hover) location.href = '../' + hover.slug + '/';
+});
+
+(function loop(now){
+  requestAnimationFrame(loop);
+  const time = now/1000;
+  x.fillStyle = 'rgba(11,10,18,.32)';
+  x.fillRect(0,0,W,H);
+
+  hover = null;
+  let hd = 22;
+  for (let i=0;i<tiles.length;i++){
+    const t = tiles[i];
+    const [txn, tyn] = targetOf(t, i, time);
+    const px = txn*W, py = tyn*H;
+    // spring
+    t.vx += (px - t.x*W)*.004; t.vy += (py - t.y*H)*.004;
+    t.vx *= .86; t.vy *= .86;
+    if (reduce){ t.x = px/W; t.y = py/H; }
+    else { t.x += t.vx/W; t.y += t.vy/H; }
+
+    const sx2 = t.x*W, sy2 = t.y*H;
+    const d = Math.hypot(mx-sx2, my-sy2);
+    if (d < hd){ hd = d; hover = t; }
+
+    const glow = hover===t ? 2 : 1;
+    x.fillStyle = t.color;
+    x.globalAlpha = .92;
+    x.beginPath(); x.arc(sx2, sy2, t.r*.55*glow, 0, 7); x.fill();
+    x.globalAlpha = .2;
+    x.beginPath(); x.arc(sx2, sy2, t.r*1.5*glow, 0, 7); x.fill();
+    x.globalAlpha = 1;
+  }
+
+  if (hover){
+    tip.textContent = '№ ' + hover.slug.replace('-',' — ');
+    tip.style.left = Math.min(innerWidth-170, mx+14)+'px';
+    tip.style.top = (my-34)+'px';
+    tip.style.opacity = 1;
+    cv.style.cursor = 'pointer';
+  } else {
+    tip.style.opacity = 0;
+    cv.style.cursor = 'default';
+  }
+})(0);
+
+document.getElementById('bForm').addEventListener('click', ()=>mode='form');
+document.getElementById('bScatter').addEventListener('click', ()=>mode='scatter');
+</script>
+</body>
+</html>

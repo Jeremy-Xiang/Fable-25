@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IRONHAND — a desktop you move with your hand</title>
+<meta name="description" content="MediaPipe hand tracking as a UI: open palm to point, fist to collect the chips and carry them, sharp pinch to click. Camera optional — mouse mode simulates every gesture.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23120b0b'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%2366e0ff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.4' fill='%23ff4b3e'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0909; --bg2:#120b0b; --ink:#f2e9e4; --dim:#9c8f8a; --dim2:#5f5450;
+  --line:rgba(242,233,228,.1);
+  --arc:#66e0ff; --arcSoft:rgba(102,224,255,.16);
+  --red:#ff4b3e; --redSoft:rgba(255,75,62,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(60% 50% at 82% 10%, rgba(255,75,62,.13), transparent 62%),
+    radial-gradient(45% 40% at 8% 88%, rgba(102,224,255,.05), transparent 60%),
+    var(--bg);
+  color:var(--ink); font-family:'Chakra Petch',system-ui,sans-serif;
+  min-height:100vh; display:flex; flex-direction:column; overflow-x:hidden;
+}
+::selection{background:var(--arc);color:#08222b}
+
+header{display:flex; justify-content:space-between; align-items:center; padding:1.3rem 1.6rem; position:relative; z-index:5}
+.mark{font-weight:700; letter-spacing:.22em; font-size:.86rem}
+.mark em{font-style:normal; color:var(--red)}
+nav{display:flex; gap:1.6rem}
+nav a{font-family:'JetBrains Mono',monospace; font-size:.62rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--arc)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--arc); outline-offset:3px}
+
+.hero{text-align:center; padding:1.4rem 1.2rem .6rem; position:relative; z-index:5}
+h1{font-size:clamp(1.9rem,5.2vw,3.4rem); font-weight:700; letter-spacing:.02em; line-height:1.08}
+h1 .a{color:var(--arc)} h1 .r{color:var(--red)}
+.sub{max-width:34rem; margin:.9rem auto 0; color:var(--dim); font-size:.95rem; line-height:1.65}
+.ctaRow{display:flex; gap:.8rem; justify-content:center; margin:1.5rem 0 .4rem; flex-wrap:wrap}
+.btn{
+  font-family:'JetBrains Mono',monospace; font-size:.68rem; letter-spacing:.14em; text-transform:uppercase;
+  padding:.85rem 1.5rem; border-radius:999px; cursor:pointer; transition:.2s;
+  border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--ink);
+}
+.btn:hover{border-color:var(--arc); color:var(--arc)}
+.btn.solid{background:var(--arc); border-color:var(--arc); color:#07222b; font-weight:500}
+.btn.solid:hover{box-shadow:0 0 26px rgba(102,224,255,.35); color:#07222b}
+.status{
+  font-family:'JetBrains Mono',monospace; font-size:.6rem; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--dim2); margin-top:.7rem; min-height:1.1em;
+}
+.status b{color:var(--arc); font-weight:500}
+.status .warn{color:var(--red)}
+
+/* ── the stage ─────────────────────────────────────────── */
+.stageWrap{flex:1; display:flex; justify-content:center; padding:1.2rem 1.4rem 1.6rem; position:relative; z-index:4}
+#stage{
+  position:relative; width:min(1080px,100%); min-height:470px; border:1px solid var(--line); border-radius:18px;
+  background:
+    linear-gradient(rgba(242,233,228,.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(242,233,228,.022) 1px, transparent 1px),
+    radial-gradient(70% 90% at 50% 110%, rgba(255,75,62,.06), transparent 70%),
+    var(--bg2);
+  background-size:44px 44px, 44px 44px, auto, auto;
+  overflow:hidden; touch-action:none; cursor:none;
+}
+.chip{
+  position:absolute; width:76px; height:76px; border-radius:19px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:2px; user-select:none;
+  background:linear-gradient(rgba(255,255,255,.05), rgba(255,255,255,.015));
+  border:1px solid var(--line); box-shadow:0 10px 26px rgba(0,0,0,.45);
+  will-change:transform; transition:box-shadow .2s, border-color .2s;
+}
+.chip .ico{font-size:1.7rem; line-height:1; filter:saturate(.85)}
+.chip .lbl{font-family:'JetBrains Mono',monospace; font-size:.5rem; letter-spacing:.1em; text-transform:uppercase; color:var(--dim)}
+.chip.hot{border-color:var(--arc); box-shadow:0 10px 30px rgba(0,0,0,.5), 0 0 0 1px var(--arcSoft), 0 0 22px var(--arcSoft)}
+.chip.held{border-color:var(--red); box-shadow:0 18px 40px rgba(0,0,0,.55), 0 0 24px var(--redSoft); z-index:6}
+.chip.popped{animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{0%{scale:1}35%{scale:1.22}100%{scale:1}}
+
+/* HUD cursor */
+#reticle{
+  position:absolute; width:46px; height:46px; left:0; top:0; pointer-events:none; z-index:8;
+  transform:translate(-50%,-50%); will-change:transform; opacity:0; transition:opacity .3s;
+}
+#reticle.on{opacity:1}
+#reticle .ring{
+  position:absolute; inset:0; border-radius:50%;
+  border:1.5px solid var(--arc); box-shadow:0 0 18px var(--arcSoft), inset 0 0 10px var(--arcSoft);
+  transition:scale .18s ease, border-color .18s;
+}
+#reticle .core{
+  position:absolute; left:50%; top:50%; width:6px; height:6px; border-radius:50%;
+  background:var(--arc); transform:translate(-50%,-50%); box-shadow:0 0 10px var(--arc);
+  transition:background .18s, box-shadow .18s;
+}
+#reticle.fist .ring{scale:.62; border-color:var(--red)}
+#reticle.fist .core{background:var(--red); box-shadow:0 0 12px var(--red)}
+#reticle.pinch .ring{scale:1.25; border-color:#fff}
+#reticle .tag{
+  position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%);
+  font-family:'JetBrains Mono',monospace; font-size:.52rem; letter-spacing:.22em; text-transform:uppercase; color:var(--dim);
+  white-space:nowrap;
+}
+
+/* webcam preview */
+#camBox{
+  position:absolute; right:14px; bottom:14px; width:172px; aspect-ratio:4/3; border-radius:12px; overflow:hidden;
+  border:1px solid var(--line); background:#000; z-index:9; display:none; box-shadow:0 14px 30px rgba(0,0,0,.5);
+}
+#camBox.on{display:block}
+#cam,#overlay{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1)}
+#camBox .camTag{
+  position:absolute; left:8px; top:6px; z-index:2; font-family:'JetBrains Mono',monospace;
+  font-size:.5rem; letter-spacing:.18em; text-transform:uppercase; color:var(--arc); text-shadow:0 0 6px #000;
+}
+.toast{
+  position:absolute; left:50%; top:18px; transform:translate(-50%,-8px); z-index:10;
+  font-family:'JetBrains Mono',monospace; font-size:.64rem; letter-spacing:.12em; text-transform:uppercase;
+  background:rgba(12,9,9,.92); border:1px solid var(--line); border-radius:999px; padding:.6rem 1.1rem;
+  color:var(--ink); opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+}
+.toast.show{opacity:1; transform:translate(-50%,0)}
+.toast b{color:var(--arc); font-weight:500}
+
+/* ── customize panel ───────────────────────────────────── */
+.panel{
+  display:flex; flex-wrap:wrap; gap:1.9rem 2.5rem; align-items:flex-end; justify-content:center;
+  padding:1.9rem 1.5rem 1.7rem; border-top:1px solid var(--line); position:relative; z-index:5;
+}
+.grp{display:flex; flex-direction:column; align-items:center; gap:.55rem; min-width:132px}
+.grp .lab{font-family:'JetBrains Mono',monospace; font-size:.6rem; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); display:flex; gap:.5rem}
+.grp .lab b{color:var(--arc); font-weight:500}
+input[type=range]{-webkit-appearance:none; appearance:none; width:132px; height:2px; background:var(--line); border-radius:2px; cursor:ew-resize}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:var(--arc); box-shadow:0 0 0 3px var(--arcSoft)}
+input[type=range]::-moz-range-thumb{width:13px; height:13px; border:none; border-radius:50%; background:var(--arc)}
+.tgl{
+  font-family:'JetBrains Mono',monospace; font-size:.6rem; letter-spacing:.14em; text-transform:uppercase;
+  border:1px solid var(--line); background:none; color:var(--dim); border-radius:999px; padding:.55rem 1.05rem; cursor:pointer; transition:.2s;
+}
+.tgl.on,.tgl:hover{color:var(--arc); border-color:var(--arc)}
+
+footer{text-align:center; font-family:'JetBrains Mono',monospace; font-size:.56rem; letter-spacing:.14em; text-transform:uppercase; color:var(--dim2); padding:1.1rem 1.4rem 1.5rem; position:relative; z-index:5}
+footer a{color:var(--arc); text-decoration:none}
+footer a:hover{text-decoration:underline}
+
+@media(max-width:680px){
+  #stage{min-height:400px}
+  .chip{width:62px;height:62px;border-radius:15px}
+  .chip .ico{font-size:1.35rem}
+  #camBox{width:124px}
+}
+@media (prefers-reduced-motion: reduce){
+  .chip.popped{animation:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="mark">IRON<em>HAND</em> · 73</div>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>Point. <span class="r">Fist.</span> <span class="a">Pinch.</span></h1>
+  <p class="sub">A desktop you operate from across the room. Open palm steers the reticle,
+  a closed fist collects every chip it passes over and carries the stack,
+  a sharp pinch clicks. MediaPipe hand tracking, no framework.</p>
+  <div class="ctaRow">
+    <button class="btn solid" id="camBtn">Enable camera</button>
+    <button class="btn" id="resetBtn">Reset desk</button>
+  </div>
+  <div class="status" id="status">mouse mode — <b>move</b> to point · <b>hold</b> to fist · <b>quick click</b> to pinch</div>
+</div>
+
+<div class="stageWrap">
+  <div id="stage" aria-label="Gesture-controlled desktop demo. Chips can be pointed at, grabbed with a fist gesture, and opened with a pinch.">
+    <div id="reticle"><div class="ring"></div><div class="core"></div><div class="tag" id="retTag">open</div></div>
+    <div id="camBox"><span class="camTag">● live</span><video id="cam" playsinline muted></video><canvas id="overlay"></canvas></div>
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="grp"><span class="lab">Smoothing <b id="vSmooth">0.35</b></span><input type="range" id="rSmooth" min="10" max="80" value="35"></div>
+  <div class="grp"><span class="lab">Pinch threshold <b id="vPinch">0.32</b></span><input type="range" id="rPinch" min="18" max="48" value="32"></div>
+  <div class="grp"><span class="lab">Grab radius <b id="vGrab">120px</b></span><input type="range" id="rGrab" min="60" max="220" value="120"></div>
+  <div class="grp"><span class="lab">Overlay</span><button class="tgl on" id="tSkel">skeleton on</button></div>
+</div>
+
+<footer>site 73 / fable 25 · built by claude (fable 5) · <a href="guide/">how it was made</a></footer>
+
+<script type="module">
+/* ═══════════════════════════════════════════════════════════
+   IRONHAND — hand-gesture desktop
+   Engine order: mouse simulation always works; enabling the
+   camera swaps the input source, nothing else changes.
+   ═══════════════════════════════════════════════════════════ */
+
+const stage   = document.getElementById('stage');
+const reticle = document.getElementById('reticle');
+const retTag  = document.getElementById('retTag');
+const statusEl= document.getElementById('status');
+const toastEl = document.getElementById('toast');
+const camBox  = document.getElementById('camBox');
+const video   = document.getElementById('cam');
+const overlay = document.getElementById('overlay');
+
+const CFG = { smooth:.35, pinch:.32, grab:120, skeleton:true };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ── chips ─────────────────────────────────────────────── */
+const CHIP_DEFS = [
+  ['📈','thesis'],['🧪','lab'],['🎨','studio'],['✉️','mail'],
+  ['📁','archive'],['♟','games'],['🔭','deep sky'],['📻','radio'],
+  ['🧭','atlas'],['🎛','synth'],
+];
+let chips = [];
+
+function layoutChips(){
+  chips.forEach(c=>c.el.remove());
+  chips = [];
+  const r = stage.getBoundingClientRect();
+  const cols = r.width > 700 ? 5 : 3;
+  CHIP_DEFS.forEach(([ico,lbl],i)=>{
+    const el = document.createElement('div');
+    el.className='chip';
+    el.innerHTML = `<span class="ico">${ico}</span><span class="lbl">${lbl}</span>`;
+    stage.appendChild(el);
+    const col = i%cols, row = Math.floor(i/cols);
+    const gx = r.width/(cols+1), gy = 118;
+    const rows = Math.ceil(CHIP_DEFS.length/cols);
+    stage.style.minHeight = Math.max(470, 64 + rows*gy + 110) + 'px';
+    const c = {
+      el, label:lbl,
+      x: gx*(col+1) - 38 + (row%2?18:-18),
+      y: 64 + row*gy,
+      vx:0, vy:0, held:false, off:{x:0,y:0},
+    };
+    el.style.transform = `translate(${c.x}px, ${c.y}px)`;
+    chips.push(c);
+  });
+}
+
+/* ── shared gesture state (written by mouse OR hand) ───── */
+const S = {
+  tx:.5, ty:.5,        // target cursor, normalized to stage
+  x:.5, y:.5,          // smoothed cursor
+  fist:false,
+  pinchNow:false,      // instantaneous pinch state
+  seen:false,          // hand visible / pointer inside
+};
+let pinchArmedAt = 0, lastPinchRatio = 1, clickQueued = false;
+let camOn = false;
+
+/* ── mouse simulation ──────────────────────────────────── */
+let mouseDownAt = 0;
+stage.addEventListener('pointermove', e=>{
+  if (camOn) return;
+  const r = stage.getBoundingClientRect();
+  S.tx = (e.clientX - r.left)/r.width;
+  S.ty = (e.clientY - r.top)/r.height;
+  S.seen = true;
+  reticle.classList.add('on');
+});
+stage.addEventListener('pointerdown', ()=>{ if(!camOn){ mouseDownAt = performance.now(); S.fist = true; } });
+window.addEventListener('pointerup', ()=>{
+  if (camOn) return;
+  if (performance.now() - mouseDownAt < 220) clickQueued = true;  // quick click = pinch
+  S.fist = false;
+});
+stage.addEventListener('pointerleave', ()=>{ if(!camOn){ S.seen=false; reticle.classList.remove('on'); } });
+
+/* ── camera + MediaPipe ────────────────────────────────── */
+const camBtn = document.getElementById('camBtn');
+let landmarker = null;
+
+camBtn.addEventListener('click', async ()=>{
+  if (camOn) return;
+  camBtn.textContent = 'loading model…';
+  camBtn.disabled = true;
+  try{
+    const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
+    const files = await vision.FilesetResolver.forVisionTasks(
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+    landmarker = await vision.HandLandmarker.createFromOptions(files, {
+      baseOptions:{
+        modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+        delegate:'GPU',
+      },
+      numHands:1, runningMode:'VIDEO',
+    });
+    const stream = await navigator.mediaDevices.getUserMedia({ video:{ width:640, height:480, facingMode:'user' } });
+    video.srcObject = stream;
+    await video.play();
+    overlay.width = 640; overlay.height = 480;
+    camOn = true;
+    camBox.classList.add('on');
+    camBtn.textContent = 'camera live';
+    statusEl.innerHTML = 'hand mode — <b>open palm</b> to point · <b>fist</b> to collect & carry · <b>sharp pinch</b> to click';
+    requestAnimationFrame(handLoop);
+  }catch(err){
+    camBtn.disabled = false;
+    camBtn.textContent = 'Enable camera';
+    statusEl.innerHTML = `<span class="warn">camera unavailable (${err.name || 'error'}) — mouse mode still works</span>`;
+  }
+});
+
+const octx = overlay.getContext('2d');
+const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
+               [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+let lastVideoTime = -1;
+
+function handLoop(){
+  if (!camOn) return;
+  requestAnimationFrame(handLoop);
+  if (video.currentTime === lastVideoTime) return;
+  lastVideoTime = video.currentTime;
+  const res = landmarker.detectForVideo(video, performance.now());
+  octx.clearRect(0,0,overlay.width,overlay.height);
+  const lm = res.landmarks && res.landmarks[0];
+  if (!lm){ S.seen = false; reticle.classList.remove('on'); return; }
+  S.seen = true;
+  reticle.classList.add('on');
+
+  // hand size reference: wrist → middle MCP
+  const hs = Math.hypot(lm[0].x-lm[9].x, lm[0].y-lm[9].y) || 1e-6;
+
+  // cursor target: middle MCP (stable under finger motion), mirrored X
+  S.tx = 1 - lm[9].x;
+  S.ty = lm[9].y;
+
+  // fist: average fingertip distance from palm center, relative to hand size
+  const palm = avgPoint(lm,[0,5,9,13,17]);
+  const curl = ([8,12,16,20].reduce((t,i)=>t+Math.hypot(lm[i].x-palm.x, lm[i].y-palm.y),0)/4)/hs;
+  S.fist = curl < 1.05;
+
+  // sharp pinch: thumb-tip↔index-tip ratio crossing the threshold quickly
+  const ratio = Math.hypot(lm[4].x-lm[8].x, lm[4].y-lm[8].y)/hs;
+  const now = performance.now();
+  if (ratio > CFG.pinch*1.5) pinchArmedAt = now;                  // clearly open → armed
+  if (ratio < CFG.pinch && lastPinchRatio >= CFG.pinch){          // crossing inward
+    if (now - pinchArmedAt < 450 && !S.fist) clickQueued = true;  // sharp = recent arm; fist suppresses
+  }
+  S.pinchNow = ratio < CFG.pinch;
+  lastPinchRatio = ratio;
+
+  if (CFG.skeleton){
+    octx.strokeStyle = 'rgba(102,224,255,.85)'; octx.lineWidth = 2;
+    octx.beginPath();
+    for (const [a,b] of BONES){
+      octx.moveTo(lm[a].x*overlay.width, lm[a].y*overlay.height);
+      octx.lineTo(lm[b].x*overlay.width, lm[b].y*overlay.height);
+    }
+    octx.stroke();
+    octx.fillStyle = S.fist ? '#ff4b3e' : '#66e0ff';
+    for (const p of lm){
+      octx.beginPath(); octx.arc(p.x*overlay.width, p.y*overlay.height, 3, 0, 7); octx.fill();
+    }
+  }
+}
+
+function avgPoint(lm, idx){
+  let x=0,y=0; for(const i of idx){x+=lm[i].x;y+=lm[i].y}
+  return {x:x/idx.length, y:y/idx.length};
+}
+
+/* ── main loop: cursor, grabbing, clicking ─────────────── */
+let heldStack = [];
+let wasFist = false;
+
+function tick(){
+  requestAnimationFrame(tick);
+  const r = stage.getBoundingClientRect();
+
+  // smooth cursor
+  const k = 1 - CFG.smooth;
+  S.x += (S.tx - S.x) * k;
+  S.y += (S.ty - S.y) * k;
+  const cx = S.x * r.width, cy = S.y * r.height;
+  reticle.style.transform = `translate(${cx}px, ${cy}px) translate(-50%,-50%)`;
+
+  // reticle state + tag
+  reticle.classList.toggle('fist', S.fist);
+  reticle.classList.toggle('pinch', S.pinchNow && !S.fist);
+  retTag.textContent = S.fist ? `fist · ${heldStack.length} held` : S.pinchNow ? 'pinch' : 'open';
+
+  // fist edge: starting a grab keeps existing stack; releasing drops all
+  if (S.fist && S.seen){
+    for (const c of chips){
+      if (c.held) continue;
+      const d = Math.hypot(c.x+38-cx, c.y+38-cy);
+      if (d < CFG.grab){
+        c.held = true;
+        c.off = { x:(heldStack.length%3-1)*26, y:Math.floor(heldStack.length/3)*24 - 10 };
+        c.el.classList.add('held');
+        heldStack.push(c);
+      }
+    }
+  } else if (wasFist && !S.fist){
+    for (const c of heldStack){
+      c.held = false;
+      c.el.classList.remove('held');
+      c.vx = (Math.random()-.5)*(reduceMotion?0:9);
+      c.vy = (Math.random()-.5)*(reduceMotion?0:9);
+    }
+    heldStack = [];
+  }
+  wasFist = S.fist;
+
+  // chip physics
+  for (const c of chips){
+    if (c.held){
+      c.x += ((cx - 38 + c.off.x) - c.x) * .3;
+      c.y += ((cy - 38 + c.off.y) - c.y) * .3;
+    } else {
+      c.x += c.vx; c.y += c.vy;
+      c.vx *= .9; c.vy *= .9;
+      c.x = Math.max(4, Math.min(r.width-80, c.x));
+      c.y = Math.max(4, Math.min(r.height-80, c.y));
+    }
+    c.el.style.transform = `translate(${c.x.toFixed(1)}px, ${c.y.toFixed(1)}px)`;
+    // hover highlight (only when not carrying)
+    const hot = !S.fist && S.seen && Math.hypot(c.x+38-cx, c.y+38-cy) < 55;
+    c.el.classList.toggle('hot', hot && !c.held);
+  }
+
+  // click
+  if (clickQueued){
+    clickQueued = false;
+    const target = chips.find(c => Math.hypot(c.x+38-cx, c.y+38-cy) < 60);
+    if (target){
+      target.el.classList.remove('popped'); void target.el.offsetWidth;
+      target.el.classList.add('popped');
+      toast(`<b>${target.label}</b> — opened by pinch`);
+    } else {
+      toast('pinch registered — nothing under the reticle');
+    }
+  }
+}
+requestAnimationFrame(tick);
+
+let toastTimer = 0;
+function toast(html){
+  toastEl.innerHTML = html;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2200);
+}
+
+/* ── panel wiring ──────────────────────────────────────── */
+const bind = (id, out, fn) => document.getElementById(id).addEventListener('input', e=>{
+  fn(+e.target.value); document.getElementById(out).textContent = fmt[out](+e.target.value);
+});
+const fmt = {
+  vSmooth: v=>(v/100).toFixed(2), vPinch: v=>(v/100).toFixed(2), vGrab: v=>v+'px',
+};
+bind('rSmooth','vSmooth', v=>CFG.smooth = v/100);
+bind('rPinch','vPinch',  v=>CFG.pinch  = v/100);
+bind('rGrab','vGrab',    v=>CFG.grab   = v);
+document.getElementById('tSkel').addEventListener('click', e=>{
+  CFG.skeleton = !CFG.skeleton;
+  e.target.classList.toggle('on', CFG.skeleton);
+  e.target.textContent = CFG.skeleton ? 'skeleton on' : 'skeleton off';
+});
+document.getElementById('resetBtn').addEventListener('click', ()=>{ heldStack=[]; layoutChips(); });
+
+layoutChips();
+window.addEventListener('resize', ()=>{ if (!heldStack.length) layoutChips(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%237fa3ad%22/></svg>">
+<title>REVENANT — a formation of ten thousand points</title>
+<meta name="description" content="REVENANT is a humanoid silhouette built from thousands of noise-displaced points that hold formation, then disperse into drifting particles and re-coalesce.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cardo:ital,wght@0,400;0,700;1,400&family=Fragment+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg0:#050709; --bg1:#0c1218;
+    --cold:#7fa3ad; --cold-dim:#3d5158;
+    --warm:#ffb37a;
+    --txt:#dbe6e8; --dim:#5f747a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(ellipse at 50% 30%, var(--bg1), var(--bg0) 75%);
+    color:var(--txt);font-family:'Fragment Mono',monospace;
+    display:flex;flex-direction:column;min-height:100%;overflow-x:hidden;
+  }
+  ::selection{background:var(--warm);color:#1a0d05}
+
+  #field{position:fixed;inset:0;z-index:0}
+
+  header{position:relative;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:1.3rem 2rem}
+  .m{font-family:'Cardo',serif;font-weight:700;font-style:italic;font-size:1.2rem;letter-spacing:.04em;color:var(--txt)}
+  nav{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--txt);text-decoration:none;opacity:.7;margin-left:1.5rem}
+  nav a:hover{opacity:1;color:var(--warm)}
+
+  .hero{position:relative;z-index:2;text-align:center;padding:.5rem 1.5rem 0;pointer-events:none}
+  .hero h1{font-family:'Cardo',serif;font-weight:700;font-style:italic;font-size:clamp(1.8rem,5.2vw,3.3rem);
+    color:var(--txt);text-shadow:0 0 50px rgba(127,163,173,.3)}
+  .hero p{font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-top:.8rem}
+
+  .spacer{flex:1}
+
+  .panel{position:relative;z-index:3;display:flex;flex-wrap:wrap;gap:1.4rem;align-items:center;
+    justify-content:center;padding:0 1.5rem 1.8rem;text-align:center}
+  .grp{display:flex;flex-direction:column;align-items:center;gap:.4rem}
+  .grp .lab{font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+  button.act{font-family:'Fragment Mono',monospace;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;
+    background:none;border:1px solid rgba(219,230,232,.28);color:var(--txt);padding:.55rem 1.1rem;
+    border-radius:99px;cursor:pointer;transition:.2s}
+  button.act:hover{border-color:var(--warm);color:var(--warm)}
+  .readout{font-size:.68rem;color:var(--cold);letter-spacing:.05em;min-width:130px}
+
+  footer{position:relative;z-index:3;text-align:center;font-size:.58rem;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--dim);padding:0 1.5rem 1.3rem}
+  footer a{color:var(--warm)}
+
+  @media(max-width:640px){
+    header{padding:1rem 1.2rem}
+    .panel{gap:1rem}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="field" aria-label="A humanoid silhouette made of thousands of drifting points that periodically disperse and re-form; click to disperse it early"></canvas>
+
+<header>
+  <span class="m">Revenant</span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>Ten thousand points,<br>briefly a person.</h1>
+  <p>click to scatter it early · it always finds its way back</p>
+</div>
+
+<div class="spacer"></div>
+
+<div class="panel">
+  <div class="grp">
+    <span class="lab">State</span>
+    <span class="readout" id="stateRead">forming…</span>
+  </div>
+  <div class="grp">
+    <span class="lab">Actions</span>
+    <button class="act" id="scatterBtn">Disperse now</button>
+  </div>
+</div>
+
+<footer>
+  REVENANT — NOISE-DISPLACED POINT-CLOUD FORMATION · SITE 58 OF 62 · BUILT BY CLAUDE (FABLE 25 · WAVE 3) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+/* ============================================================
+   Humanoid point-cloud silhouette. No mesh, no library.
+   1) Build a target point set by rejection-sampling inside a
+      procedural humanoid outline function (radius-by-height).
+   2) Each point cycles HOLD -> DISPERSE -> RECOALESCE, driven by
+      a hand-rolled value-noise field for organic drift/jitter.
+   3) Cold desaturated palette + one warm point-light accent that
+      follows the pointer, lighting nearby particles.
+   ============================================================ */
+const canvas = document.getElementById('field');
+const ctx = canvas.getContext('2d');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let DPR = Math.min(devicePixelRatio||1, 2);
+let W=0, H=0;
+function resize(){
+  W = innerWidth; H = innerHeight;
+  canvas.width = W*DPR; canvas.height = H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+
+// --- hand-rolled 2D value noise (no library) ---
+function hash(x,y){
+  let n = Math.sin(x*127.1+y*311.7)*43758.5453;
+  return n - Math.floor(n);
+}
+function noise2(x,y){
+  const xi=Math.floor(x), yi=Math.floor(y);
+  const xf=x-xi, yf=y-yi;
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  const a=hash(xi,yi), b=hash(xi+1,yi), c=hash(xi,yi+1), d=hash(xi+1,yi+1);
+  return (a*(1-u)+b*u)*(1-v) + (c*(1-u)+d*u)*v;
+}
+
+// --- humanoid silhouette outline: half-width(t) for t in 0..1 (0=feet,1=head-top) ---
+function bodyHalfWidth(t){
+  // rough standing-figure profile, t=0 feet .. 1 top of head
+  if(t<0.02) return 0.09;                          // feet base
+  if(t<0.46){                                       // legs
+    const lt=(t-0.02)/0.44;
+    return 0.045 + Math.sin(lt*Math.PI)*0.02 + (1-lt)*0.02;
+  }
+  if(t<0.52) return 0.10 - (t-0.46)/0.06*0.02;      // hips
+  if(t<0.74){                                       // torso + arms taper
+    const tt=(t-0.52)/0.22;
+    return 0.085 + Math.sin(tt*Math.PI)*0.05;
+  }
+  if(t<0.80){                                       // shoulders/neck
+    const nt=(t-0.74)/0.06;
+    return 0.10 - nt*0.065;
+  }
+  if(t<0.97){                                       // head
+    const ht=(t-0.80)/0.17;
+    return Math.sin(ht*Math.PI)*0.055 + 0.01;
+  }
+  return 0.01;
+}
+function armReach(t){ // extra horizontal offset lobe for arms (roughly torso band)
+  if(t<0.53 || t>0.72) return 0;
+  const at=(t-0.53)/0.19;
+  return Math.sin(at*Math.PI)*0.16;
+}
+
+const N_POINTS = 4200;
+let targets = [];   // {x,y} normalized 0..1 within figure box
+function buildTargets(){
+  targets = [];
+  let guard=0;
+  while(targets.length<N_POINTS && guard<N_POINTS*40){
+    guard++;
+    const t = Math.random();
+    const hw = bodyHalfWidth(t) + (Math.random()<0.5 ? armReach(t) : 0)*Math.random();
+    const side = Math.random()<0.5?-1:1;
+    const x = 0.5 + side*Math.random()*hw;
+    targets.push({ x, y: 1-t });
+  }
+}
+buildTargets();
+
+// --- particle state ---
+// Particles start already (nearly) in formation — first paint reads as a
+// person immediately, rather than an unrecognizable scatter mid-assembly.
+let particles = [];
+function initParticles(){
+  particles = targets.map((tg,i)=>({
+    tx: tg.x, ty: tg.y,
+    x: tg.x + (Math.random()-0.5)*0.03,
+    y: tg.y + (Math.random()-0.5)*0.03,
+    vx:0, vy:0,
+    seed: Math.random()*1000,
+    size: 1.1 + Math.random()*1.6,
+  }));
+}
+initParticles();
+
+// cycle state machine
+const CYCLE = { HOLD:'hold', DISPERSE:'disperse', RECOALESCE:'recoalesce' };
+let state = CYCLE.HOLD;
+let stateT = 0;
+const DURATIONS = { hold: 5.5, disperse: 4.5, recoalesce: 3.4 };
+const stateReadEl = document.getElementById('stateRead');
+function setState(s){
+  state = s; stateT = 0;
+  stateReadEl.textContent = s==='hold' ? 'holding formation' : s==='disperse' ? 'dispersing…' : 're-coalescing…';
+}
+setState(CYCLE.HOLD);
+
+let mouse = { x:-9999, y:-9999, active:false };
+canvas.addEventListener('pointermove', e=>{ mouse.x=e.clientX; mouse.y=e.clientY; mouse.active=true; });
+canvas.addEventListener('pointerleave', ()=>{ mouse.active=false; });
+canvas.addEventListener('pointerdown', ()=>{ if(state!=='disperse') setState(CYCLE.DISPERSE); });
+document.getElementById('scatterBtn').addEventListener('click', ()=>{ setState(CYCLE.DISPERSE); });
+
+function figureBox(){
+  // fit the 1x1 normalized figure into the viewport, centered, leaving room for hero/panel
+  const targetH = H*0.88;
+  const targetW = targetH*0.56;
+  const w = Math.min(targetW, W*0.85);
+  const h = w/0.56;
+  return { x0: W/2-w/2, y0: H*0.95-h, w, h };
+}
+
+// --- ambient dust: sparse background motes unrelated to the figure, so the
+// hero never reads as an empty void either side of the silhouette ---
+const N_DUST = 220;
+let dust = [];
+function initDust(){
+  dust = [];
+  for(let i=0;i<N_DUST;i++){
+    dust.push({
+      x: Math.random()*W, y: Math.random()*H,
+      seed: Math.random()*1000,
+      size: 0.5 + Math.random()*1.1,
+      alpha: 0.06 + Math.random()*0.16,
+    });
+  }
+}
+
+let last = performance.now();
+function update(dt){
+  stateT += dt;
+  if(stateT > DURATIONS[state]){
+    if(state===CYCLE.HOLD) setState(CYCLE.DISPERSE);
+    else if(state===CYCLE.DISPERSE) setState(CYCLE.RECOALESCE);
+    else setState(CYCLE.HOLD);
+  }
+  const box = figureBox();
+  const nT = performance.now()/1000;
+
+  for(let i=0;i<particles.length;i++){
+    const p = particles[i];
+    const noiseX = noise2(p.seed+nT*0.15, 0)-0.5;
+    const noiseY = noise2(0, p.seed+nT*0.15)-0.5;
+
+    let pullStrength;
+    if(state===CYCLE.HOLD) pullStrength = 10.5;
+    else if(state===CYCLE.RECOALESCE) pullStrength = 3.2 + (stateT/DURATIONS.recoalesce)*7;
+    else pullStrength = 0; // disperse: no pull, just drift
+
+    // target position in normalized space, with a little breathing jitter while holding
+    const jitter = state===CYCLE.HOLD ? 0.010 : 0.0;
+    const tx = p.tx + noiseX*jitter;
+    const ty = p.ty + noiseY*jitter;
+
+    const dx = tx-p.x, dy=ty-p.y;
+    p.vx += dx*pullStrength*dt;
+    p.vy += dy*pullStrength*dt;
+
+    if(state===CYCLE.DISPERSE){
+      p.vx += noiseX*0.55*dt;
+      p.vy += (noiseY*0.4 - 0.06)*dt; // slight upward fog drift
+    }
+
+    p.vx *= 0.9;
+    p.vy *= 0.9;
+    p.x += p.vx*dt;
+    p.y += p.vy*dt;
+  }
+}
+
+function draw(){
+  ctx.fillStyle = 'rgba(5,7,9,1)';
+  ctx.fillRect(0,0,W,H);
+  drawDust();
+  const box = figureBox();
+  const nT = performance.now()/1000;
+
+  for(let i=0;i<particles.length;i++){
+    const p = particles[i];
+    const sx = box.x0 + p.x*box.w;
+    const sy = box.y0 + p.y*box.h;
+    if(sx<-20||sx>W+20||sy<-20||sy>H+20) continue;
+
+    let alpha = 0.55;
+    if(state===CYCLE.DISPERSE) alpha = Math.max(0.08, 0.55 - (stateT/DURATIONS.disperse)*0.45);
+    else if(state===CYCLE.RECOALESCE) alpha = 0.15 + (stateT/DURATIONS.recoalesce)*0.4;
+
+    let r=127,g=163,b=173;
+    let a = alpha;
+    if(mouse.active){
+      const d = Math.hypot(sx-mouse.x, sy-mouse.y);
+      const glowR = 140;
+      if(d<glowR){
+        const f = 1-d/glowR;
+        r = Math.round(127+(255-127)*f);
+        g = Math.round(163+(179-163)*f);
+        b = Math.round(173+(122-173)*f);
+        a = Math.min(0.95, alpha + f*0.5);
+      }
+    }
+    ctx.fillStyle = `rgba(${r},${g},${b},${a.toFixed(3)})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, p.size, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+addEventListener('resize', ()=>{ resize(); initDust(); });
+resize();
+initDust();
+
+function drawDust(){
+  const nT = performance.now()/1000;
+  for(let i=0;i<dust.length;i++){
+    const d = dust[i];
+    const dx = d.x + Math.sin(nT*0.12 + d.seed)*14;
+    const dy = d.y + Math.cos(nT*0.09 + d.seed*1.3)*10;
+    ctx.fillStyle = `rgba(127,163,173,${d.alpha})`;
+    ctx.beginPath();
+    ctx.arc(dx, dy, d.size, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function frame(now){
+  const dt = Math.min(0.05,(now-last)/1000); last=now;
+  if(!reduceMotion){
+    update(dt);
+  } else if(!frame.settled){
+    setState(CYCLE.HOLD);
+    for(let i=0;i<400;i++) update(1/60);
+    frame.settled = true;
+  }
+  draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KINTSUGI — the break is the record</title>
+<meta name="description" content="KINTSUGI overlays hand-placed gold crack lines on a generated photograph of a broken tea bowl. The repair draws itself in gold when the piece scrolls into view.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,600;1,400&family=Overpass+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#17131f;
+    --panel:#1e1928;
+    --gold:#d9a441;
+    --gold-light:#f4d998;
+    --txt:#ece6da;
+    --dim:#a89fb0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--txt);font-family:'Spectral',Georgia,serif;overflow-x:hidden}
+  ::selection{background:var(--gold);color:#17131f}
+  a{color:inherit}
+
+  header{display:flex;justify-content:space-between;align-items:center;padding:1.7rem 2.2rem}
+  .brand{font-weight:600;font-size:1.1rem;letter-spacing:.16em;text-transform:uppercase}
+  .brand span{color:var(--gold)}
+  nav{font-family:'Overpass Mono',monospace;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{text-decoration:none;color:var(--txt);opacity:.7;margin-left:1.6rem;transition:opacity .2s,color .2s}
+  nav a:hover{opacity:1;color:var(--gold)}
+
+  .intro{max-width:640px;margin:4vh auto 2vh;text-align:center;padding:0 1.6rem}
+  .intro .kick{font-family:'Overpass Mono',monospace;font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem}
+  .intro h1{font-weight:600;font-size:clamp(2rem,5.4vw,3.4rem);line-height:1.14}
+  .intro p{margin-top:1.1rem;font-size:1.05rem;color:var(--dim);line-height:1.7}
+
+  .gallery{display:flex;justify-content:center;padding:4vh 1.4rem 2vh}
+  .frame{position:relative;width:min(760px,100%);aspect-ratio:1376/768;background:#0d0b13;
+    box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 1px rgba(217,164,65,.18);border-radius:4px;overflow:hidden}
+  .frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.98)}
+  .frame svg{position:absolute;inset:0;width:100%;height:100%}
+  .crack{fill:none;stroke:url(#goldgrad);stroke-linecap:round;stroke-linejoin:round;
+    filter:drop-shadow(0 0 5px rgba(244,217,152,.65));transition:stroke-dashoffset 1.6s cubic-bezier(.2,.7,.2,1)}
+
+  .placard{max-width:520px;margin:2.4rem auto 0;text-align:center;padding:0 1.6rem}
+  .placard .num{font-family:'Overpass Mono',monospace;font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+  .placard h2{font-weight:400;font-style:italic;font-size:1.3rem;margin-top:.6rem}
+  .placard p{margin-top:.6rem;font-size:.86rem;color:var(--dim);line-height:1.7}
+
+  main{max-width:900px;margin:0 auto;padding:9vh 1.8rem 10vh}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:3.2rem}
+  .cols h3{font-family:'Overpass Mono',monospace;font-size:.66rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem}
+  .cols p{font-size:1.02rem;line-height:1.8;color:var(--dim)}
+  .cols p+p{margin-top:1rem}
+
+  .repairbar{max-width:760px;margin:6vh auto 0;padding:0 1.4rem}
+  .repairbar .track{height:3px;background:#2a2436;border-radius:99px;overflow:hidden}
+  .repairbar .fill{height:100%;width:0%;background:linear-gradient(90deg,var(--gold),var(--gold-light));transition:width 1.8s cubic-bezier(.2,.7,.2,1)}
+  .repairbar .lab{margin-top:.6rem;font-family:'Overpass Mono',monospace;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between}
+
+  footer{text-align:center;font-family:'Overpass Mono',monospace;font-size:.62rem;letter-spacing:.18em;
+    text-transform:uppercase;opacity:.6;padding:0 1rem 2.6rem}
+  footer a{color:var(--gold);text-decoration:underline}
+
+  @media(max-width:760px){
+    .cols{grid-template-columns:1fr;gap:2rem}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .crack{transition:none}
+    .repairbar .fill{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">KIN<span>TSUGI</span></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="intro">
+  <div class="kick">Site 28 of 50 &middot; Wing II</div>
+  <h1>The break is the record,<br>not the flaw.</h1>
+  <p>A generated photograph of a broken tea bowl, and a gold seam drawn by hand over the fracture — the repair happens once, in front of you, when the piece comes into view.</p>
+</div>
+
+<div class="gallery">
+  <div class="frame" id="frame">
+    <img src="assets/hero.jpg" alt="Studio photograph of a dark ceramic tea bowl on a wooden stand, moody low light, generated with nano_banana_pro.">
+    <svg viewBox="0 0 1376 768" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="goldgrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#f4d998"/>
+          <stop offset="50%" stop-color="#d9a441"/>
+          <stop offset="100%" stop-color="#b47a24"/>
+        </linearGradient>
+      </defs>
+      <path class="crack" d="M652,258 C632,300 616,336 600,372 C588,400 578,424 566,452" stroke-width="4"/>
+      <path class="crack" d="M566,452 C610,438 654,424 700,410" stroke-width="3.4"/>
+      <path class="crack" d="M566,452 C598,462 626,470 652,480" stroke-width="3"/>
+      <path class="crack" d="M700,410 C726,398 748,388 768,378" stroke-width="2.6"/>
+      <path class="crack" d="M652,480 C668,494 682,506 698,518" stroke-width="2.2"/>
+      <path class="crack" d="M600,372 C584,368 568,364 552,360" stroke-width="2"/>
+    </svg>
+  </div>
+</div>
+
+<div class="placard">
+  <div class="num">Object 28 &middot; Restoration in progress</div>
+  <h2>Chawan, unglazed stoneware</h2>
+  <p>Firing crack repaired with urushi lacquer dusted in gold — the standard kintsugi method, rendered here as an SVG seam instead of an actual repair.</p>
+  <div class="repairbar">
+    <div class="track"><div class="fill" id="repairFill"></div></div>
+    <div class="lab"><span>Fracture</span><span id="repairPct">0% sealed</span></div>
+  </div>
+</div>
+
+<main>
+  <div class="cols">
+    <div>
+      <h3>Why gold</h3>
+      <p>Kintsugi doesn't hide a break, it gilds it — the philosophy being that an object's history, including its damage, is part of what makes it worth keeping. A repaired bowl is often considered more valuable than an unbroken one from the same kiln.</p>
+    </div>
+    <div>
+      <h3>Why animate it here</h3>
+      <p>A static gold line photographs well but reads as decoration. Watching the seam draw itself, once, the moment the piece scrolls into frame, borrows the feeling of the repair actually happening — controlled entirely by <code>stroke-dashoffset</code>, no video, six SVG paths.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  KINTSUGI &middot; GENERATED PHOTOGRAPH + HAND-PLACED SVG GOLD SEAM &middot; SITE 28 OF 50 &middot; BUILT BY CLAUDE (FABLE 25, WING II) &middot; <a href="guide/">/GUIDE</a> &middot; <a href="../">/INDEX</a>
+</footer>
+
+<script>
+(function(){
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const paths = Array.from(document.querySelectorAll('.crack'));
+  const fill = document.getElementById('repairFill');
+  const pct = document.getElementById('repairPct');
+  let done = false;
+
+  paths.forEach((p,i)=>{
+    const len = p.getTotalLength();
+    p.style.strokeDasharray = len;
+    p.style.strokeDashoffset = reduceMotion ? 0 : len;
+    p.style.transitionDelay = reduceMotion ? '0s' : (i*0.18)+'s';
+  });
+
+  function repair(){
+    if(done) return;
+    done = true;
+    paths.forEach(p=>{ p.style.strokeDashoffset = 0; });
+    if(reduceMotion){
+      fill.style.transition = 'none';
+      fill.style.width = '100%';
+      pct.textContent = '100% sealed';
+      return;
+    }
+    fill.style.width = '100%';
+    let n = 0;
+    const t = setInterval(()=>{
+      n += 4;
+      if(n>=100){ n=100; clearInterval(t); }
+      pct.textContent = n+'% sealed';
+    }, 60);
+  }
+
+  if(reduceMotion){
+    repair();
+  } else if('IntersectionObserver' in window){
+    const io = new IntersectionObserver(entries=>{
+      entries.forEach(en=>{ if(en.isIntersecting) repair(); });
+    }, {threshold:.5});
+    io.observe(document.getElementById('frame'));
+  } else {
+    repair();
+  }
+})();
+</script>
+</body>
+</html>

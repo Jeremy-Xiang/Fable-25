@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How DRIFT was made — guide</title>
+<meta name="description" content="How the DRIFT site was designed and built: a generative Web Audio ambient engine driving a spectral terrain visualization.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Chivo+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #5eead4; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0710; color:#e6e4ee;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Chivo Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9a96a6; text-decoration:none; border-bottom:1px solid #241f2e; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Chivo Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#9a96a6; font-size:1.15rem; margin-bottom:3.6rem; }
+  p { max-width:60ch; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #201b29;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Chivo Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; max-width:58ch; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Chivo Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Chivo Mono', monospace; font-size:.8rem; line-height:1.9; color:#c6c2d1;
+    background:#120e1a; border:1px solid #201b29; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #201b29;
+    font-family:'Chivo Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#9a96a6; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0a0710; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to DRIFT</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 60 of 62 · how it was made</div>
+  <h1>DRIFT</h1>
+  <p class="sub">Ambient music that makes itself</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>DRIFT is an album with no player controls beyond play, pause, and two macro knobs — everything else it decides for itself. A Web Audio graph generates an evolving pad and sparse, randomly-pitched bell tones with no fixed loop length, and the visualization isn't decoration layered on top: it's a literal terrain whose height comes from the live FFT of the same audio graph, so what you see is a picture of what you're hearing.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>The pad layer is four detuned oscillator pairs tuned to a chord, each riding its own slow LFO "breathing" envelope; every 26–40 seconds the engine silently re-tunes every oscillator toward the next chord in a four-chord progression via a six-second exponential ramp, so the harmony drifts without ever cutting</li>
+    <li>A bell scheduler recursively re-arms itself with a randomized delay (shaped by the Density knob), each note picked from an eight-note scale and panned randomly, so no two listens repeat the same pattern</li>
+    <li>Reverb is hand-built, not a convolver: three parallel delay lines (0.31s/0.47s/0.63s) with modest feedback, summed into a wet bus whose gain is the Space knob</li>
+    <li>An <code>AnalyserNode</code> reads 256 frequency bins each frame; the terrain maps screen-space X position to a bin and adds its energy, squared, as extra vertex height — the ridge you see rising and falling is the mix's actual spectral content, not a canned wave</li>
+    <li>Vertex colors (not a texture) carry a slow independent hue drift plus a per-column offset, so the terrain always reads as banded aurora light rather than a single flat tint</li>
+  </ul>
+
+  <h2><span class="no">03</span> The complexity upgrade</h2>
+  <p>Every generative bell note now does two things at once: it plays, and it fires a synced ripple into the terrain. The note's pitch is mapped to an X position on the grid, and a decaying radial wave is injected into the height field at that point for the next few seconds — so a high note visibly ripples out from one side of the terrain, a low note from the other, tying the ambient engine's randomness directly to what's on screen instead of leaving the visualization to react only in aggregate.</p>
+
+  <h2><span class="no">04</span> Type &amp; color</h2>
+  <p class="meta">Orbitron + Chivo Mono · void #060815, teal signal #5eead4, violet #a78bfa, magenta drift #f472b6</p>
+
+  <h2><span class="no">05</span> Reproduce it</h2>
+  <ol>
+    <li>Build the pad from oscillator pairs into a shared gain per tone, modulate each gain with its own slow LFO, and cross-fade chord tones with long exponential frequency ramps instead of hard retriggers</li>
+    <li>Chain three independent feedback delay lines into a wet bus for a reverb that costs nothing and needs no impulse response file</li>
+    <li>Read the mix through one <code>AnalyserNode</code>, map its frequency bins across a mesh's X axis, and displace vertex height by bin energy each frame</li>
+    <li>On every generative event, don't just play a sound — inject its parameters (pitch, timing) into the visual system as a physical disturbance at a corresponding position</li>
+  </ol>
+
+  <h2><span class="no">06</span> Screenshot pass</h2>
+  <p>The first render put the terrain's near edge past the camera position, so the whole lower frame flooded into an oversaturated wall of color with no visible grid or shape. Pulling the terrain back and re-aiming the camera fixed the framing; a runaway hue-drift constant (a per-millisecond increment meant to be per-second) was also caught here — the aurora was strobing through the full color wheel several times a second until the units were corrected.</p>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 5), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    build → code review → live screenshot critique, three passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

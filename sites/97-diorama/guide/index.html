@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23e8b45a%22/></svg>">
+<title>How THE STUDY was made — guide</title>
+<meta name="description" content="How the THE STUDY site was designed and built: A 2.5D diorama of a midnight study — eleven SVG planes, mouse-look parallax, a breathing lamp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#e8b45a; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0c; color:#f3efe9; font-family:'Bricolage Grotesque', sans-serif; font-size:1.05rem; line-height:1.72; padding:0 1.5rem}
+  .wrap{max-width:680px; margin:0 auto; padding:9vh 0 12vh}
+  .crumb{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem}
+  .crumb a{color:#8f8b8d; text-decoration:none; border-bottom:1px solid #262327; padding-bottom:2px}
+  .crumb a:hover{color:var(--accent); border-color:var(--accent)}
+  .kicker{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem}
+  h1{font-weight:800; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.08; margin-bottom:.6rem; letter-spacing:-.01em}
+  .sub{color:#a19c9d; font-size:1.12rem; margin-bottom:3.6rem}
+  h2{font-size:1.05rem; font-weight:800; letter-spacing:.01em; margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #211d20; display:flex; align-items:baseline; gap:.75rem}
+  h2 .no{font-family:'JetBrains Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none; margin-bottom:1rem}
+  ul li{padding-left:1.6rem; position:relative; margin-bottom:.85rem}
+  ul li::before{content:'—'; position:absolute; left:0; color:var(--accent)}
+  code{font-family:'JetBrains Mono', monospace; font-size:.88em; background:#17141a; padding:.1em .4em; border-radius:4px}
+  .meta{font-family:'JetBrains Mono', monospace; font-size:.8rem; line-height:1.9; color:#cfc9cb; background:#141216; border:1px solid #211d20; border-left:3px solid var(--accent); padding:1.1rem 1.4rem; border-radius:6px}
+  .foot{margin-top:5rem; padding-top:2.4rem; border-top:1px solid #211d20; font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:#7a757a; line-height:2.4}
+  .foot a{color:var(--accent); text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent); color:#111}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to THE STUDY</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 97 · Wave 6 · how it was made</div>
+  <h1>THE STUDY</h1>
+  <p class="sub">A 2.5D diorama of a midnight study — eleven SVG planes, mouse-look parallax, a breathing lamp</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Active Theory-style fake 3D without WebGL: a midnight study built as eleven flat SVG planes (wall, window, shelf, desk, lamp, plant, radio, floor, dust) that translate against the cursor proportionally to depth. Your eyes assemble the room; the lamp breathes and dust motes drift on the nearest plane.</p>
+
+  <h2><span class="no">02</span> How it works</h2>
+  <ul>
+    <li>Each layer carries a depth 0–1; per frame it gets <code>translate(-cursor·depth·46px)</code> plus a slight depth-scaled zoom — that scale term is what sells volume.</li>
+    <li>The cursor is double-smoothed (lerp 0.06) so the room swings like a headturn, not a scanner.</li>
+    <li>The lamp's glow ellipse re-opacities on a sine; the mote group orbits slowly — two tiny lives that stop the scene feeling like a poster.</li>
+    <li>Everything is inline SVG with a shared palette — the whole room is ~90 lines of markup.</li></ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <ul>
+    <li>Fraunces italic for the storybook plate, DM Mono for specs.</li>
+    <li>Aubergine night, amber lamplight, moon bone — warm-dark like a Ghibli interior.</li></ul>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <ul>
+    <li>Fixed a malformed SVG attribute (rx=\"\".6\") the console caught; verified layer ordering (plant in front of desk, motes nearest) and that parallax direction reads as looking, not sliding.</li></ul>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <ul>
+    <li>The whole system is: layers with <code>data-depth</code>, one pointer lerp, one transform line — any illustration becomes 2.5D.</li>
+    <li>Depth-scaled zoom (1 + d·0.06) is the secret; translation alone reads flat.</li>
+    <li>Add one or two idle animations on mid-depth layers; parallax without life is a screenshot.</li></ul>
+
+  <div class="meta">stack — one HTML file · 11 inline-SVG planes · pointer parallax + depth zoom · no WebGL<br>signature — a room assembled by your own eyes</div>
+
+  <div class="foot">
+    site 97 / fable 25 · built by claude (fable 5), commissioned by jeremy xiang<br>
+    <a href="../">launch THE STUDY</a> · <a href="../../">the other sites</a>
+  </div>
+</div>
+</body>
+</html>

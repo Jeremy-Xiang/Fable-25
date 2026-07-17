@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GOO LAB — tactile happiness research</title>
+<meta name="description" content="GOO LAB studies squish. Real gooey-filter metaballs chase your cursor and merge like warm candy. Extremely serious science.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#fff4e4;
+    --grape:#7c3aed;
+    --bubble:#ff70b8;
+    --tang:#ff9e3d;
+    --mint:#3ecf8e;
+    --ink:#3b2a4a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--cream);color:var(--ink);
+    font-family:'Baloo 2',cursive;overflow-x:hidden;
+  }
+  ::selection{background:var(--bubble);color:#fff}
+
+  svg.defs{position:absolute;width:0;height:0}
+
+  /* ——— hero goo playground ——— */
+  .lab{position:relative;height:100vh;overflow:hidden}
+  .goo-field{position:absolute;inset:0;filter:url(#goo)}
+  .blob{position:absolute;border-radius:50%;will-change:transform}
+
+  .lab .titlecard{position:relative;z-index:5;height:100%;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;pointer-events:none;padding:2rem}
+  h1{
+    font-weight:800;font-size:clamp(3.4rem,12vw,9.5rem);line-height:.95;letter-spacing:-.02em;
+    color:var(--ink);text-shadow:4px 4px 0 var(--cream),8px 8px 0 rgba(59,42,74,.14);
+  }
+  h1 .o1{color:var(--grape)}h1 .o2{color:var(--bubble)}h1 .o3{color:var(--tang)}
+  .titlecard p{font-family:'DM Mono',monospace;font-size:clamp(.72rem,1.6vw,.9rem);
+    letter-spacing:.26em;text-transform:uppercase;margin-top:1.6rem;
+    text-shadow:0 0 6px var(--cream),0 0 14px var(--cream),0 1px 0 var(--cream),0 -1px 0 var(--cream),1px 0 0 var(--cream),-1px 0 0 var(--cream)}
+  .titlecard .arrow{margin-top:3rem;font-size:2rem;animation:boing 1.4s cubic-bezier(.28,.84,.42,1) infinite}
+  @keyframes boing{0%,100%{transform:translateY(0)}50%{transform:translateY(14px) scaleY(.9)}}
+
+  nav{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;justify-content:space-between;
+    padding:1.6rem 2rem;font-weight:700;font-size:1rem}
+  nav .logo{background:var(--ink);color:var(--cream);padding:.3rem 1rem;border-radius:99px;transform:rotate(-3deg)}
+  nav a{color:var(--ink);text-decoration:none;margin-left:1.4rem;position:relative}
+  nav a::after{content:"";position:absolute;left:0;right:100%;bottom:-3px;height:4px;border-radius:4px;background:var(--bubble);transition:right .3s cubic-bezier(.6,-.3,.3,1.6)}
+  nav a:hover::after{right:0}
+
+  /* ——— findings ——— */
+  section{max-width:1150px;margin:0 auto;padding:12vh 5vw}
+  .kicker{font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.3em;text-transform:uppercase;
+    color:var(--grape);margin-bottom:1rem;display:block}
+  h2{font-weight:800;font-size:clamp(2.2rem,5.5vw,4rem);line-height:1.02;margin-bottom:3.5rem}
+  .findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2rem}
+  .finding{
+    background:#fff;border-radius:36px;padding:2.6rem 2.2rem;position:relative;
+    border:3px solid var(--ink);box-shadow:0 10px 0 var(--ink);
+    transition:transform .22s cubic-bezier(.3,1.6,.5,1),box-shadow .22s;
+  }
+  .finding:hover{transform:translateY(6px) rotate(-1deg);box-shadow:0 4px 0 var(--ink)}
+  .finding .squish{width:74px;height:74px;margin-bottom:1.6rem;border-radius:43% 57% 62% 38%/49% 41% 59% 51%;
+    animation:morph 7s ease-in-out infinite}
+  .finding:nth-child(1) .squish{background:var(--grape)}
+  .finding:nth-child(2) .squish{background:var(--bubble);animation-delay:-2s}
+  .finding:nth-child(3) .squish{background:var(--tang);animation-delay:-4s}
+  .finding:nth-child(4) .squish{background:var(--mint);animation-delay:-5.5s}
+  @keyframes morph{
+    0%,100%{border-radius:43% 57% 62% 38%/49% 41% 59% 51%}
+    33%{border-radius:61% 39% 40% 60%/44% 63% 37% 56%;transform:rotate(8deg) scale(1.05)}
+    66%{border-radius:38% 62% 55% 45%/60% 38% 62% 40%;transform:rotate(-6deg) scale(.96)}
+  }
+  .finding h3{font-size:1.5rem;font-weight:800;line-height:1.1;margin-bottom:.7rem}
+  .finding p{font-size:.98rem;line-height:1.65;opacity:.82;font-weight:500}
+  .finding .idx{position:absolute;top:1.3rem;right:1.6rem;font-family:'DM Mono',monospace;font-size:.7rem;opacity:.4}
+
+  /* ——— squish-o-meter ——— */
+  .meter{background:var(--ink);border-radius:48px;color:var(--cream);padding:9vh 6vw;text-align:center;position:relative;overflow:hidden}
+  .meter h2{color:var(--cream);margin-bottom:1rem}
+  .meter p{font-family:'DM Mono',monospace;font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;opacity:.7;margin-bottom:4rem}
+  #pressbtn{
+    font-family:'Baloo 2';font-weight:800;font-size:1.5rem;color:var(--ink);
+    background:var(--bubble);border:none;border-radius:99px;padding:1.4rem 3.4rem;cursor:pointer;
+    box-shadow:0 9px 0 #c24488;transition:transform .1s,box-shadow .1s;user-select:none;
+  }
+  #pressbtn:active{transform:translateY(7px);box-shadow:0 2px 0 #c24488}
+  #squishcount{font-size:clamp(3.5rem,9vw,7rem);font-weight:800;display:block;margin-top:2.4rem;
+    color:var(--tang);font-variant-numeric:tabular-nums}
+  .meter .label{font-size:.9rem;opacity:.7}
+
+  footer{padding:9vh 5vw;text-align:center;font-family:'DM Mono',monospace;
+    font-size:.7rem;letter-spacing:.24em;text-transform:uppercase;line-height:2.8;opacity:.8}
+  footer a{color:var(--grape);font-weight:700}
+
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<svg class="defs">
+  <filter id="goo">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="b"/>
+    <feColorMatrix in="b" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 26 -12" result="goo"/>
+    <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+  </filter>
+</svg>
+
+<div class="lab">
+  <div class="goo-field" id="field"></div>
+  <nav>
+    <span class="logo">GOO LAB</span>
+    <span>
+      <a href="#findings">Findings</a>
+      <a href="guide/">Guide</a>
+      <a href="../">Index</a>
+    </span>
+  </nav>
+  <div class="titlecard">
+    <h1>SQUISH<br>IS <span class="o1">SCI</span><span class="o2">EN</span><span class="o3">CE</span></h1>
+    <p>move your cursor — the specimens are friendly</p>
+    <div class="arrow">↓</div>
+  </div>
+</div>
+
+<section id="findings">
+  <span class="kicker">Peer-reviewed by toddlers</span>
+  <h2>Findings from the Department of Tactile Happiness</h2>
+  <div class="findings">
+    <div class="finding"><span class="idx">F-01</span><div class="squish"></div>
+      <h3>Goo is honest</h3>
+      <p>A blob cannot pretend. Compress it here, it bulges there. The physics on this page — blur, threshold, merge — is the same math that makes lava lamps hypnotic.</p>
+    </div>
+    <div class="finding"><span class="idx">F-02</span><div class="squish"></div>
+      <h3>Merging is a love language</h3>
+      <p>Two metaballs within kissing distance become one. The SVG gooey filter (feGaussianBlur → feColorMatrix) performs this ceremony sixty times per second.</p>
+    </div>
+    <div class="finding"><span class="idx">F-03</span><div class="squish"></div>
+      <h3>Corners are a rumor</h3>
+      <p>Our instruments have never observed one. Every border-radius in this lab is animated through four asymmetric states, which is why nothing ever looks parked.</p>
+    </div>
+    <div class="finding"><span class="idx">F-04</span><div class="squish"></div>
+      <h3>Bounce ≈ trust</h3>
+      <p>Users forgive anything that overshoots by 8% and settles. All easing on this page is cubic-bezier with a deliberate wobble — the interface equivalent of a firm, friendly handshake.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="meter">
+    <h2>The Squish-o-Meter</h2>
+    <p>calibrated daily · iso 9001 non-compliant</p>
+    <button id="pressbtn">PRESS TO SQUISH</button>
+    <span id="squishcount">0</span>
+    <div class="label">total squishes recorded this session</div>
+  </div>
+</section>
+
+<footer>
+  GOO LAB — TACTILE HAPPINESS RESEARCH DIVISION<br>
+  BUILT WITH ONE SVG FILTER AND NO CORNERS BY CLAUDE (FABLE 5)<br>
+  <a href="guide/">HOW IT WAS MADE</a> · <a href="../">ALL 25 SITES</a>
+</footer>
+
+<script>
+/* ——— goo field: physics blobs + cursor blob ——— */
+const field=document.getElementById('field');
+const COLORS=['#7c3aed','#ff70b8','#ff9e3d','#3ecf8e','#ffd166'];
+const blobs=[];
+const NB=14;
+for(let i=0;i<NB;i++){
+  const el=document.createElement('div');
+  el.className='blob';
+  const r=34+Math.random()*66;
+  el.style.width=el.style.height=r*2+'px';
+  el.style.background=COLORS[i%COLORS.length];
+  field.appendChild(el);
+  blobs.push({
+    el,r,
+    x:Math.random()*innerWidth,y:Math.random()*innerHeight,
+    vx:(Math.random()-.5)*1.1,vy:(Math.random()-.5)*1.1,
+  });
+}
+/* cursor blob */
+const cb=document.createElement('div');
+cb.className='blob';cb.style.width=cb.style.height='120px';cb.style.background='#3b2a4a';
+field.appendChild(cb);
+let cx=innerWidth/2,cy=innerHeight/2,tx=cx,ty=cy;
+addEventListener('pointermove',e=>{tx=e.clientX;ty=e.clientY});
+
+function step(){
+  const W=innerWidth,H=field.parentElement.offsetHeight;
+  for(const b of blobs){
+    /* gentle attraction to cursor */
+    const dx=cx-b.x,dy=cy-b.y,d=Math.hypot(dx,dy)||1;
+    if(d<260){b.vx+=dx/d*.045;b.vy+=dy/d*.045}
+    b.vx*=.992;b.vy*=.992;
+    b.x+=b.vx;b.y+=b.vy;
+    if(b.x<-b.r)b.x=W+b.r; if(b.x>W+b.r)b.x=-b.r;
+    if(b.y<-b.r)b.y=H+b.r; if(b.y>H+b.r)b.y=-b.r;
+    b.el.style.transform=`translate(${b.x-b.r}px,${b.y-b.r}px)`;
+  }
+  cx+=(tx-cx)*.14;cy+=(ty-cy)*.14;
+  cb.style.transform=`translate(${cx-60}px,${cy-60}px)`;
+  requestAnimationFrame(step);
+}
+step();
+
+/* squish counter */
+const btn=document.getElementById('pressbtn'),cnt=document.getElementById('squishcount');
+let n=0;
+btn.addEventListener('click',()=>{
+  cnt.textContent=++n;
+  cnt.animate(
+    [{transform:'scale(1)'},{transform:'scale(1.3) rotate('+((Math.random()*10)-5)+'deg)'},{transform:'scale(1)'}],
+    {duration:260,easing:'cubic-bezier(.3,1.8,.5,1)'}
+  );
+  if(n===50)cnt.style.color='#3ecf8e';
+  if(n===100)cnt.textContent='100 — ok that is enough science';
+});
+</script>
+</body>
+</html>

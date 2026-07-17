@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How ABYSSA was made — guide</title>
+<meta name="description" content="How the ABYSSA site was designed and built: Three.js particle field, procedural coral, generated backdrop, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Martian+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #3ff0d8; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#050b14; color:#e4eef4;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Martian Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#8fa3ae; text-decoration:none; border-bottom:1px solid #1c2830; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Martian Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#8fa3ae; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #16212a;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Martian Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Martian Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Martian Mono', monospace; font-size:.8rem; line-height:1.9; color:#b7c6cd;
+    background:#0a141d; border:1px solid #16212a; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #16212a;
+    font-family:'Martian Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#7f929d; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#050b14; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to ABYSSA</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 36 of 50 · how it was made</div>
+  <h1>ABYSSA</h1>
+  <p class="sub">The reef that makes its own light</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>ABYSSA is Wing II's first real-3D showcase and its first generated-asset piece: a Higgsfield still of a bioluminescent reef sits behind a genuine Three.js scene, not in front of it as a static hero. The image gives the color and richness a pure shader can't fake quickly; the live particle field and procedural coral give it the motion and depth a photo never can. Scroll dollies the camera forward through the reef — a depth readout in the corner tracks simulated meters — and the pointer nudges the whole scene like you're actually holding still against a current.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Three.js loaded via import map from unpkg, same pattern as the Wing I 3D pieces — no bundler, one module script</li>
+    <li>The hero image is a textured plane fixed far behind the camera (z −42), rescaled on resize to always fill the frustum — a real backdrop, not a CSS background</li>
+    <li>~1,100 plankton as a single <code>THREE.Points</code> buffer, each with independent drift velocity and a per-particle cyan→magenta color sampled at init, additive blending for glow</li>
+    <li>Five procedural coral pieces built from <code>TorusKnotGeometry</code> and <code>LatheGeometry</code> with emissive materials — no modeled assets, just math and light</li>
+    <li>Depth is sold by three layers moving at three different parallax rates: backdrop barely, plankton some, coral (nearest) most</li>
+    <li>Feature-detects WebGL before touching the canvas; if it's unavailable the script never runs and a plain image fallback with a visible notice takes over instead</li>
+  </ul>
+  <p><strong>What the three passes caught:</strong> the build pass found the depth cue was unconvincing until camera dolly was tied to scroll instead of just autonomous drift — a static camera made the "parallax" claim in the copy false. The code-review pass flagged the plankton loop reading every particle every frame with no pooling; kept it since 1,100 points is cheap, but capped delta-time to avoid a tab-away spiral. The live-browser pass caught the background plane not covering ultra-wide viewports on resize (frustum math used the wrong aspect at first), and found <code>prefers-reduced-motion</code> wasn't actually freezing the plankton drift — only the camera; fixed both.</p>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Bricolage Grotesque + Martian Mono · abyssal near-black #050b14, bioluminescent cyan #3ff0d8, reef magenta #e64fe0</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Generate one atmospheric hero image (nano_banana_pro), optimize with <code>sips -Z 1920 -s formatOptions 78</code> to keep it well under 1MB</li>
+    <li>Build a Three.js scene with an import-map module script; feature-detect WebGL first and provide an image-only fallback path</li>
+    <li>Put the generated image on a plane far behind the camera, sized to the view frustum at that distance</li>
+    <li>Layer a particle system and a few procedural meshes in front, each responding to pointer and scroll at a different rate for genuine parallax depth</li>
+    <li>Wire <code>prefers-reduced-motion</code> to freeze every per-frame mutation, not just the obvious one — check each loop individually</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable), Anthropic · Wing II asset pipeline: one Higgsfield (nano_banana_pro) hero image, optimized locally with sips · hand-written HTML/CSS/JS + Three.js via CDN, no build step ·
+    3 iteration passes in a real browser before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

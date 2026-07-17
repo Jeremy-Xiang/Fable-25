@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23b06bff%22/></svg>">
+<title>How CURVELOOP was made — guide</title>
+<meta name="description" content="How the CURVELOOP site was designed and built: a seamless SVG textPath curved-text loop staged as a spinning badge, with the lift-it-into-your-site notes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #b06bff; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0a0d; color:#eee8f7;
+    font-family:'Fraunces', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Space Mono', monospace; font-size:.7rem; letter-spacing:.2em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#948da8; text-decoration:none; border-bottom:1px solid #221f2c; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Space Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; font-style:italic; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#948da8; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #201d29;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Space Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p, li { font-family:'Space Mono', monospace; font-size:.86rem; line-height:1.85; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Space Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-family:'Space Mono',monospace;font-size:.92em;background:#17141e;padding:.1em .4em;border-radius:4px;color:#dcd3f0}
+  .meta {
+    font-family:'Space Mono', monospace; font-size:.8rem; line-height:1.9; color:#cabfe0;
+    background:#131019; border:1px solid #201d29; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #201d29;
+    font-family:'Space Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8d879e; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0a0a0d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to CURVELOOP</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 65 of 72 · Wave 4 · how it was made</div>
+  <h1>Curveloop</h1>
+  <p class="sub">A curved text loop that never shows a seam — staged as a spinning badge</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>React Bits' "Curved Loop" is one of the most-lifted components in modern portfolio sites — a strip of text bent around a path, drifting forever, reacting to a drag. Most hand versions either leave a visible gap where the repeated string doesn't quite tile, or the tiling breaks the moment you change the radius. CURVELOOP fixes both: the string is measured and re-tiled every time the radius changes, then force-fit to the exact circumference so the loop closes cleanly at any size. It's staged here as an "open for work" seal badge sitting next to a portfolio name card, the way you'd actually deploy it.</p>
+
+  <h2><span class="no">02</span> How the effect works</h2>
+  <ul>
+    <li><strong>The path:</strong> a single SVG <code>&lt;path&gt;</code> built from two 180° arc commands — <code>M cx-r,cy A r,r 0 1,1 cx+r,cy A r,r 0 1,1 cx-r,cy</code> — is the only way to describe a full circle in one <code>d</code> string, since a single arc command can't close on itself.</li>
+    <li><strong>Seamless tiling:</strong> the label unit <code>"OPEN FOR WORK ✦ 2026 ✦ "</code> is measured with <code>CanvasRenderingContext2D.measureText()</code> at the exact font/weight/size used on-screen. <code>repeats = round(circumference / unitWidth)</code> gives a whole number of copies that roughly fill the ring.</li>
+    <li><strong>The seam-killer:</strong> the whole <code>&lt;text&gt;</code> element then gets <code>textLength = circumference</code> with <code>lengthAdjust="spacing"</code>. SVG stretches or compresses inter-glyph spacing (not the glyphs themselves) until the text's total advance along the path is exactly the circle's circumference — so the last character's end lands exactly where the first character's start began. That's what makes the loop read as infinite rather than a strip with a visible joint.</li>
+    <li><strong>Rotation:</strong> one <code>angle</code> accumulator (degrees) drives a <code>transform="rotate(angle, 150, 150)"</code> on the wrapping <code>&lt;g&gt;</code>, reapplied every animation frame — not a CSS <code>@keyframes</code> spin, so it can be pushed by drag or scroll mid-animation without restarting.</li>
+    <li><strong>Drag &amp; momentum:</strong> pointer angle is computed each move via <code>atan2(y-cy, x-cx)</code>; the frame-to-frame delta becomes both the rotation increment and the instantaneous velocity (deg/s). On release, that velocity is kept as <code>spinVel</code> and eased back toward the autoplay target every frame with <code>spinVel += (target - spinVel) · min(1, dt·2.2)</code> — an exponential decay, not a spring library.</li>
+    <li><strong>Scroll reactivity:</strong> a passive <code>scroll</code> listener converts <code>ΔscrollY/Δt</code> into a small nudge added to <code>spinVel</code> (clamped ±260°/s), so flicking past the badge visibly kicks its spin.</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Fraunces (italic display serif, headline) + Space Mono (labels, UI, the looping text itself) · near-black #0a0a0d/#111015 · neon violet accent #b06bff · off-white ink #f2eefb</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>The first headless render at the default radius (110) looked fine, but the whole point of shipping a "curve radius" slider is that people will drag it to its extremes — so before signing off, a small puppeteer script drove the actual page, set <code>#radius</code> to its min (65), mid (90) and max (130) values, and both logged the resulting <code>textLength / rawWidth</code> stretch factor and screenshotted the badge at each step. At <code>radius = 65</code> the stretch factor came out to <strong>0.484</strong> — the code's <code>Math.max(4, …)</code> floor was force-fitting 4 repeats of the label into a circumference that only naturally fit 2, so <code>lengthAdjust="spacing"</code> had to compress inter-glyph spacing to under half its natural width. The screenshot confirmed it visually: the ring text collapsed into an illegible overlapping blur, not readable text. Fix: lowered the hard floor from <code>Math.max(4, …)</code> to <code>Math.max(2, …)</code> so the repeat count tracks what the measured circumference actually supports instead of overriding it. Re-testing the same three radii afterward gave stretch factors of 0.97 / 0.89 / 0.97 — all close to 1:1, no visible overlap — and as a side effect the default view now shows a slightly roomier 3 repeats instead of a forced, faintly-compressed 4.</p>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <p>To reuse this in another project, copy these pieces as a unit:</p>
+  <ul>
+    <li><strong>Markup:</strong> the <code>#badgeWrap &gt; svg#loop</code> subtree — <code>defs&gt;path#circlePath</code>, <code>circle#ringGuide</code>, <code>g#ring&gt;text#loopText&gt;textPath#loopTextPath</code>, and the static <code>g#center</code>. The SVG expects a fixed square <code>viewBox</code> (here <code>0 0 300 300</code>) — keep <code>CX</code>/<code>CY</code> in the script matched to its center.</li>
+    <li><strong>Functions:</strong> <code>circlePathD(r)</code>, <code>rebuildRing(r)</code> (measure + retile + set <code>textLength</code>), <code>pointerAngle(e)</code>, <code>applyRotation()</code>, and the <code>loop(now)</code> rAF tick that eases <code>spinVel</code> toward <code>baseSpeed</code>.</li>
+    <li><strong>Constants to tweak:</strong> <code>BASE_UNIT</code> (the repeating label string), the font string inside <code>rebuildRing</code> (must match the on-screen <code>font-family/weight/size</code> or the measured width will be wrong and the loop will visibly gap or overlap), <code>baseSpeed</code> (deg/s), and the decay rate <code>2.2</code> in the easing line (higher = snappier settle after a drag).</li>
+    <li><strong>Gotchas:</strong> set <code>touch-action:none</code> on the SVG/wrapper (already done) or touch-drag will scroll the page instead of spinning the badge. Respect <code>prefers-reduced-motion</code> by setting the autoplay target to <code>0</code> instead of disabling the script entirely — the badge should stay drag- and keyboard-operable, it just shouldn't idle-spin forever on its own. If you change the radius dynamically, always re-run <code>rebuildRing()</code> — the <code>textLength</code> value is radius-dependent and stale values reintroduce the seam. If you make the min radius smaller than roughly one label-unit's width, don't hard-floor the repeat count (see 04) — let it track the measured circumference or the glyphs will overlap into a blur.</li>
+  </ul>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Draw a full-circle <code>&lt;path&gt;</code> from two semicircular arc commands; give it an <code>id</code> for <code>textPath</code> to reference</li>
+    <li>Measure your repeating label string's pixel width at the exact on-screen font via <code>canvas.measureText()</code></li>
+    <li>Tile the string <code>round(circumference / unitWidth)</code> times into the <code>&lt;textPath&gt;</code></li>
+    <li>Force an exact fit with <code>textLength=circumference</code> and <code>lengthAdjust="spacing"</code> on the parent <code>&lt;text&gt;</code> — this is what removes the seam</li>
+    <li>Rotate a wrapping <code>&lt;g&gt;</code> via a JS-driven <code>transform="rotate(angle,cx,cy)"</code> each frame, feeding it autoplay speed, drag delta, and (optionally) scroll velocity into one shared velocity variable</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 4), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step, no textPath library ·
+    build → real screenshot critique passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CELESTE — Atlas of Unnamed Constellations</title>
+<meta name="description" content="CELESTE is an interactive star atlas. Constellations assemble around your cursor; click to name one and enter it into the register.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Jost:ital,wght@0,200;0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#050510;
+    --deep:#0b0c22;
+    --starlight:#e7ebff;
+    --gold:#e8c880;
+    --faint:rgba(231,235,255,.35);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(ellipse at 30% 20%, var(--deep), var(--night) 70%);
+    color:var(--starlight);font-family:'Jost',sans-serif;overflow:hidden;
+    cursor:crosshair;
+  }
+  ::selection{background:var(--gold);color:var(--night)}
+  canvas{position:fixed;inset:0}
+
+  .ui{position:fixed;inset:0;pointer-events:none;z-index:5;display:flex;flex-direction:column;justify-content:space-between}
+
+  header{display:flex;justify-content:space-between;align-items:flex-start;padding:2.2rem 2.6rem}
+  .brand{font-family:'Marcellus',serif;font-size:1.5rem;letter-spacing:.5em;text-transform:uppercase}
+  .brand small{display:block;font-family:'Jost',sans-serif;font-size:.62rem;letter-spacing:.34em;opacity:.55;margin-top:.5rem}
+  nav{pointer-events:auto;display:flex;gap:1.8rem;font-size:.7rem;letter-spacing:.28em;text-transform:uppercase}
+  nav a{color:var(--starlight);opacity:.65;text-decoration:none;transition:opacity .3s,color .3s}
+  nav a:hover{opacity:1;color:var(--gold)}
+
+  .center-title{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;transition:opacity 1.2s ease;
+  }
+  .center-title h1{
+    font-family:'Marcellus',serif;font-weight:400;
+    font-size:clamp(2.6rem,7vw,5.8rem);letter-spacing:.08em;line-height:1.15;
+    text-shadow:0 0 60px rgba(232,200,128,.25);
+  }
+  .center-title p{margin-top:1.6rem;font-weight:200;letter-spacing:.22em;font-size:.78rem;text-transform:uppercase;opacity:.7}
+  .center-title.hide{opacity:0}
+
+  footer{display:flex;justify-content:space-between;align-items:flex-end;padding:2rem 2.6rem;font-size:.66rem;letter-spacing:.24em;text-transform:uppercase}
+  footer .stat{opacity:.6;line-height:2}
+  footer .stat b{color:var(--gold);font-weight:400}
+
+  /* Naming card */
+  #card{
+    position:fixed;z-index:10;pointer-events:none;opacity:0;transform:translate(-50%,-130%) scale(.94);
+    transition:opacity .5s ease,transform .5s cubic-bezier(.2,.9,.3,1.4);
+    background:rgba(11,12,34,.82);backdrop-filter:blur(12px);
+    border:1px solid rgba(232,200,128,.35);padding:1.4rem 2rem;text-align:center;min-width:280px;
+  }
+  #card.show{opacity:1;transform:translate(-50%,-140%) scale(1)}
+  #card .const-name{font-family:'Marcellus',serif;font-size:1.5rem;letter-spacing:.1em;color:var(--gold)}
+  #card .const-cat{font-size:.62rem;letter-spacing:.3em;text-transform:uppercase;opacity:.6;margin-top:.6rem}
+  #card::after{content:"";position:absolute;left:50%;bottom:-7px;width:12px;height:12px;
+    background:inherit;border-right:1px solid rgba(232,200,128,.35);border-bottom:1px solid rgba(232,200,128,.35);
+    transform:translateX(-50%) rotate(45deg)}
+
+  /* Register drawer */
+  #register{
+    position:fixed;right:0;top:0;bottom:0;width:min(340px,85vw);z-index:20;
+    background:rgba(5,5,16,.92);backdrop-filter:blur(16px);border-left:1px solid rgba(231,235,255,.12);
+    transform:translateX(100%);transition:transform .6s cubic-bezier(.2,.8,.2,1);
+    padding:6rem 2.2rem 2rem;pointer-events:auto;overflow-y:auto;
+  }
+  #register.open{transform:none}
+  #register h2{font-family:'Marcellus',serif;letter-spacing:.2em;font-size:1rem;text-transform:uppercase;margin-bottom:2rem;color:var(--gold)}
+  #register .entry{border-bottom:1px solid rgba(231,235,255,.1);padding:1rem 0}
+  #register .entry .n{font-family:'Marcellus',serif;font-size:1.05rem;letter-spacing:.06em}
+  #register .entry .d{font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;opacity:.5;margin-top:.4rem}
+  #register .empty{font-weight:200;font-size:.85rem;opacity:.55;line-height:1.9;font-style:italic}
+  #regbtn{pointer-events:auto;cursor:pointer;background:none;border:1px solid rgba(231,235,255,.25);
+    color:var(--starlight);font-family:'Jost',sans-serif;font-size:.66rem;letter-spacing:.28em;
+    text-transform:uppercase;padding:.7rem 1.4rem;transition:border-color .3s,color .3s}
+  #regbtn:hover{border-color:var(--gold);color:var(--gold)}
+
+  .hint{position:fixed;left:50%;bottom:7rem;transform:translateX(-50%);z-index:6;
+    font-size:.64rem;letter-spacing:.34em;text-transform:uppercase;opacity:0;
+    animation:hintin 1s ease 3.5s forwards;pointer-events:none;text-align:center;line-height:2.2}
+  @keyframes hintin{to{opacity:.55}}
+
+  @media (max-width:700px){
+    header{padding:1.6rem}
+    footer{padding:1.4rem 1.6rem;font-size:.56rem}
+    .brand{font-size:1.1rem}
+  }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+
+<div class="ui">
+  <header>
+    <div class="brand">Celeste<small>Atlas of unnamed constellations</small></div>
+    <nav>
+      <button id="regbtn">Register</button>
+      <a href="guide/">Guide</a>
+      <a href="../">Index</a>
+    </nav>
+  </header>
+
+  <div class="center-title" id="title">
+    <h1>Six thousand stars.<br>None of them named.</h1>
+    <p>Move — the sky gathers around you. Click — to christen what it makes.</p>
+  </div>
+
+  <footer>
+    <div class="stat">Stars charted <b id="scount">0</b></div>
+    <div class="stat" style="text-align:center">Constellations named <b id="ccount">0</b></div>
+    <div class="stat" style="text-align:right">Epoch J2026.5 · Fable field survey</div>
+  </footer>
+</div>
+
+<div class="hint">click anywhere to name a constellation</div>
+<div id="card"><div class="const-name" id="cname"></div><div class="const-cat" id="ccat"></div></div>
+
+<aside id="register">
+  <h2>The Register</h2>
+  <div id="entries"><p class="empty">No constellations have been entered into the register. The sky is patient.</p></div>
+</aside>
+
+<script>
+const cv=document.getElementById('sky'),ctx=cv.getContext('2d');
+let W,H,DPR;
+function resize(){
+  DPR=Math.min(devicePixelRatio,2);
+  W=innerWidth;H=innerHeight;
+  cv.width=W*DPR;cv.height=H*DPR;
+  cv.style.width=W+'px';cv.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener('resize',resize);resize();
+
+/* ——— star field: 3 parallax layers ——— */
+const LAYERS=[{n:3600,s:.35,r:[0.2,0.7],a:.5},{n:1850,s:.7,r:[0.4,1.1],a:.75},{n:550,s:1.15,r:[0.7,1.8],a:1}];
+const stars=[];
+LAYERS.forEach((L,li)=>{
+  for(let i=0;i<L.n;i++){
+    stars.push({
+      x:Math.random()*W*1.4-W*.2, y:Math.random()*H*1.4-H*.2,
+      r:L.r[0]+Math.random()*(L.r[1]-L.r[0]),
+      tw:Math.random()*Math.PI*2, tws:.5+Math.random()*2,
+      layer:li, s:L.s, a:L.a,
+      hue: Math.random()<.08 ? 38 : (Math.random()<.5? 225: 210),
+      sat: Math.random()<.12 ? 60 : 12
+    });
+  }
+});
+document.getElementById('scount').textContent=stars.length.toLocaleString();
+
+let mx=W/2,my=H/2,smx=mx,smy=my,moved=false;
+addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY;
+  if(!moved){moved=true;setTimeout(()=>document.getElementById('title').classList.add('hide'),1400);}
+});
+
+/* constellation naming */
+const A=['Vela','Corvus','Lyra','Aquila','Cetus','Orion','Vulpes','Ursa','Cygne','Perse'];
+const P1=['The Patient','The Burning','The Quiet','The Second','The Inverted','The Wandering','The Glass','The Hollow','The Last','The Gilded'];
+const P2=['Cartographer','Harp','Fox','Anchor','Door','Mirror','Swimmer','Lantern','Archivist','Comet'];
+const CATS=['minor asterism — northern reach','binary drift — western field','deep field cluster','equatorial wanderer','circumpolar — never sets','faint — visible only sideways'];
+let named=0;
+const card=document.getElementById('card'),cname=document.getElementById('cname'),ccat=document.getElementById('ccat');
+const entries=document.getElementById('entries');
+let flares=[];
+
+addEventListener('click',e=>{
+  if(e.target.closest('#register')||e.target.closest('nav'))return;
+  const name=Math.random()<.5
+    ? `${P1[Math.random()*10|0]} ${P2[Math.random()*10|0]}`
+    : `${A[Math.random()*10|0]} ${['Minoris','Borealis','Umbrae','Novae'][Math.random()*4|0]}`;
+  const cat=CATS[Math.random()*CATS.length|0];
+  named++;
+  document.getElementById('ccount').textContent=named;
+  cname.textContent=name;ccat.textContent=cat;
+  card.style.left=e.clientX+'px';card.style.top=e.clientY+'px';
+  card.classList.add('show');
+  clearTimeout(card._t);card._t=setTimeout(()=>card.classList.remove('show'),2600);
+  if(named===1)entries.innerHTML='';
+  const div=document.createElement('div');
+  div.className='entry';
+  div.innerHTML=`<div class="n">${name}</div><div class="d">${cat}</div>`;
+  entries.prepend(div);
+  /* golden flare ring */
+  flares.push({x:e.clientX,y:e.clientY,r:0,life:1});
+});
+
+document.getElementById('regbtn').addEventListener('click',e=>{
+  e.stopPropagation();
+  document.getElementById('register').classList.toggle('open');
+});
+
+/* ——— render loop ——— */
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let t=0;
+function frame(){
+  t+=reduced?0:.016;
+  smx+=(mx-smx)*.06;smy+=(my-smy)*.06;
+  ctx.clearRect(0,0,W,H);
+
+  /* nebula glow near cursor */
+  const g=ctx.createRadialGradient(smx,smy,0,smx,smy,340);
+  g.addColorStop(0,'rgba(90,90,190,.10)');
+  g.addColorStop(.6,'rgba(60,50,140,.05)');
+  g.addColorStop(1,'transparent');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  const px=(smx-W/2)/W, py=(smy-H/2)/H;
+  const near=[];
+  for(const s of stars){
+    const ox=-px*40*s.s, oy=-py*40*s.s;
+    const x=s.x+ox, y=s.y+oy;
+    const tw=.55+.45*Math.sin(t*s.tws+s.tw);
+    ctx.beginPath();
+    ctx.fillStyle=`hsla(${s.hue},${s.sat}%,88%,${s.a*tw})`;
+    ctx.arc(x,y,s.r,0,7);
+    ctx.fill();
+    if(s.layer===2){
+      const dx=x-smx,dy=y-smy,d2=dx*dx+dy*dy;
+      if(d2<180*180)near.push({x,y,d:Math.sqrt(d2)});
+    }
+  }
+
+  /* constellation lines around cursor */
+  near.sort((a,b)=>a.d-b.d);
+  const k=Math.min(near.length,9);
+  ctx.lineWidth=.7;
+  for(let i=0;i<k;i++){
+    for(let j=i+1;j<k;j++){
+      const a=near[i],b=near[j];
+      const dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy);
+      if(d<150){
+        const al=(1-d/150)*.5;
+        ctx.strokeStyle=`rgba(232,200,128,${al})`;
+        ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+      }
+    }
+    /* halo on member stars */
+    ctx.beginPath();
+    ctx.strokeStyle='rgba(232,200,128,.45)';
+    ctx.arc(near[i].x,near[i].y,4.5,0,7);ctx.stroke();
+  }
+
+  /* click flares */
+  flares=flares.filter(f=>f.life>0);
+  for(const f of flares){
+    f.r+=3.2;f.life-=.016;
+    ctx.beginPath();
+    ctx.strokeStyle=`rgba(232,200,128,${f.life*.7})`;
+    ctx.lineWidth=1.2;
+    ctx.arc(f.x,f.y,f.r,0,7);ctx.stroke();
+  }
+
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
+</body>
+</html>

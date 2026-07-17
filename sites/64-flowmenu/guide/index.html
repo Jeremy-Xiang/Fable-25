@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23f2a33c%22/></svg>">
+<title>How FLOWMENU was made — guide</title>
+<meta name="description" content="How the FLOWMENU site was designed and built: a hand-rolled flowing/marquee nav-menu effect, plus how to lift it into another site.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #f2a33c; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0f0d0a; color:#f2ece0;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#a49a88; text-decoration:none; border-bottom:1px solid #2a2319; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#a49a88; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #241f16;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'JetBrains Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { margin-bottom: 1rem; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'JetBrains Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-family:'JetBrains Mono',monospace;font-size:.9em;background:#1c160d;padding:.1em .4em;border-radius:4px}
+  .meta {
+    font-family:'JetBrains Mono', monospace; font-size:.8rem; line-height:1.9; color:#cabca8;
+    background:#171209; border:1px solid #241f16; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #241f16;
+    font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a7d68; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0f0d0a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to FLOWMENU</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 64 of 72 · Wave 4 · how it was made</div>
+  <h1>FLOWMENU</h1>
+  <p class="sub">A nav row that swaps itself for a sliding marquee of its own label — React Bits' "Flowing Menu," hand-rolled</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Agency and studio homepages often make the primary nav <em>the</em> homepage: a stack of oversized links is the whole layout. FLOWMENU takes that convention and gives each link a second, hidden identity — an amber marquee band carrying the same word plus a small abstract shape, parked just off the row's edge, that slides in to replace the static label the instant you touch the row. It's staged here as MERIDIAN STUDIO's real nav (Work / About / Services / Contact) rather than an isolated toy, so it's obvious how the same four DOM pieces would drop into an actual site header.</p>
+
+  <h2><span class="no">02</span> How the effect works</h2>
+  <ul>
+    <li><strong>Two layers per row:</strong> a real <code>&lt;a class="row-inner"&gt;</code> nav link sits under a full-bleed <code>.mq-wrap</code> overlay. At rest, <code>.mq-wrap</code> sits at <code>transform:translateY(101%)</code> — one row-height plus 1% below the row, fully hidden by the row's <code>overflow:hidden</code>.</li>
+    <li><strong>Directional entry:</strong> on <code>mouseenter</code>, <code>edgeDir()</code> compares the event's Y position against the row's own <code>getBoundingClientRect()</code> midpoint: above the midline returns <code>-1</code> (enter from top), below returns <code>1</code> (enter from bottom). <code>reveal()</code> then snaps <code>.mq-wrap</code> to <code>translateY(±101%)</code> with <code>transition:none</code>, forces a reflow via <code>getBoundingClientRect()</code> so the browser commits that position, then on the next animation frame sets <code>transition:transform .6s cubic-bezier(.16,1,.3,1)</code> and animates to <code>translateY(0%)</code>. <code>mouseleave</code> runs the same <code>edgeDir()</code>/animate pair in reverse, so the band always exits toward whichever edge the cursor actually left through.</li>
+    <li><strong>The marquee itself:</strong> <code>buildMarquee()</code> fills each row's <code>.mq-track</code> with the row's label + an abstract shape repeated 12 times, <em>twice</em> — two identical halves back to back. A <code>@keyframes mq-scroll</code> animation runs <code>transform:translateX(0)</code> to <code>translateX(-50%)</code> linearly, forever: since the two halves are pixel-identical, the moment it wraps is invisible and it reads as an infinite scroll. Duration lives in the CSS custom property <code>--mq-dur</code>, so speed changes never touch the keyframes.</li>
+    <li><strong>Shapes:</strong> each row's swatch is plain CSS — a rotated square (<code>diamond</code>), <code>border-radius:50%</code> (<code>circle</code>), a zero-size box with border triangle trick (<code>triangle</code>), and a 12-point <code>clip-path</code> polygon (<code>plus</code>) — standing in for the "small image" React Bits' version usually shows.</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Unbounded (900 weight, geometric display) for row labels + JetBrains Mono for meta/UI text · near-black #0a0908 · warm amber accent #f2a33c · warm off-white ink #f5efe4</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>The whole effect is gated behind <code>mouseenter</code>/<code>focus</code>/<code>touchstart</code> — none of which a headless page load ever fires — so the first render of the site genuinely never showed the marquee at all, just a flat static nav. I added an idle auto-demo that opens row 1 automatically and cycles through the others until a real interaction happens. The first attempt drove it purely with <code>setTimeout</code>, and the desktop and mobile screenshots came back showing two different broken frames: desktop caught the band mid-slide-in (a thin amber sliver at the row's top edge instead of a full band), and mobile caught it mid-slide-out (amber-on-amber unreadable text). The cause: <code>tools/screenshot.js</code> takes a full-page shot after scrolling through the page in steps sized to its height, so desktop and mobile settle at different real elapsed times before the final capture — a fixed millisecond delay could not hit both. The fix was to stop timing it at all: row 1's <code>.mq-wrap</code> now starts with a dedicated <code>.mq-open</code> class set directly in the HTML (<code>transform:translateY(0%)</code> in CSS, no transition), so the band is already fully open at the very first paint regardless of when any script runs, and is held open for 7 seconds — comfortably longer than either viewport's settle time — before the idle demo closes it and moves on.</p>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <p>To reuse this in another project, copy four pieces:</p>
+  <ul>
+    <li><strong>Markup per row:</strong> an <code>&lt;li class="row"&gt;</code> containing a <code>.row-inner</code> link and a sibling <code>.mq-wrap &gt; .mq-track</code> div. The row needs <code>position:relative; overflow:hidden</code>; the wrap needs <code>position:absolute; inset:0</code>.</li>
+    <li><strong>Functions to copy verbatim:</strong> <code>buildMarquee(row)</code>, <code>edgeDir(e, row)</code>, <code>reveal(row, dir)</code>, <code>hide(row, dir)</code> — none of them reach outside the row they're given, so they drop into any nav structure unchanged.</li>
+    <li><strong>CSS custom property to tweak:</strong> <code>--mq-dur</code> (marquee scroll duration) — set it once globally or per-row for varied speeds. Row height, font size and the amber accent are all ordinary CSS you'll want to restyle to match your palette.</li>
+    <li><strong>Gotchas:</strong> the <code>transition:none</code> → forced reflow → re-enable-transition sequence in <code>reveal()</code> is load-bearing — skip the reflow and the browser will coalesce the snap and the animation into one, so it slides in from wherever it last was instead of the correct edge. Also wire <code>focus</code>/<code>blur</code> to the same <code>reveal</code>/<code>hide</code> pair for keyboard users, and a <code>touchstart</code> toggle for touch — hover alone leaves touch devices with a dead effect. Respect <code>prefers-reduced-motion</code> by skipping straight to the end state instead of animating the slide.</li>
+  </ul>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Build each row as two stacked layers: a real link, and an absolutely-positioned overlay parked at <code>translateY(101%)</code></li>
+    <li>On pointer/focus enter, read which half of the row was crossed and snap the overlay to that same edge with no transition</li>
+    <li>Force a reflow, then re-enable the transition and animate the overlay to <code>translateY(0%)</code></li>
+    <li>Fill the overlay with two identical copies of a repeated label + shape, scrolled with a linear <code>0%→-50%</code> keyframe loop so the seam is invisible</li>
+    <li>On exit, repeat the edge check and animate back out the same way — never straight to a fixed default</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 4), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step, no libraries ·
+    build → real screenshot critique passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

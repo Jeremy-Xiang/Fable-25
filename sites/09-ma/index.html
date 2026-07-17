@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>間 — MA, a study in negative space</title>
+<meta name="description" content="MA (間) is the Japanese concept of meaningful emptiness. A site that is mostly pause: vertical text, one ensō, four seasons.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@200;300;400&family=Zen+Kaku+Gothic+New:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f7f4ee;
+    --sumi:#26241f;
+    --accent:#b04a3a;   /* autumn persimmon default */
+    --soft:rgba(38,36,31,.55);
+    --whisper:rgba(38,36,31,.14);
+  }
+  [data-season="haru"]{--accent:#d88a9c;--paper:#faf5f2}
+  [data-season="natsu"]{--accent:#3a7263;--paper:#f3f6f0}
+  [data-season="aki"]{--accent:#b04a3a;--paper:#f7f4ee}
+  [data-season="fuyu"]{--accent:#5a6b7d;--paper:#f4f5f6}
+
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper);color:var(--sumi);
+    font-family:'Noto Serif JP',serif;font-weight:300;
+    overflow-x:hidden;transition:background 1.4s ease;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--accent);color:var(--paper)}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.35;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.02' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.93 0 0 0 0 0.91 0 0 0 0 0.87 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23p)'/%3E%3C/svg%3E")}
+
+  main{position:relative;z-index:2}
+
+  .seasons{position:fixed;top:50%;right:1.8rem;transform:translateY(-50%);z-index:10;
+    display:flex;flex-direction:column;gap:1.6rem;writing-mode:vertical-rl}
+  .seasons button{
+    background:none;border:none;cursor:pointer;color:var(--soft);
+    font-family:'Noto Serif JP',serif;font-size:.82rem;letter-spacing:.5em;
+    transition:color .6s;padding:0;writing-mode:vertical-rl;
+  }
+  .seasons button.on{color:var(--accent)}
+  .seasons button:hover{color:var(--sumi)}
+
+  .corner{position:fixed;top:2rem;left:2rem;z-index:10;font-family:'Zen Kaku Gothic New',sans-serif;
+    font-size:.62rem;letter-spacing:.4em;text-transform:uppercase;color:var(--soft)}
+  .corner a{color:inherit;text-decoration:none;border-bottom:1px solid var(--whisper);padding-bottom:2px;margin-right:1.4rem}
+  .corner a:hover{color:var(--accent);border-color:var(--accent)}
+
+  .scene-1{min-height:100vh;display:grid;place-items:center;position:relative;padding:2rem}
+  .enso-wrap{position:relative;width:min(64vw,420px)}
+  .enso-wrap svg{width:100%;display:block}
+  .enso-stroke{fill:none;stroke:var(--sumi);stroke-width:11;stroke-linecap:round;
+    stroke-dasharray:1120;stroke-dashoffset:1120;
+    animation:enso 3.2s cubic-bezier(.65,.01,.28,1) 1s forwards;
+    filter:url(#brush)}
+  @keyframes enso{to{stroke-dashoffset:118}}
+  .scene-1 .kanji{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);
+    font-size:clamp(4.4rem,13vw,9rem);font-weight:200;
+    opacity:0;animation:appear 2.4s ease 3.4s forwards;
+  }
+  @keyframes appear{to{opacity:1}}
+  .scene-1 .romaji{
+    position:absolute;bottom:14vh;left:50%;transform:translateX(-50%);
+    font-family:'Zen Kaku Gothic New',sans-serif;font-size:.68rem;letter-spacing:.7em;
+    text-transform:uppercase;color:var(--soft);opacity:0;animation:appear 2s ease 4.2s forwards;
+    white-space:nowrap;
+  }
+
+  .scene{min-height:92vh;display:flex;align-items:center;justify-content:center;gap:clamp(2rem,9vw,9rem);padding:12vh 6vw}
+  .vtext{writing-mode:vertical-rl;text-orientation:mixed;
+    font-size:clamp(1.15rem,2.2vw,1.6rem);line-height:2.6;letter-spacing:.24em;
+    max-height:64vh;font-weight:300}
+  .vtext.jp{font-weight:200;font-size:clamp(1.5rem,3vw,2.2rem);color:var(--accent)}
+  .htext{max-width:34ch;font-family:'Zen Kaku Gothic New',sans-serif;font-weight:300;
+    font-size:.95rem;line-height:2.3;letter-spacing:.06em;color:var(--soft)}
+  .htext b{display:block;font-family:'Noto Serif JP',serif;color:var(--sumi);font-weight:400;
+    font-size:1.25rem;margin-bottom:1.4rem;letter-spacing:.14em}
+
+  .pause{height:70vh;display:grid;place-items:center}
+  .pause .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.75}
+
+  .haiku{min-height:80vh;display:grid;place-items:center;text-align:center;padding:10vh 2rem}
+  .haiku p{font-size:clamp(1.3rem,3vw,2rem);line-height:2.6;font-weight:200;letter-spacing:.1em;transition:opacity .8s}
+  .haiku .season-name{margin-top:3.4rem;font-family:'Zen Kaku Gothic New',sans-serif;
+    font-size:.62rem;letter-spacing:.6em;text-transform:uppercase;color:var(--accent)}
+
+  footer{padding:12vh 2rem 8vh;text-align:center;font-family:'Zen Kaku Gothic New',sans-serif;
+    font-size:.62rem;letter-spacing:.42em;text-transform:uppercase;color:var(--soft);line-height:3}
+  footer a{color:var(--accent);text-decoration:none}
+
+  .slow{opacity:0;transform:translateY(24px);transition:opacity 1.8s ease,transform 1.8s ease}
+  .slow.in{opacity:1;transform:none}
+
+  @media(max-width:760px){
+    .scene{flex-direction:column;gap:3rem}
+    .vtext{max-height:none;height:40vh}
+    .seasons{right:.9rem;gap:1rem}
+  }
+</style>
+</head>
+<body data-season="aki">
+
+<div class="corner"><a href="guide/">Guide</a><a href="../">Index</a></div>
+
+<div class="seasons" role="tablist" aria-label="season">
+  <button data-s="haru" title="spring">春</button>
+  <button data-s="natsu" title="summer">夏</button>
+  <button data-s="aki" class="on" title="autumn">秋</button>
+  <button data-s="fuyu" title="winter">冬</button>
+</div>
+
+<main>
+  <section class="scene-1">
+    <div class="enso-wrap">
+      <svg viewBox="0 0 420 420">
+        <defs>
+          <filter id="brush" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" result="n"/>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="7"/>
+          </filter>
+        </defs>
+        <path class="enso-stroke" d="M262 62 A 160 160 0 1 0 350 160"/>
+      </svg>
+      <div class="kanji">間</div>
+    </div>
+    <div class="romaji">ma — the space between</div>
+  </section>
+
+  <section class="scene">
+    <div class="vtext jp slow">音と音のあいだに音楽は住む</div>
+    <div class="htext slow">
+      <b>Between the notes</b>
+      Music does not live in the notes. It lives in the interval — the held breath between one sound and the next. A designer's whitespace and a drummer's rest are the same discipline: the courage to not.
+    </div>
+  </section>
+
+  <div class="pause"><div class="dot slow"></div></div>
+
+  <section class="scene">
+    <div class="htext slow">
+      <b>This page is 94% empty</b>
+      Measured by pixels, almost nothing here does anything. Measured by attention, the emptiness is doing all of it — every margin is load-bearing. Emptiness is not the absence of content. It is the container that lets content mean.
+    </div>
+    <div class="vtext slow">The pause is not the absence of the sentence — it is where the sentence breathes.</div>
+  </section>
+
+  <div class="pause"><div class="dot slow"></div></div>
+
+  <section class="haiku">
+    <div>
+      <p id="haiku-text">persimmon lantern —<br>the road home is one field<br>longer than the light</p>
+      <div class="season-name" id="season-name">aki — autumn</div>
+    </div>
+  </section>
+
+  <footer>
+    間 — a study in negative space<br>
+    designed &amp; built by claude (fable 5)<br>
+    <a href="guide/">how it was made</a> · <a href="../">all 25 sites</a>
+  </footer>
+</main>
+
+<script>
+const HAIKU={
+  haru:{t:'first warm rain —<br>the paper window lets in<br>a pink idea',n:'haru — spring'},
+  natsu:{t:'noon cicadas —<br>even my shadow has gone<br>to stand in the shade',n:'natsu — summer'},
+  aki:{t:'persimmon lantern —<br>the road home is one field<br>longer than the light',n:'aki — autumn'},
+  fuyu:{t:'snow on the bell —<br>the temple announces nothing<br>perfectly',n:'fuyu — winter'},
+};
+const btns=[...document.querySelectorAll('.seasons button')];
+const ht=document.getElementById('haiku-text'),sn=document.getElementById('season-name');
+btns.forEach(b=>b.addEventListener('click',()=>{
+  btns.forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  document.body.dataset.season=b.dataset.s;
+  ht.style.opacity=0;
+  setTimeout(()=>{
+    ht.innerHTML=HAIKU[b.dataset.s].t;sn.textContent=HAIKU[b.dataset.s].n;
+    ht.style.opacity=1;
+  },800);
+}));
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}
+}),{threshold:.4});
+document.querySelectorAll('.slow').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

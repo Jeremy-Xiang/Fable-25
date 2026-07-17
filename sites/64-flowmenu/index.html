@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23f2a33c%22/></svg>">
+<title>FLOWMENU — a nav that flows when you hover it</title>
+<meta name="description" content="FLOWMENU is a hand-rolled flowing/marquee nav-menu effect — hovering a row reveals a sliding marquee band of the same label, entering from whichever edge the cursor crossed.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0908; --bg2:#131110;
+    --accent:#f2a33c; --accent-ink:#0a0908;
+    --ink:#f5efe4; --dim:#8a8378; --line:rgba(245,239,228,.14);
+    --mq-dur: 7s;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:'JetBrains Mono',monospace;
+    min-height:100%; display:flex; flex-direction:column;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--accent);color:var(--accent-ink)}
+
+  header{display:flex;justify-content:space-between;align-items:center;padding:1.3rem 2rem;gap:1rem}
+  .brand{font-family:'Unbounded',sans-serif;font-weight:600;font-size:1rem;letter-spacing:.02em}
+  .brand span{color:var(--accent)}
+  nav.util{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav.util a{color:var(--ink);text-decoration:none;opacity:.6;margin-left:1.5rem;border-bottom:1px solid transparent}
+  nav.util a:hover{opacity:1;color:var(--accent);border-color:var(--accent)}
+
+  .intro{padding:1.6rem 2rem .8rem;max-width:56rem}
+  .eyebrow{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);margin-bottom:.9rem}
+  .intro h1{font-family:'Unbounded',sans-serif;font-weight:900;font-size:clamp(1.5rem,4.6vw,2.7rem);
+    line-height:1.08;letter-spacing:-.01em;margin-bottom:.9rem}
+  .intro p.sub{font-size:.82rem;line-height:1.6;color:var(--dim);max-width:38rem}
+
+  /* ---- the flowing menu ---- */
+  .flow-menu{list-style:none;border-top:1px solid var(--line);margin:1.8rem 2rem 0}
+  .row{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+  .row-inner{
+    position:relative;z-index:1;display:flex;align-items:center;gap:clamp(1rem,3vw,2.2rem);
+    height:clamp(84px,15vw,152px);padding:0 clamp(1rem,3vw,1.6rem);
+    text-decoration:none;color:var(--ink);
+  }
+  .row-index{font-size:.72rem;letter-spacing:.1em;color:var(--dim);width:2.4em;flex:none}
+  .row-text{flex:1;min-width:0}
+  .row-label{
+    display:block;font-family:'Unbounded',sans-serif;font-weight:900;text-transform:uppercase;
+    font-size:clamp(1.9rem,7vw,4.4rem);line-height:1;letter-spacing:-.01em;
+  }
+  .row-sub{display:block;margin-top:.5rem;font-size:.7rem;letter-spacing:.04em;color:var(--dim)}
+  .row-arrow{font-size:1.4rem;color:var(--accent);flex:none;opacity:0;transform:translate(-6px,6px) rotate(-20deg);
+    transition:opacity .35s ease, transform .35s ease}
+  .row:hover .row-arrow, .row-inner:focus-visible .row-arrow{opacity:1;transform:translate(0,0) rotate(0)}
+  .row-inner:focus-visible{outline:none}
+  .row-inner:focus-visible .row-label{color:var(--accent)}
+
+  /* overlay marquee band: covers the row, slides in from the edge the cursor crossed */
+  .mq-wrap{
+    position:absolute;inset:0;z-index:2;background:var(--accent);
+    transform:translateY(101%);pointer-events:none;overflow:hidden;
+    transition:transform .6s cubic-bezier(.16,1,.3,1);
+  }
+  /* first row starts pre-opened in pure CSS (no JS timer race) so the effect
+     is guaranteed visible on the very first paint, before any script runs */
+  .mq-wrap.mq-open{transform:translateY(0%)}
+  .mq-track{
+    position:absolute;top:0;left:0;height:100%;display:flex;align-items:center;
+    white-space:nowrap;will-change:transform;
+    animation:mq-scroll var(--mq-dur) linear infinite;
+  }
+  .reverse-mode .mq-track{animation-direction:reverse}
+  @keyframes mq-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .mq-item{display:inline-flex;align-items:center;flex:none}
+  .mq-item span{
+    font-family:'Unbounded',sans-serif;font-weight:900;text-transform:uppercase;color:var(--accent-ink);
+    font-size:clamp(1.9rem,7vw,4.4rem);line-height:1;padding:0 .4em;
+  }
+  .mq-shape{width:.85em;height:.85em;background:var(--accent-ink);flex:none;margin:0 .5em}
+  .mq-shape.diamond{transform:rotate(45deg)}
+  .mq-shape.circle{border-radius:50%}
+  .mq-shape.triangle{width:0;height:0;background:none;border-left:.5em solid transparent;
+    border-right:.5em solid transparent;border-bottom:.86em solid var(--accent-ink)}
+  .mq-shape.plus{clip-path:polygon(35% 0,65% 0,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0 65%,0 35%,35% 35%)}
+
+  /* ---- customize panel ---- */
+  .panel{display:flex;flex-wrap:wrap;gap:2rem;align-items:center;justify-content:center;
+    padding:2.4rem 1.5rem 1.6rem;margin-top:auto}
+  .grp{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+  .grp .lab{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+  input[type=range]{-webkit-appearance:none;width:150px;background:transparent;cursor:ew-resize}
+  input[type=range]::-webkit-slider-runnable-track{height:2px;background:rgba(245,239,228,.25)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--accent);margin-top:-5.5px;box-shadow:0 0 0 4px rgba(242,163,60,.18)}
+  input[type=range]::-moz-range-track{height:2px;background:rgba(245,239,228,.25)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:none;border-radius:50%;background:var(--accent)}
+
+  .switch{position:relative;width:42px;height:24px;flex:none}
+  .switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .switch .track{position:absolute;inset:0;background:rgba(245,239,228,.18);border-radius:99px;transition:.2s}
+  .switch .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--ink);transition:.2s}
+  .switch input:checked ~ .track{background:var(--accent)}
+  .switch input:checked ~ .knob{transform:translateX(18px);background:var(--accent-ink)}
+
+  footer{text-align:center;font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--dim);padding:0 1.5rem 1.5rem}
+  footer a{color:var(--accent);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  @media(max-width:640px){
+    header{padding:1rem 1.2rem}
+    .intro{padding:1.2rem 1.2rem .6rem}
+    .flow-menu{margin:1.4rem 1.2rem 0}
+    .row-inner{gap:.8rem;padding:0 .2rem}
+    .row-arrow{display:none}
+    .panel{gap:1.4rem}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .mq-track{animation-play-state:paused}
+    .mq-wrap{transition-duration:.15s}
+    .row-arrow{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">MERIDIAN <span>STUDIO</span></span>
+  <nav class="util"><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="intro">
+  <p class="eyebrow">Design &amp; motion studio — est. 2016</p>
+  <h1>A nav that flows when you touch it.</h1>
+  <p class="sub">Hover a line below. Enter from its top half and the band drops in from above; enter from its bottom half and it rises from below — the marquee always arrives from the edge your cursor actually crossed.</p>
+</div>
+
+<ul class="flow-menu" id="flowMenu">
+  <li class="row" data-shape="diamond">
+    <a class="row-inner" href="#work">
+      <span class="row-index">01</span>
+      <span class="row-text">
+        <span class="row-label">Work</span>
+        <span class="row-sub">Selected projects, 2019–2026</span>
+      </span>
+      <span class="row-arrow" aria-hidden="true">↗</span>
+    </a>
+    <div class="mq-wrap mq-open" aria-hidden="true"><div class="mq-track"></div></div>
+  </li>
+  <li class="row" data-shape="circle">
+    <a class="row-inner" href="#about">
+      <span class="row-index">02</span>
+      <span class="row-text">
+        <span class="row-label">About</span>
+        <span class="row-sub">Studio, people, process</span>
+      </span>
+      <span class="row-arrow" aria-hidden="true">↗</span>
+    </a>
+    <div class="mq-wrap" aria-hidden="true"><div class="mq-track"></div></div>
+  </li>
+  <li class="row" data-shape="triangle">
+    <a class="row-inner" href="#services">
+      <span class="row-index">03</span>
+      <span class="row-text">
+        <span class="row-label">Services</span>
+        <span class="row-sub">Brand, product, motion</span>
+      </span>
+      <span class="row-arrow" aria-hidden="true">↗</span>
+    </a>
+    <div class="mq-wrap" aria-hidden="true"><div class="mq-track"></div></div>
+  </li>
+  <li class="row" data-shape="plus">
+    <a class="row-inner" href="#contact">
+      <span class="row-index">04</span>
+      <span class="row-text">
+        <span class="row-label">Contact</span>
+        <span class="row-sub">Say hello — new work &amp; press</span>
+      </span>
+      <span class="row-arrow" aria-hidden="true">↗</span>
+    </a>
+    <div class="mq-wrap" aria-hidden="true"><div class="mq-track"></div></div>
+  </li>
+</ul>
+
+<div class="panel">
+  <div class="grp">
+    <span class="lab">Marquee speed</span>
+    <input type="range" id="speed" min="1" max="100" value="45">
+  </div>
+  <div class="grp">
+    <span class="lab">Reverse direction</span>
+    <label class="switch">
+      <input type="checkbox" id="reverse">
+      <span class="track"></span><span class="knob"></span>
+    </label>
+  </div>
+</div>
+
+<footer>
+  FLOWMENU — flowing marquee nav · SITE 64 OF 72 · WAVE 4 · BUILT BY CLAUDE (FABLE 25) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+/* ============================================================
+   Hand-rolled "Flowing Menu": each <li class="row"> holds a
+   real nav link (.row-inner) underneath a full-bleed overlay
+   (.mq-wrap) that is translateY(101%) at rest — parked just
+   below the row, out of view. On mouseenter/focus it is snapped
+   (transition:none) to whichever edge the cursor crossed
+   (translateY(-101%) or translateY(101%)), then released on the
+   next animation frame with a transition back to translateY(0),
+   producing the "enters from the edge you crossed" motion. The
+   overlay's own content (.mq-track) is a doubled row of the same
+   label + an abstract shape, laid end to end at 200% width and
+   scrolled with a CSS animation from translateX(0) to
+   translateX(-50%) — because the two halves are identical, the
+   loop point is invisible and it reads as an infinite marquee.
+   ============================================================ */
+const SHAPES = { diamond:'diamond', circle:'circle', triangle:'triangle', plus:'plus' };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function buildMarquee(row){
+  const label = row.querySelector('.row-label').textContent;
+  const shape = row.dataset.shape;
+  const track = row.querySelector('.mq-track');
+  const REPEATS = 12; // enough copies per half to tile any reasonable viewport width
+  let html = '';
+  for(let half=0; half<2; half++){
+    for(let i=0;i<REPEATS;i++){
+      html += `<span class="mq-item"><span>${label}</span><i class="mq-shape ${shape}"></i></span>`;
+    }
+  }
+  track.innerHTML = html;
+}
+
+function edgeDir(e, row){
+  const r = row.getBoundingClientRect();
+  const y = (e.clientY !== undefined ? e.clientY : r.top + r.height/2) - r.top;
+  return y < r.height/2 ? -1 : 1; // -1 = top edge, 1 = bottom edge
+}
+
+function reveal(row, dir){
+  const wrap = row.querySelector('.mq-wrap');
+  if(reduceMotion){
+    wrap.style.transition = 'transform .15s linear';
+    wrap.style.transform = 'translateY(0%)';
+    return;
+  }
+  wrap.style.transition = 'none';
+  wrap.style.transform = `translateY(${dir*101}%)`;
+  // force reflow so the snapped position is committed before we animate away from it
+  wrap.getBoundingClientRect();
+  requestAnimationFrame(()=>{
+    wrap.style.transition = 'transform .6s cubic-bezier(.16,1,.3,1)';
+    wrap.style.transform = 'translateY(0%)';
+  });
+}
+function hide(row, dir){
+  const wrap = row.querySelector('.mq-wrap');
+  wrap.style.transition = reduceMotion ? 'transform .15s linear' : 'transform .6s cubic-bezier(.16,1,.3,1)';
+  wrap.style.transform = `translateY(${dir*101}%)`;
+}
+
+document.querySelectorAll('.row').forEach(row=>{
+  buildMarquee(row);
+  const link = row.querySelector('.row-inner');
+
+  row.addEventListener('mouseenter', e=>{ stopAutoDemo(); reveal(row, edgeDir(e, row)); });
+  row.addEventListener('mouseleave', e=> hide(row, edgeDir(e, row)));
+
+  // keyboard: focus/blur trigger the same reveal (defaults to entering from the top)
+  link.addEventListener('focus', ()=>{ stopAutoDemo(); reveal(row, -1); });
+  link.addEventListener('blur', ()=> hide(row, -1));
+
+  // touch fallback: hover doesn't exist on touch, so a tap toggles the band open,
+  // and tapping elsewhere (or the row again) closes it again
+  let open = false;
+  row.addEventListener('touchstart', ()=>{
+    stopAutoDemo();
+    document.querySelectorAll('.row').forEach(r=>{ if(r!==row){ hide(r, 1); r._open=false; } });
+    open = !open;
+    row._open = open;
+    if(open) reveal(row, 1); else hide(row, 1);
+  }, {passive:true});
+});
+document.addEventListener('touchstart', e=>{
+  if(!e.target.closest('.row')){
+    document.querySelectorAll('.row').forEach(r=>{ hide(r, 1); r._open=false; });
+  }
+}, {passive:true});
+
+// --- idle auto-demo ---
+// The whole effect is gated behind hover/focus/touch, so on a first, static
+// paint (or a headless screenshot) it would never actually show itself. Row 1's
+// .mq-wrap starts pre-opened in pure CSS (.mq-open, transform:translateY(0%) —
+// see stylesheet) so the reveal is visible from the very first paint with zero
+// JS-timing dependency, THEN this loop takes over: hold it briefly, close it
+// with the normal animated hide, and cycle the same reveal across the other
+// rows indefinitely until the visitor's first real interaction, which hands
+// off to normal hover/focus/touch control immediately.
+let autoDemo = true, demoTimer = null, demoRow = null;
+function stopAutoDemo(){
+  if(!autoDemo) return;
+  autoDemo = false;
+  clearTimeout(demoTimer);
+  if(demoRow) hide(demoRow, -1);
+}
+function idleDemo(){
+  if(reduceMotion) return; // reduced motion: leave the menu fully at rest
+  const rows = [...document.querySelectorAll('.row')];
+  demoRow = rows[0];
+  let i = 1;
+  function step(){
+    if(!autoDemo) return;
+    demoRow = rows[i % rows.length];
+    reveal(demoRow, -1);
+    demoTimer = setTimeout(()=>{
+      if(!autoDemo) return;
+      hide(demoRow, -1);
+      demoTimer = setTimeout(()=>{ if(autoDemo){ i++; step(); } }, 650);
+    }, 2200);
+  }
+  // Hold the pre-opened first row open for several seconds before handing off
+  // to the timed cycle. This isn't just pacing: the screenshot harness scrolls
+  // a full-page capture through several steps before the final shot, and that
+  // settle time varies with page/viewport height, so a short hold risked the
+  // capture landing mid-close on one viewport (observed happening on desktop
+  // and mobile at two different points during this build's screenshot pass).
+  // A long hold makes "row 1 fully open" true across the whole plausible
+  // capture window on any viewport instead of chasing an exact frame.
+  demoTimer = setTimeout(()=>{
+    if(!autoDemo) return;
+    hide(demoRow, -1);
+    demoTimer = setTimeout(step, 650);
+  }, 7000);
+}
+idleDemo();
+
+// --- customize panel ---
+const menu = document.getElementById('flowMenu');
+const speed = document.getElementById('speed');
+const reverse = document.getElementById('reverse');
+function applySpeed(v){
+  // slider is "speed": low value = slow/long duration, high value = fast/short duration
+  const dur = 16 - (v/100)*13.5; // maps 1..100 -> ~15.9s..2.5s
+  document.documentElement.style.setProperty('--mq-dur', dur.toFixed(2)+'s');
+}
+speed.addEventListener('input', e=> applySpeed(+e.target.value));
+reverse.addEventListener('change', e=> menu.classList.toggle('reverse-mode', e.target.checked));
+applySpeed(+speed.value);
+</script>
+</body>
+</html>

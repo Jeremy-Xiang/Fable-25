@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TERMINAL ∞ — departures to places that don't exist</title>
+<meta name="description" content="A full split-flap departures board, every character a physical flap that clatters through the alphabet. Destinations update on their own — or press REFLIP and watch the whole board cascade.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%23101113'/%3E%3Crect x='6' y='9' width='20' height='7' rx='1.5' fill='%23202226'/%3E%3Crect x='6' y='17' width='20' height='7' rx='1.5' fill='%23202226'/%3E%3Ctext x='16' y='15' font-size='6' text-anchor='middle' fill='%23ffd23e' font-family='monospace'%3EA%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --hall:#101113; --board:#0a0b0c; --flap:#1d1f23; --flap2:#26282d;
+  --ink:#e8e4d8; --amber:#ffd23e; --green:#4dff88; --red:#ff5c5c;
+  --dim:#77726a; --line:rgba(232,228,216,.09);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:
+    radial-gradient(80% 60% at 50% 0%, rgba(255,210,62,.05), transparent 60%),
+    var(--hall);
+  color:var(--ink); font-family:'IBM Plex Mono',monospace; min-height:100vh;
+  display:flex; flex-direction:column; align-items:center; overflow-x:hidden}
+::selection{background:var(--amber); color:#241c02}
+a:focus-visible,button:focus-visible{outline:2px solid var(--amber); outline-offset:3px}
+
+header{width:100%; max-width:1180px; display:flex; justify-content:space-between; align-items:center; padding:1.3rem 1.6rem}
+.mark{font-family:'Oswald',sans-serif; font-weight:500; letter-spacing:.3em; font-size:.9rem}
+.mark em{font-style:normal; color:var(--amber)}
+nav{display:flex; gap:1.5rem}
+nav a{font-size:.62rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--amber)}
+
+.hall{width:100%; max-width:1180px; padding:1rem 1.4rem 2rem}
+.boardWrap{
+  background:var(--board); border-radius:14px; padding:1.6rem 1.5rem 1.3rem;
+  border:1px solid var(--line);
+  box-shadow:0 30px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.bhead{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.2rem; flex-wrap:wrap; gap:.5rem}
+.bhead h1{font-family:'Oswald',sans-serif; font-weight:500; font-size:1.15rem; letter-spacing:.42em; text-transform:uppercase; color:var(--amber)}
+.bhead .clock{font-size:.85rem; color:var(--ink); letter-spacing:.14em}
+
+.cols{display:grid; grid-template-columns:5.2rem 1fr 7.4rem 5.4rem; gap:.6rem 1.2rem;
+  font-size:.56rem; letter-spacing:.22em; text-transform:uppercase; color:var(--dim); padding:0 .2rem .5rem}
+.rows{display:flex; flex-direction:column; gap:.55rem}
+.row{display:grid; grid-template-columns:5.2rem 1fr 7.4rem 5.4rem; gap:.6rem 1.2rem; align-items:center}
+
+.flapline{display:flex; gap:2px}
+.cell{
+  position:relative; width:1.18em; height:1.6em; font-size:clamp(.72rem,1.55vw,1.02rem);
+  background:linear-gradient(var(--flap2), var(--flap));
+  border-radius:3px; display:flex; align-items:center; justify-content:center;
+  font-weight:500; color:var(--ink); overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.5);
+}
+.cell::after{content:''; position:absolute; left:0; right:0; top:50%; height:1px; background:rgba(0,0,0,.55)}
+.cell.flip{animation:flapflip .07s linear}
+@keyframes flapflip{
+  0%{transform:scaleY(1)} 49%{transform:scaleY(.06)} 51%{transform:scaleY(.06)} 100%{transform:scaleY(1)}
+}
+.st .cell{color:var(--green)}
+.st.delayed .cell{color:var(--amber)}
+.st.boarding .cell{color:var(--green); animation:pulse 1.4s ease-in-out infinite}
+.st.lost .cell{color:var(--red)}
+@keyframes pulse{50%{filter:brightness(1.5)}}
+@media (prefers-reduced-motion:reduce){.cell.flip{animation:none}.st.boarding .cell{animation:none}}
+
+.foot{display:flex; justify-content:space-between; align-items:center; margin-top:1.4rem; flex-wrap:wrap; gap:.9rem}
+.foot .note{font-size:.58rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim)}
+.btn{
+  font:inherit; font-size:.64rem; letter-spacing:.2em; text-transform:uppercase;
+  background:none; border:1px solid var(--line); color:var(--ink); border-radius:999px;
+  padding:.6rem 1.2rem; cursor:pointer; transition:.15s;
+}
+.btn:hover{border-color:var(--amber); color:var(--amber)}
+
+footer{width:100%; max-width:1180px; padding:0 1.6rem 1.6rem; display:flex; justify-content:space-between;
+  flex-wrap:wrap; gap:.6rem; font-size:.56rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim)}
+footer a{color:var(--amber); text-decoration:none}
+@media(max-width:840px){
+  .cols,.row{grid-template-columns:4rem 1fr 5.6rem}
+  .cols :nth-child(4),.row .st{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">TERMINAL <em>∞</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hall">
+  <div class="boardWrap">
+    <div class="bhead">
+      <h1>Departures</h1>
+      <span class="clock" id="clock">00:00:00</span>
+    </div>
+    <div class="cols"><span>Flight</span><span>Destination</span><span>Gate · Time</span><span>Status</span></div>
+    <div class="rows" id="rows"></div>
+    <div class="foot">
+      <span class="note">all destinations verified imaginary · no baggage will arrive</span>
+      <button class="btn" id="reflip">↻ reflip the board</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span>site 81 / fable 25 · built by claude (fable 5)</span>
+  <span><a href="guide/">how it was made</a></span>
+</footer>
+
+<script>
+/* ═════ TERMINAL ∞ — split-flap departures board ═════
+   Every cell is a flap: on change it clatters through intermediate
+   characters (each step re-triggering a scaleY flip animation) before
+   settling — the defining physicality of the real boards. */
+
+const ALPHA = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:·—';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const DESTS = [
+  'THE MOON, OFF-SEASON','YOUR CHILDHOOD BEDROOM','BOTTOM OF THE TO-DO LIST',
+  'A QUIET PLACE TO THINK','THE LIBRARY OF BABEL','LAST TUESDAY, 4PM',
+  'THE END OF THE RAINBOW','PLATFORM NINE AND A HALF','THE UNCANNY VALLEY',
+  'A PERFECTLY DARK SKY','THE CENTER OF THE MAZE','WHEREVER THE WIND GOES',
+  'THE INTERNET, IN PERSON','A ROOM OF ONES OWN','THE POINT OF NO RETURN',
+];
+const STATUSES = [
+  ['ON TIME','st'],['BOARDING','st boarding'],['DELAYED','st delayed'],
+  ['ON TIME','st'],['DREAMING','st'],['LOST','st lost'],['ON TIME','st'],
+];
+
+const N_ROWS = 7;
+const rowsEl = document.getElementById('rows');
+const board = []; // per row: {cells:{flight,dest,gate,status}, timers}
+
+function makeLine(parent, len, cls){
+  const wrap = document.createElement('div');
+  wrap.className = 'flapline ' + (cls||'');
+  const cells = [];
+  for (let i=0;i<len;i++){
+    const c = document.createElement('span');
+    c.className = 'cell';
+    c.textContent = ' ';
+    wrap.appendChild(c);
+    cells.push({ el:c, ch:' ', timer:0 });
+  }
+  parent.appendChild(wrap);
+  return cells;
+}
+
+/* flap a single cell toward target through the alphabet */
+function setCell(cell, target, delay){
+  clearTimeout(cell.timer);
+  const go = () => {
+    if (cell.ch === target) return;
+    if (reduce){ cell.ch = target; cell.el.textContent = target; return; }
+    let idx = ALPHA.indexOf(cell.ch); if (idx < 0) idx = 0;
+    const tIdx = Math.max(0, ALPHA.indexOf(target));
+    const step = () => {
+      idx = (idx + 1) % ALPHA.length;
+      cell.ch = ALPHA[idx];
+      cell.el.textContent = cell.ch;
+      cell.el.classList.remove('flip'); void cell.el.offsetWidth;
+      cell.el.classList.add('flip');
+      if (idx !== tIdx) cell.timer = setTimeout(step, 42 + Math.random()*24);
+    };
+    step();
+  };
+  cell.timer = setTimeout(go, delay);
+}
+
+function setLine(cells, text, stagger=18){
+  const t = text.toUpperCase().padEnd(cells.length).slice(0, cells.length);
+  cells.forEach((c,i)=>setCell(c, ALPHA.includes(t[i]) ? t[i] : ' ', i*stagger));
+}
+
+for (let r=0; r<N_ROWS; r++){
+  const row = document.createElement('div');
+  row.className = 'row';
+  const flight = makeLine(row, 5);
+  const dest   = makeLine(row, 26);
+  const gate   = makeLine(row, 7);
+  const stEl   = document.createElement('div');
+  row.appendChild(stEl);
+  const status = makeLine(stEl, 8);
+  stEl.className = 'st';
+  rowsEl.appendChild(row);
+  board.push({ flight, dest, gate, status, stEl });
+}
+
+function flightCode(){
+  return 'FB' + String(100 + (Math.random()*900|0));
+}
+function gateTime(){
+  const g = 'ABCDEF'[(Math.random()*6)|0] + (1+(Math.random()*18|0));
+  const h = String((Math.random()*24)|0).padStart(2,'0');
+  const m = String((Math.random()*60)|0).padStart(2,'0');
+  return `${g} ${h}:${m}`;
+}
+
+let destPool = [...DESTS];
+function nextDest(){
+  if (!destPool.length) destPool = [...DESTS];
+  return destPool.splice((Math.random()*destPool.length)|0, 1)[0];
+}
+
+function fillRow(r, initial=false){
+  const b = board[r];
+  const [stTxt, stCls] = STATUSES[(Math.random()*STATUSES.length)|0];
+  setLine(b.flight, flightCode(), initial?26:14);
+  setLine(b.dest, nextDest(), initial?12:8);
+  setLine(b.gate, gateTime(), initial?30:16);
+  setLine(b.status, stTxt, initial?34:20);
+  b.stEl.className = stCls;
+}
+
+board.forEach((_,r)=>setTimeout(()=>fillRow(r,true), r*260));
+
+/* ambient: one random row re-flips every few seconds */
+if (!reduce){
+  setInterval(()=>fillRow((Math.random()*N_ROWS)|0), 6500);
+}
+
+document.getElementById('reflip').addEventListener('click', ()=>{
+  board.forEach((_,r)=>setTimeout(()=>fillRow(r), r*160));
+});
+
+/* clock */
+const clock = document.getElementById('clock');
+(function tick(){
+  clock.textContent = new Date().toTimeString().slice(0,8);
+  setTimeout(tick, 1000);
+})();
+</script>
+</body>
+</html>

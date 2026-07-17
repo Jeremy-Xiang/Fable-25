@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How OBSERVATORY was made — guide</title>
+<meta name="description" content="How the OBSERVATORY site was designed and built: real solar-position, lunar-phase, and harmonic tide formulas driving a dense, legible control-room dashboard.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #3fe8c9; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0d0f; color:#e2e8e6;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Roboto Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#93a19e; text-decoration:none; border-bottom:1px solid #1e2a2c; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Roboto Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#93a19e; font-size:1.15rem; margin-bottom:3.6rem; }
+  p { max-width:60ch; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #182022;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Roboto Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; max-width:58ch; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Roboto Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Roboto Mono', monospace; font-size:.8rem; line-height:1.9; color:#c2ccc9;
+    background:#0f1417; border:1px solid #1e2a2c; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  code{ font-family:'Roboto Mono', monospace; font-size:.92em; background:#0f1417; padding:.1em .35em; border-radius:3px; }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #182022;
+    font-family:'Roboto Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#93a19e; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0a0d0f; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to OBSERVATORY</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 61 of 62 · how it was made</div>
+  <h1>OBSERVATORY</h1>
+  <p class="sub">A live control-room panel for the sky</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>No stock chart libraries, no random-number "sensor data." OBSERVATORY runs three real astronomical models client-side — a low-precision solar-position algorithm, a synodic lunar-phase calculation, and a harmonic tide predictor — against a simulated clock you can speed up, and presents the output as a dense instrument panel: two canvas gauges, a moon-phase disc, a scrolling tide strip chart, a numeric ephemeris block, and a derived event log, all updating in lockstep.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Solar altitude and azimuth come from the standard low-precision NOAA/Meeus method: mean longitude and anomaly at the simulated Julian date give an ecliptic longitude, which combines with Earth's obliquity into a declination and right ascension, then a local hour angle resolves altitude/azimuth for a fixed reference coordinate</li>
+    <li>Lunar phase is days-since-a-known-new-moon divided by the synodic month (29.530588853 days) — the same arithmetic behind any real moon-phase calendar — and the phase disc itself is rendered as two flat canvas fills (a bright half-disc, then a terminator ellipse that either carves into it or extends it) rather than one fragile compound path</li>
+    <li>Tide height is a sum of four real harmonic constituents (M2, S2, K1, O1) at their actual periods, each a cosine at its own frequency and phase — a simplified version of the harmonic method real tide tables are built from, not noise dressed up to look tidal</li>
+    <li>The simulated clock runs at a selectable multiple of real time (1×/120×/1800×) so the dashboard is watchably alive instead of nearly static over a real day</li>
+    <li>The tide chart's canvas backing store is rebuilt to match its actual rendered width on every resize — a fixed-resolution canvas scaled down by CSS made its axis labels shrink to unreadable specks on narrow screens, since text drawn in canvas coordinates doesn't reflow like DOM text</li>
+  </ul>
+
+  <h2><span class="no">03</span> The complexity upgrade</h2>
+  <p>Beyond the gauges, the panel keeps a derived event log: every simulated frame checks whether the sun's altitude just crossed zero (sunrise/sunset), whether the moon's named phase just changed, or whether the tide curve just passed a local maximum or minimum — and only then does it print a timestamped line. Nothing in the log is scripted or random; every entry is a real state transition in the same three models driving the gauges, surfaced the moment it happens.</p>
+
+  <h2><span class="no">04</span> Type &amp; color</h2>
+  <p class="meta">Roboto Mono throughout · charcoal #0a0d0f, panel #0f1417, signal cyan #3fe8c9, amber marker #e8b23f</p>
+
+  <h2><span class="no">05</span> Reproduce it</h2>
+  <ol>
+    <li>Compute solar position from mean longitude/anomaly → ecliptic longitude → declination/right ascension → hour angle → altitude/azimuth, all from a single Julian-date offset</li>
+    <li>Derive lunar phase and illumination from days-since-reference-new-moon divided by the synodic month; render the disc with a half-fill plus a carved or extended terminator ellipse</li>
+    <li>Sum a handful of cosine terms at real tidal-constituent periods for a plausible, physically grounded tide curve with no external data</li>
+    <li>Drive a scrolling strip chart and gauges off one simulated clock so every panel stays in sync, and rebuild any canvas whose text must stay legible at its actual rendered size, not a fixed backing resolution</li>
+  </ol>
+
+  <h2><span class="no">06</span> Screenshot pass</h2>
+  <p>Two real bugs surfaced only once the numbers were actually read off the rendered panel: day length was printing negative because the sunrise/sunset scan window was anchored to UTC midnight rather than centered on the current simulated time, so it could pick up the previous evening's sunset ahead of the coming morning's sunrise; and the moon-phase disc, at seventeen percent illumination, was rendering mostly lit with a thin dark sliver — backwards. Both were caught by comparing the on-screen numbers and the on-screen crescent against what a seventeen-percent waning crescent should actually look like, not by re-reading the formulas in isolation.</p>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 5), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    build → code review → live screenshot critique, three passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

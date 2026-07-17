@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How CREVASSE was made — guide</title>
+<meta name="description" content="How the CREVASSE (29-glacier) site was designed and built: techniques, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #9fe8ff; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#080f14; color:#eaf6fc;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#8fa6b1; text-decoration:none; border-bottom:1px solid #1c2933; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#8fa6b1; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #16212a;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { margin-bottom: 1rem; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code { font-family:'Fragment Mono', monospace; font-size:.92em; color:#c8ecfa; }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#bcd6e0;
+    background:#0d161c; border:1px solid #16212a; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #16212a;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a9ba4; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#080f14; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to CREVASSE</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 29 of 50 · Wing II · how it was made</div>
+  <h1>CREVASSE</h1>
+  <p class="sub">Light, refracted through a thousand years of ice</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>This is the wing's WebGL showcase for site 29: instead of layering a canvas effect on top of an image element, the generated photograph <em>becomes</em> the shader's own input texture. A single fragment shader samples it with a distorted UV coordinate every frame, which is optically closer to what real ice actually does to light passing through it than any CSS filter could fake.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Hero: one nano_banana_pro generation, "glacial ice crevasse interior, crystalline blue-white walls, light entering from above" — uploaded once as a WebGL texture, never touched by CSS</li>
+    <li>Refraction: the fragment shader offsets each pixel's sample coordinate with two slow sine waves (one per axis), scaled by a runtime <code>uIntensity</code> uniform — visually this reads as the ice gently warping the scene behind it</li>
+    <li>Caustics: a compact 3-octave loop of <code>abs(sin·cos)</code> fields, the standard cheap fake for the shifting light-net caustics on a pool floor, tinted glacier-blue and added back into the refracted color rather than replacing it</li>
+    <li>Interaction: cursor position is passed in as a normalized <code>uMouse</code> uniform; a <code>smoothstep</code> falloff around it locally strengthens the distortion, so the ice visibly bends more where you're pointing, like pressing on it</li>
+    <li>A single "Refraction" slider scales <code>uIntensity</code>, which drives both the sine distortion and the caustic brightness together — one real uniform, not a decorative label</li>
+    <li>Graceful fallback: if <code>getContext('webgl')</code> fails, or either shader fails to compile, the canvas is hidden and a plain <code>&lt;img&gt;</code> with a CSS cold-tint filter takes over — the page never blanks</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Outfit (thin geometric display/body) + PT Mono (instrument readouts) · deep glacier blue #0a1a24 · ice cyan #9fe8ff · off-white #eaf6fc</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Draw a full-screen quad (two triangles via <code>TRIANGLE_STRIP</code>) with a trivial vertex shader — all the work happens in the fragment shader</li>
+    <li>Upload the photo as <code>gl.TEXTURE_2D</code> with <code>UNPACK_FLIP_Y_WEBGL = true</code> so its top-left origin matches WebGL's bottom-left texture space without any extra math in the shader</li>
+    <li>Offset the sampling UV with a couple of cheap sine functions of position and time — this alone reads as refraction</li>
+    <li>Layer a caustic function (iterated <code>abs(sin(x)*cos(y))</code>) additively for the moving light-net</li>
+    <li>Pass cursor position and a UI-controlled intensity as uniforms so the effect is genuinely interactive, not baked-in</li>
+    <li>Always test the "no WebGL" path — hide the canvas, show the raw image, and confirm the page still reads as finished</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration passes</h2>
+  <p><b>Build pass:</b> first version distorted the whole frame uniformly, and the ice looked more like a filter than a material. Adding the cursor-local <code>smoothstep</code> falloff — the exact spot you're "touching" refracts more — was what made it feel physically responsive instead of decorative.</p>
+  <p><b>Code-review pass:</b> confirmed the animation loop only runs <code>requestAnimationFrame</code> under normal motion settings; under <code>prefers-reduced-motion</code> the time uniform is frozen and the frame is rendered exactly once per relevant event (image load, resize, slider input), so there's no perpetual GPU loop running for a user who asked for less motion. Checked instrument-readout text contrast (#eaf6fc / #a9c4d1 on #0a1a24) — both clear AA.</p>
+  <p><b>Live-browser pass:</b> served locally over <code>python3 -m http.server</code> and tested at a narrow width — the right-aligned readout panel collapsed awkwardly under 480px, so the hero text block and stat panel were both given explicit centering/stacking at the mobile breakpoint. Also caught that a failed shader compile (tested by deliberately breaking the GLSL) correctly triggers the fallback image path instead of leaving a blank black canvas.</p>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wing II), Anthropic ·
+    hero image: Higgsfield <code>nano_banana_pro</code>, ~2cr, one generation ·
+    hand-written HTML/CSS/JS/GLSL, no frameworks, no build step ·
+    3 documented iteration passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

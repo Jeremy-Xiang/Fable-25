@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECLIPSE — two bodies, one line</title>
+<meta name="description" content="ECLIPSE is a real-time Three.js scene: a 3D moon occults a light source in front of a shimmering solar-corona video loop. Drag the moon, or tab to it and use arrow keys, to nudge the alignment and watch the light break at its rim. Site 50 of 50 — the finale.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,500;0,600;1,400&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --black:#040404;
+    --white:#f5f3ee;
+    --gold:#d9b26a;
+    --goldbright:#f2d38a;
+    --dim:#a49a86;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--black);color:var(--white);font-family:'Fira Code',monospace;overflow-x:hidden}
+  ::selection{background:var(--gold);color:#1a1204}
+  a{color:inherit}
+  .serif{font-family:'Bodoni Moda',serif}
+
+  /* ---------- fixed backdrop: video/image ---------- */
+  .backdrop{position:fixed;inset:0;z-index:0;overflow:hidden;background:#000}
+  .backdrop video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .vignette{position:absolute;inset:0;
+    background:radial-gradient(ellipse at 50% 48%, rgba(4,4,4,.08) 0%, rgba(4,4,4,.42) 55%, rgba(4,4,4,.92) 100%)}
+
+  /* ---------- Three.js canvas ---------- */
+  #gl{position:fixed;inset:0;z-index:1;width:100%;height:100%;cursor:grab;touch-action:none}
+  #gl:active{cursor:grabbing}
+  #gl.hidden{display:none}
+
+  /* ---------- CSS fallback (no WebGL) ---------- */
+  .fallback{position:fixed;inset:0;z-index:1;display:none;align-items:center;justify-content:center}
+  .fallback.show{display:flex}
+  .fallback .corona{position:relative;width:min(46vw,420px);aspect-ratio:1}
+  .fallback .corona::before{content:'';position:absolute;inset:-38%;border-radius:50%;
+    background:radial-gradient(circle, rgba(242,211,138,.9) 0%, rgba(217,178,106,.55) 30%, rgba(217,178,106,0) 68%);
+    filter:blur(2px);animation:flare 6s ease-in-out infinite}
+  .fallback .disc{position:absolute;inset:0;border-radius:50%;background:#040404;
+    box-shadow:0 0 0 1px rgba(242,211,138,.25)}
+  @keyframes flare{0%,100%{transform:scale(1) rotate(0deg)}50%{transform:scale(1.07) rotate(6deg)}}
+  @media(prefers-reduced-motion:reduce){ .fallback .corona::before{animation:none} }
+
+  /* ---------- page content ---------- */
+  .page{position:relative;z-index:2}
+  main section{pointer-events:none}
+  header,footer,.panel{pointer-events:auto}
+
+  header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+    padding:1.5rem 2rem;background:linear-gradient(180deg,rgba(4,4,4,.72),rgba(4,4,4,0))}
+  .m{font-family:'Bodoni Moda',serif;font-weight:500;font-size:1.3rem;letter-spacing:.03em}
+  .m i{color:var(--gold);font-style:italic}
+  nav{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--white);text-decoration:none;opacity:.78;margin-left:1.6rem;border-bottom:1px solid transparent;padding-bottom:2px;transition:.2s}
+  nav a:hover,nav a:focus-visible{opacity:1;border-color:var(--gold);color:var(--gold)}
+
+  section{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:0 2rem}
+  .hero{align-items:flex-start}
+  .panel{max-width:600px;background:rgba(4,4,4,.82);backdrop-filter:blur(14px);
+    border:1px solid rgba(245,243,238,.12);border-radius:14px;padding:2rem 2.2rem}
+  .panel.right{margin-left:auto}
+  .kicker{font-size:.7rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem}
+  h1{font-family:'Bodoni Moda',serif;font-weight:500;font-size:clamp(2rem,5.6vw,4rem);line-height:1.14;margin-bottom:1.1rem}
+  h1 em{font-style:italic;color:var(--gold)}
+  h2{font-family:'Bodoni Moda',serif;font-weight:500;font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.2;margin-bottom:1rem}
+  h2 em{font-style:italic;color:var(--gold)}
+  section p{font-size:.98rem;line-height:1.75;color:#e4e0d6;max-width:48ch}
+  .num{display:block;font-size:.68rem;letter-spacing:.2em;color:var(--dim);margin-bottom:1rem}
+  .hint{margin-top:1.6rem;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+  .hint b{color:var(--goldbright)}
+
+  footer{position:relative;z-index:3;display:flex;justify-content:space-between;align-items:flex-end;
+    padding:2rem 2rem 2.4rem;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;opacity:.8;
+    line-height:2;background:linear-gradient(180deg,rgba(4,4,4,0),rgba(4,4,4,.9) 40%)}
+  footer a{color:var(--gold);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  .nudgehint{position:fixed;bottom:1.6rem;left:50%;transform:translateX(-50%);z-index:4;pointer-events:none;
+    font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+    background:rgba(4,4,4,.55);border:1px solid rgba(245,243,238,.1);border-radius:99px;
+    padding:.55rem 1.1rem;transition:opacity .6s;white-space:nowrap}
+  .nudgehint.gone{opacity:0}
+
+  @media(max-width:720px){
+    h1{font-size:clamp(1.7rem,7.5vw,2.4rem)}
+    .panel{max-width:100%;padding:1.6rem 1.5rem}
+    section{padding:0 1.2rem}
+    header{padding:1.2rem 1.3rem}
+    nav a{margin-left:1rem}
+    footer{flex-direction:column;gap:.6rem;align-items:flex-start;padding:1.6rem 1.3rem 2rem}
+    .nudgehint{font-size:.58rem;padding:.5rem .9rem;bottom:1.1rem}
+  }
+</style>
+</head>
+<body>
+
+<div class="backdrop" id="backdrop">
+  <video id="coronaVideo" poster="assets/hero.jpg" preload="none" muted loop playsinline aria-hidden="true"></video>
+  <div class="vignette"></div>
+</div>
+
+<canvas id="gl" tabindex="0" role="img" aria-label="Interactive 3D eclipse. A black moon occults a golden light source directly behind it. Drag the moon, or tab to focus it and use the arrow keys, to nudge it off-center — the light breaks free at the rim it uncovers, then the moon settles back into alignment."></canvas>
+
+<div class="fallback" id="fallback"><div class="corona"><div class="disc"></div></div></div>
+
+<div class="page">
+  <header>
+    <span class="m">ECL<i>IPSE</i></span>
+    <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="panel">
+        <div class="kicker">Wing II finale · site 50 of 50</div>
+        <h1>Two bodies, one line — and for a few seconds, <em>the difference stops mattering.</em></h1>
+        <p>A stone the size of a thumbnail, held at arm's length, can black out a star ninety-three million miles away. What you're looking at is that geometry, live: a real 3D moon, in front of a real light, on a line drawn by your screen.</p>
+        <div class="hint">Drag the moon — or <b>Tab</b> to it and press the <b>arrow keys</b> — to nudge the alignment.</div>
+      </div>
+    </section>
+
+    <section class="mid">
+      <div class="panel">
+        <span class="num">01 — TOTALITY</span>
+        <h2>The corona behind it<br>was never <em>still.</em></h2>
+        <p>The shimmer you're seeing through the moon's silhouette is a generated video loop — plasma streamers combed outward by the sun's own magnetic field, the way they only appear for the few minutes the disc fully covers the light. It plays continuously behind the 3D scene, not as decoration but as the reason the occlusion means anything at all.</p>
+      </div>
+    </section>
+
+    <section class="mid right">
+      <div class="panel right">
+        <span class="num">02 — THE OCCLUSION</span>
+        <h2>Move the moon and the<br><em>ring</em> breaks open.</h2>
+        <p>The dark sphere is a real Three.js mesh, lit only at its own limb by a Fresnel rim shader tuned to the corona's gold. Behind it, unmoving, sits the light it's blocking. Drag the sphere — or focus it and use arrow keys — and it un-eclipses at the edge you exposed, then eases itself back on line the moment you let go.</p>
+      </div>
+    </section>
+
+    <section class="mid">
+      <div class="panel">
+        <span class="num">03 — FIFTY</span>
+        <h2>The last of fifty,<br>built to <em>close the set.</em></h2>
+        <p>This piece is deliberately the collection's only site to combine all three of Wing II's techniques at once — a generated hero asset, a generated motion loop, and genuine Three.js 3D — in the same frame. How that decision fits the other forty-nine sites is in the guide.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>ECLIPSE — 3D OCCLUSION OVER A GENERATED CORONA LOOP<br>THREE.JS · SITE 50 OF 50 · THE FINALE</span>
+    <span style="text-align:right">BUILT BY CLAUDE (FABLE 5)<br><a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a></span>
+  </footer>
+</div>
+
+<div class="nudgehint" id="nudgehint">drag the moon, or tab + arrow keys</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+const reducedQuery = matchMedia('(prefers-reduced-motion: reduce)');
+let reduced = reducedQuery.matches;
+
+/* ---------- backdrop: shimmering video, or its poster frame (hero.jpg) under reduced motion ----------
+   The <video poster="assets/hero.jpg"> shows the still image by default, even with JS disabled.
+   Only when motion is allowed do we fetch and play the loop; reduced-motion visitors never
+   download hero.mp4 at all. */
+const video = document.getElementById('coronaVideo');
+let videoRequested = false;
+function applyMotionPref(){
+  reduced = reducedQuery.matches;
+  if(reduced){
+    video.pause();
+  } else {
+    if(!videoRequested){
+      videoRequested = true;
+      video.src = 'assets/hero.mp4';
+      video.load();
+    }
+    video.play().catch(()=>{ /* autoplay may be blocked; poster frame keeps showing regardless */ });
+  }
+}
+applyMotionPref();
+reducedQuery.addEventListener ? reducedQuery.addEventListener('change', applyMotionPref) : reducedQuery.addListener(applyMotionPref);
+
+/* ---------- Three.js scene ---------- */
+const canvas = document.getElementById('gl');
+const fallback = document.getElementById('fallback');
+const nudgehint = document.getElementById('nudgehint');
+
+let renderer, scene, camera, moon, glow, moonUniforms;
+let ok = true;
+
+try{
+  if(!window.THREE || !window.WebGLRenderingContext) throw new Error('no webgl');
+  renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, powerPreference:'high-performance'});
+  renderer.setClearColor(0x000000, 0);
+}catch(e){ ok = false; }
+
+if(ok){
+  try{
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(32, innerWidth/innerHeight, 0.1, 100);
+    camera.position.set(0, 0, 5);
+    camera.lookAt(0,0,0);
+
+    /* glow sprite = the light source the moon is occulting, fixed at true center */
+    const glowCanvas = document.createElement('canvas');
+    glowCanvas.width = glowCanvas.height = 256;
+    const gctx = glowCanvas.getContext('2d');
+    const grad = gctx.createRadialGradient(128,128,0,128,128,128);
+    grad.addColorStop(0, 'rgba(255,250,235,1)');
+    grad.addColorStop(0.28, 'rgba(242,211,138,.95)');
+    grad.addColorStop(0.6, 'rgba(217,178,106,.4)');
+    grad.addColorStop(1, 'rgba(217,178,106,0)');
+    gctx.fillStyle = grad;
+    gctx.fillRect(0,0,256,256);
+    const glowTex = new THREE.CanvasTexture(glowCanvas);
+
+    glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false
+    }));
+    glow.scale.set(3.4, 3.4, 1);
+    glow.position.set(0, 0, -1.3);
+    scene.add(glow);
+
+    /* moon = real 3D sphere, fresnel rim-lit by the light it blocks */
+    moonUniforms = {
+      uTime: {value: 0},
+      uFlicker: {value: reduced ? 0.0 : 1.0}
+    };
+    const moonMat = new THREE.ShaderMaterial({
+      uniforms: moonUniforms,
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        void main(){
+          vNormal = normalize(normalMatrix * normal);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vViewDir = normalize(-mv.xyz);
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        precision highp float;
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        uniform float uTime;
+        uniform float uFlicker;
+        void main(){
+          vec3 N = normalize(vNormal);
+          vec3 V = normalize(vViewDir);
+          float fresnel = pow(1.0 - max(dot(N, V), 0.0), 2.6);
+          vec3 gold = vec3(0.85, 0.7, 0.42);
+          vec3 white = vec3(1.0, 0.98, 0.92);
+          float shimmer = 1.0 + 0.12 * sin(uTime*3.2 + N.x*24.0 + N.y*17.0) * uFlicker;
+          vec3 rim = mix(gold, white, fresnel) * fresnel * 1.9 * shimmer;
+          float topLight = max(dot(N, normalize(vec3(0.2,1.0,0.35))), 0.0) * 0.1;
+          vec3 base = vec3(0.012, 0.01, 0.014) + topLight;
+          gl_FragColor = vec4(base + rim, 1.0);
+        }`
+    });
+    moon = new THREE.Mesh(new THREE.SphereGeometry(1.05, 64, 64), moonMat);
+    moon.position.set(0, 0, 0.4);
+    scene.add(moon);
+
+    function resize(){
+      const w = innerWidth, h = innerHeight;
+      const small = Math.min(w,h) < 700;
+      const dpr = Math.min(devicePixelRatio, small ? 1 : 1.6);
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(w, h);
+      camera.aspect = w/h;
+      camera.updateProjectionMatrix();
+    }
+    addEventListener('resize', resize);
+    resize();
+
+    /* ---------- nudge interaction: drag + keyboard ---------- */
+    const MAX_OFFSET = 0.64;
+    let offsetTarget = {x:0, y:0};
+    let offsetCurrent = {x:0, y:0};
+    let dragging = false, lastX = 0, lastY = 0;
+    let interacted = false;
+    let springTimer = null;
+
+    function clampOffset(o){
+      const m = Math.hypot(o.x, o.y);
+      if(m > MAX_OFFSET){ o.x = o.x/m*MAX_OFFSET; o.y = o.y/m*MAX_OFFSET; }
+      return o;
+    }
+    function markInteracted(){
+      if(interacted) return;
+      interacted = true;
+      nudgehint.classList.add('gone');
+    }
+    function scheduleSpring(){
+      clearTimeout(springTimer);
+      springTimer = setTimeout(()=>{ offsetTarget = {x:0, y:0}; }, 650);
+    }
+
+    canvas.addEventListener('pointerdown', e=>{
+      dragging = true; lastX = e.clientX; lastY = e.clientY;
+      canvas.setPointerCapture(e.pointerId);
+      markInteracted();
+      clearTimeout(springTimer);
+    });
+    addEventListener('pointermove', e=>{
+      if(!dragging) return;
+      const dx = (e.clientX - lastX) * 0.004;
+      const dy = (e.clientY - lastY) * 0.004;
+      lastX = e.clientX; lastY = e.clientY;
+      offsetTarget = clampOffset({x: offsetTarget.x + dx, y: offsetTarget.y - dy});
+      if(reduced) renderOnce();
+    });
+    addEventListener('pointerup', ()=>{
+      if(!dragging) return;
+      dragging = false;
+      scheduleSpring();
+      if(reduced) animateSpringOnce();
+    });
+
+    canvas.addEventListener('keydown', e=>{
+      const step = 0.16;
+      let moved = true;
+      if(e.key === 'ArrowLeft'){ offsetTarget.x -= step; }
+      else if(e.key === 'ArrowRight'){ offsetTarget.x += step; }
+      else if(e.key === 'ArrowUp'){ offsetTarget.y += step; }
+      else if(e.key === 'ArrowDown'){ offsetTarget.y -= step; }
+      else { moved = false; }
+      if(moved){
+        e.preventDefault();
+        offsetTarget = clampOffset(offsetTarget);
+        markInteracted();
+        scheduleSpring();
+        if(reduced) renderOnce();
+      }
+    });
+
+    function applyOffset(o){
+      moon.position.x = o.x;
+      moon.position.y = o.y;
+    }
+
+    function renderOnce(){
+      applyOffset(offsetTarget);
+      offsetCurrent.x = offsetTarget.x; offsetCurrent.y = offsetTarget.y;
+      renderer.render(scene, camera);
+    }
+    function animateSpringOnce(){
+      // reduced motion: jump straight back after the spring delay, single repaint
+      setTimeout(()=>{ applyOffset({x:0,y:0}); renderer.render(scene, camera); }, 680);
+    }
+
+    if(reduced){
+      moonUniforms.uTime.value = 0;
+      renderOnce();
+    } else {
+      const t0 = performance.now();
+      (function frame(now){
+        const t = (now - t0) / 1000;
+        moonUniforms.uTime.value = t;
+        offsetCurrent.x += (offsetTarget.x - offsetCurrent.x) * 0.12;
+        offsetCurrent.y += (offsetTarget.y - offsetCurrent.y) * 0.12;
+        applyOffset(offsetCurrent);
+        renderer.render(scene, camera);
+        requestAnimationFrame(frame);
+      })(t0);
+    }
+
+  }catch(e){ ok = false; console.error(e); }
+}
+
+if(!ok){
+  canvas.classList.add('hidden');
+  fallback.classList.add('show');
+}
+</script>
+</body>
+</html>

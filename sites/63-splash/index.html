@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%233ee6d8%22/></svg>">
+<title>SPLASH — hand-rolled dye-splash cursor trail</title>
+<meta name="description" content="SPLASH is a hand-rolled, WebGL-free approximation of a stable-fluids dye trail — a coarse velocity/dye grid advected with semi-Lagrangian sampling, curl-noise turbulence, and additive-blended splats, staged as a portfolio hero.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#05080a; --bg2:#0a1113;
+    --accent:#3ee6d8; --accent2:#7c8cff;
+    --ink:#eaf6f4; --dim:#7f9793;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:'IBM Plex Mono',monospace;
+    display:flex;flex-direction:column;min-height:100%;overflow-x:hidden;
+  }
+  ::selection{background:var(--accent);color:#04100e}
+
+  header{display:flex;justify-content:space-between;align-items:center;padding:1.3rem 2rem;position:relative;z-index:5}
+  .m{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.15rem;letter-spacing:.02em;color:var(--ink)}
+  .m span{color:var(--accent)}
+  nav{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--ink);text-decoration:none;opacity:.6;margin-left:1.5rem}
+  nav a:hover{opacity:1;color:var(--accent)}
+
+  .hero-wrap{flex:1;position:relative;min-height:420px;overflow:hidden}
+  canvas#splash{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair;will-change:transform;transform:translateZ(0)}
+
+  .vignette{position:absolute;inset:0;pointer-events:none;z-index:2;
+    background:radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(5,8,10,.55) 100%);}
+
+  .hero-text{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;pointer-events:none;padding:1.5rem}
+  .kicker{font-size:.68rem;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin-bottom:1rem}
+  .hero-text h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(2.2rem,7vw,4.6rem);
+    letter-spacing:-.01em;line-height:1.02;color:var(--ink);text-shadow:0 0 40px rgba(5,8,10,.8)}
+  .hero-text .role{font-size:.85rem;letter-spacing:.08em;color:var(--dim);margin-top:.9rem}
+  .hero-text .prompt{margin-top:2.2rem;font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--accent2);opacity:.85;display:flex;align-items:center;gap:.6rem}
+  .prompt .dot{width:6px;height:6px;border-radius:50%;background:var(--accent2);animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+  @media(prefers-reduced-motion:reduce){ .prompt .dot{animation:none;opacity:.85} }
+
+  .panel{position:absolute;right:1.4rem;bottom:1.4rem;z-index:4;pointer-events:auto;
+    display:flex;flex-direction:column;gap:.85rem;
+    background:rgba(8,14,15,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(62,230,216,.22);border-radius:12px;padding:1rem 1.15rem;
+    width:200px;box-shadow:0 18px 40px rgba(0,0,0,.4)}
+  .panel .ptitle{font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin-bottom:.15rem}
+  .grp{display:flex;flex-direction:column;gap:.35rem}
+  .grp .lab{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);
+    display:flex;justify-content:space-between}
+  .grp .lab b{color:var(--ink);font-weight:400;opacity:.75}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:14px;background:transparent;cursor:ew-resize}
+  input[type=range]::-webkit-slider-runnable-track{height:2px;background:rgba(234,246,244,.2);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+    background:var(--accent);margin-top:-5px;box-shadow:0 0 8px rgba(62,230,216,.7)}
+  input[type=range]::-moz-range-track{height:2px;background:rgba(234,246,244,.2);border-radius:2px}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;border:none;background:var(--accent)}
+  input[type=range]#hue{background:linear-gradient(90deg,red,yellow,lime,cyan,blue,magenta,red);
+    height:8px;border-radius:4px}
+  input[type=range]#hue::-webkit-slider-runnable-track{background:transparent}
+
+  footer{position:relative;z-index:5;text-align:center;font-size:.58rem;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--dim);padding:.9rem 1.5rem 1.2rem;background:var(--bg)}
+  footer a{color:var(--accent);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  @media(max-width:640px){
+    header{padding:1rem 1.2rem}
+    .panel{left:1rem;right:1rem;width:auto;bottom:1rem}
+    .hero-text .prompt{text-align:center}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="m">SPL<span>ASH</span></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero-wrap">
+  <canvas id="splash" role="img" aria-label="An interactive dye-splash canvas — moving the cursor or dragging a finger injects colored fluid trails that swirl and fade"></canvas>
+  <div class="vignette"></div>
+  <div class="hero-text">
+    <div class="kicker">Interactive Designer</div>
+    <h1>Arden&nbsp;Cole</h1>
+    <div class="role">Creative development · motion &amp; interaction design</div>
+    <div class="prompt"><span class="dot"></span> move your cursor across the canvas — or drag, on touch</div>
+  </div>
+  <div class="panel">
+    <div class="ptitle">Customize</div>
+    <div class="grp">
+      <span class="lab">Dissipation <b id="dissipationVal">32</b></span>
+      <input type="range" id="dissipation" min="0" max="100" value="32" aria-label="Dye dissipation / fade rate">
+    </div>
+    <div class="grp">
+      <span class="lab">Splat radius <b id="radiusVal">3.4</b></span>
+      <input type="range" id="radius" min="10" max="80" value="34" aria-label="Splat radius">
+    </div>
+    <div class="grp">
+      <span class="lab">Color <b id="hueVal">176°</b></span>
+      <input type="range" id="hue" min="0" max="360" value="176" aria-label="Base hue of injected dye">
+    </div>
+    <div class="grp">
+      <span class="lab">Curl force <b id="curlVal">2.2</b></span>
+      <input type="range" id="curl" min="0" max="100" value="55" aria-label="Curl-noise turbulence strength">
+    </div>
+  </div>
+</div>
+
+<footer>
+  SPLASH — DYE-TRAIL CURSOR EFFECT · SITE 63 OF 72 · WAVE 4 · BUILT BY CLAUDE (FABLE 25) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+/* ============================================================
+   SPLASH — hand-rolled approximation of a stable-fluids dye
+   trail (no WebGL, no physics/fluid library).
+
+   A coarse grid holds a velocity field (vx,vy) and a dye density
+   field (dr,dg,db). Each frame:
+     1. curl-noise (divergence-free perpendicular-gradient field)
+        is added to velocity for organic swirl,
+     2. velocity is advected through itself via semi-Lagrangian
+        backtracing + bilinear sampling,
+     3. dye is advected through the new velocity field the same way,
+     4. both fields are dissipated (multiplied toward zero),
+     5. velocity gets a light blur pass standing in for viscosity.
+   The pointer/touch injects Gaussian-falloff "splats" of velocity
+   + color directly into the grid. The low-res grid is rendered to
+   a tiny offscreen canvas, then drawn scaled up onto the main
+   canvas with 'lighter' (additive) blending plus a soft blurred
+   duplicate for bloom.
+   ============================================================ */
+
+const canvas = document.getElementById('splash');
+const ctx = canvas.getContext('2d');
+const heroWrap = document.querySelector('.hero-wrap');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const BG = '#05080a';
+
+const CFG = { dissipation:.32, splatRadius:3.4, hue:176, curlForce:2.2 };
+
+let DPR = Math.min(devicePixelRatio||1, 2);
+let W=0, H=0;
+let SIM_W=110, SIM_H=62;
+
+let vx,vy,vxT,vyT, dr,dg,db, drT,dgT,dbT;
+let dyeCanvas, dyeCtx, imgData;
+let bufCanvas, bufCtx; // full-size offscreen frame buffer (see renderSim note below)
+
+function allocSim(){
+  const n = SIM_W*SIM_H;
+  vx=new Float32Array(n); vy=new Float32Array(n);
+  vxT=new Float32Array(n); vyT=new Float32Array(n);
+  dr=new Float32Array(n); dg=new Float32Array(n); db=new Float32Array(n);
+  drT=new Float32Array(n); dgT=new Float32Array(n); dbT=new Float32Array(n);
+  dyeCanvas = document.createElement('canvas');
+  dyeCanvas.width = SIM_W; dyeCanvas.height = SIM_H;
+  dyeCtx = dyeCanvas.getContext('2d');
+  imgData = dyeCtx.createImageData(SIM_W, SIM_H);
+  for(let i=3;i<imgData.data.length;i+=4) imgData.data[i]=255;
+}
+
+function resize(){
+  const r = heroWrap.getBoundingClientRect();
+  W = r.width; H = r.height;
+  canvas.width = W*DPR; canvas.height = H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  bufCanvas = document.createElement('canvas');
+  bufCanvas.width = canvas.width; bufCanvas.height = canvas.height;
+  bufCtx = bufCanvas.getContext('2d');
+  bufCtx.setTransform(DPR,0,0,DPR,0,0);
+  const aspect = H/W;
+  SIM_W = 110;
+  SIM_H = Math.max(50, Math.min(160, Math.round(SIM_W*aspect)));
+  allocSim();
+}
+
+// --- pseudo curl-noise: scalar potential + finite-difference perpendicular gradient ---
+function noiseP(x,y,t){
+  return Math.sin(x*0.09+t*0.8)*Math.cos(y*0.07-t*0.6) + Math.sin((x-y)*0.05+t*0.35)*0.6;
+}
+const EPS = 0.6;
+function curlX(x,y,t){ return (noiseP(x,y+EPS,t)-noiseP(x,y-EPS,t))/(2*EPS); }
+function curlY(x,y,t){ return -(noiseP(x+EPS,y,t)-noiseP(x-EPS,y,t))/(2*EPS); }
+
+function sample(field, w, h, x, y){
+  if(x<0) x=0; else if(x>w-1.001) x=w-1.001;
+  if(y<0) y=0; else if(y>h-1.001) y=h-1.001;
+  const x0=Math.floor(x), y0=Math.floor(y), x1=x0+1, y1=y0+1;
+  const sx=x-x0, sy=y-y0;
+  const i00=y0*w+x0, i10=y0*w+x1, i01=y1*w+x0, i11=y1*w+x1;
+  const top = field[i00]*(1-sx)+field[i10]*sx;
+  const bot = field[i01]*(1-sx)+field[i11]*sx;
+  return top*(1-sy)+bot*sy;
+}
+
+function hslToRgb(h,s,l){
+  s/=100; l/=100;
+  const k=n=>(n+h/30)%12;
+  const a=s*Math.min(l,1-l);
+  const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+  return [Math.round(f(0)*255), Math.round(f(8)*255), Math.round(f(4)*255)];
+}
+
+function addSplat(px, py, vdx, vdy, strength, hueDeg){
+  const gx = px/W*SIM_W, gy = py/H*SIM_H;
+  const radius = CFG.splatRadius;
+  const rad2 = radius*radius;
+  const col = hslToRgb(hueDeg, 88, 58);
+  const minX=Math.max(0,Math.floor(gx-radius)), maxX=Math.min(SIM_W-1,Math.ceil(gx+radius));
+  const minY=Math.max(0,Math.floor(gy-radius)), maxY=Math.min(SIM_H-1,Math.ceil(gy+radius));
+  for(let y=minY;y<=maxY;y++){
+    for(let x=minX;x<=maxX;x++){
+      const ddx=x-gx, ddy=y-gy, d2=ddx*ddx+ddy*ddy;
+      if(d2>rad2) continue;
+      const falloff = Math.exp(-d2/(rad2*0.5));
+      const i=y*SIM_W+x;
+      vx[i]+=vdx*strength*falloff;
+      vy[i]+=vdy*strength*falloff;
+      dr[i]+=col[0]*falloff;
+      dg[i]+=col[1]*falloff;
+      db[i]+=col[2]*falloff;
+    }
+  }
+}
+
+let simTime = 0;
+function stepSim(dt){
+  const w=SIM_W, h=SIM_H;
+  simTime += dt;
+  // quadratic map: gentle/lingering at low settings, a fast ~1s wipe at high
+  // settings — chosen so default (32) keeps dye visible for several seconds
+  const dnorm = CFG.dissipation/100;
+  const decay = 1 - (0.0004 + dnorm*dnorm*0.05);
+
+  // 1. curl-noise turbulence
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=y*w+x;
+      vx[i]+=curlX(x,y,simTime)*CFG.curlForce*dt;
+      vy[i]+=curlY(x,y,simTime)*CFG.curlForce*dt;
+    }
+  }
+
+  // 2. advect velocity through itself (semi-Lagrangian backtrace)
+  const ADV = 5.2;
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=y*w+x;
+      const bx = x - vx[i]*dt*ADV, by = y - vy[i]*dt*ADV;
+      vxT[i] = sample(vx,w,h,bx,by);
+      vyT[i] = sample(vy,w,h,bx,by);
+    }
+  }
+  [vx,vxT]=[vxT,vx]; [vy,vyT]=[vyT,vy];
+
+  // 3. lightweight viscosity blur (stabilizes the field, softens swirl)
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=y*w+x;
+      const xl=Math.max(0,x-1), xr=Math.min(w-1,x+1), yu=Math.max(0,y-1), yd=Math.min(h-1,y+1);
+      const avgx=(vx[y*w+xl]+vx[y*w+xr]+vx[yu*w+x]+vx[yd*w+x])*0.25;
+      const avgy=(vy[y*w+xl]+vy[y*w+xr]+vy[yu*w+x]+vy[yd*w+x])*0.25;
+      vxT[i]=vx[i]*0.86+avgx*0.14;
+      vyT[i]=vy[i]*0.86+avgy*0.14;
+    }
+  }
+  [vx,vxT]=[vxT,vx]; [vy,vyT]=[vyT,vy];
+
+  // 4. advect dye through the (now current) velocity field
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=y*w+x;
+      const bx = x - vx[i]*dt*ADV, by = y - vy[i]*dt*ADV;
+      drT[i]=sample(dr,w,h,bx,by);
+      dgT[i]=sample(dg,w,h,bx,by);
+      dbT[i]=sample(db,w,h,bx,by);
+    }
+  }
+  [dr,drT]=[drT,dr]; [dg,dgT]=[dgT,dg]; [db,dbT]=[dbT,db];
+
+  // 5. dissipate
+  const n=w*h;
+  for(let i=0;i<n;i++){
+    vx[i]*=0.985; vy[i]*=0.985;
+    dr[i]*=decay; dg[i]*=decay; db[i]*=decay;
+  }
+}
+
+function renderSim(){
+  const data = imgData.data;
+  const n = SIM_W*SIM_H;
+  for(let i=0;i<n;i++){
+    const o=i*4;
+    data[o]  = dr[i]>255?255:dr[i];
+    data[o+1]= dg[i]>255?255:dg[i];
+    data[o+2]= db[i]>255?255:db[i];
+  }
+  dyeCtx.putImageData(imgData,0,0);
+
+  // Compose the whole frame (bg fill + additive dye + bloom) on an offscreen
+  // buffer first, then push it to the visible canvas with a single drawImage,
+  // so the on-screen canvas only ever shows a complete frame, never a
+  // fill-then-not-yet-drawn intermediate state. Good practice for any
+  // multi-step canvas draw, independent of the screenshot-pass finding below.
+  bufCtx.fillStyle = BG;
+  bufCtx.fillRect(0,0,W,H);
+  bufCtx.globalCompositeOperation = 'lighter';
+  bufCtx.drawImage(dyeCanvas, 0,0,SIM_W,SIM_H, 0,0,W,H);
+  bufCtx.filter = 'blur(9px)';
+  bufCtx.globalAlpha = 0.5;
+  bufCtx.drawImage(dyeCanvas, 0,0,SIM_W,SIM_H, 0,0,W,H);
+  bufCtx.filter = 'none';
+  bufCtx.globalAlpha = 1;
+  bufCtx.globalCompositeOperation = 'source-over';
+
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.drawImage(bufCanvas, 0, 0);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+
+// --- pointer interaction ---
+let lastX=null, lastY=null, lastMoveTime=0;
+function localPos(e){
+  const r = canvas.getBoundingClientRect();
+  return [e.clientX-r.left, e.clientY-r.top];
+}
+canvas.addEventListener('pointermove', e=>{
+  const [x,y] = localPos(e);
+  if(lastX!==null){
+    const dx=x-lastX, dy=y-lastY;
+    const speed=Math.hypot(dx,dy);
+    if(speed>0.6){
+      const hueJitter = Math.min(30, speed*0.6);
+      addSplat(x,y, dx*1.6, dy*1.6, Math.min(9, 1.2+speed*0.05), CFG.hue + (Math.random()-0.5)*hueJitter);
+    }
+  }
+  lastX=x; lastY=y; lastMoveTime=performance.now();
+});
+canvas.addEventListener('pointerdown', e=>{
+  const [x,y] = localPos(e);
+  addSplat(x,y, (Math.random()-0.5)*40, (Math.random()-0.5)*40, 7, CFG.hue);
+  lastX=x; lastY=y; lastMoveTime=performance.now();
+});
+canvas.addEventListener('pointerleave', ()=>{ lastX=null; lastY=null; });
+
+// --- controls ---
+const $ = id=>document.getElementById(id);
+$('dissipation').addEventListener('input', e=>{ CFG.dissipation=+e.target.value; $('dissipationVal').textContent=e.target.value; });
+$('radius').addEventListener('input', e=>{ CFG.splatRadius=+e.target.value/10; $('radiusVal').textContent=CFG.splatRadius.toFixed(1); });
+$('hue').addEventListener('input', e=>{ CFG.hue=+e.target.value; $('hueVal').textContent=e.target.value+'°'; });
+$('curl').addEventListener('input', e=>{ CFG.curlForce=+e.target.value/25; $('curlVal').textContent=CFG.curlForce.toFixed(1); });
+
+// --- intro demo + idle ambient splats, so the canvas never sits blank ---
+// (Screenshot-pass finding: with only a few widely-scattered splats and a
+// single 2.6s-delayed ambient check keyed off lastMoveTime=0, there was a
+// dead window between the intro splats decaying and the first ambient
+// splat firing — landing right where a ~1.7s post-load capture lands.
+// Fixed by clustering more splats centrally so they reinforce each other,
+// slowing dissipation, and giving the ambient timer an early first fire.)
+function introDemo(){
+  for(let k=0;k<9;k++){
+    setTimeout(()=>{
+      const x = W*(0.30+Math.random()*0.40), y = H*(0.32+Math.random()*0.36);
+      const ang = Math.random()*Math.PI*2;
+      addSplat(x,y, Math.cos(ang)*30, Math.sin(ang)*30, 6.5, CFG.hue+(Math.random()-0.5)*70);
+    }, k*90);
+  }
+}
+let nextAmbientAt = 1100; // first ambient replenishment fires quickly (ms of page life)
+function maybeAmbient(now){
+  if(now-lastMoveTime>2600 && now>nextAmbientAt){
+    const x=W*(0.2+Math.random()*0.6), y=H*(0.2+Math.random()*0.6);
+    const ang=Math.random()*Math.PI*2;
+    addSplat(x,y, Math.cos(ang)*18, Math.sin(ang)*18, 4, CFG.hue+(Math.random()-0.5)*60);
+    nextAmbientAt = now + 2600;
+  }
+}
+
+addEventListener('resize', ()=>{ resize(); });
+resize();
+
+if(reduceMotion){
+  // Static end-state: settle a demo splash once, render it, and only
+  // advance the sim in direct response to explicit pointer input
+  // (no continuous requestAnimationFrame loop).
+  for(let k=0;k<4;k++){
+    const ang = k*1.6;
+    addSplat(W*0.5+Math.cos(ang)*W*0.14, H*0.5+Math.sin(ang)*H*0.14, Math.cos(ang)*20, Math.sin(ang)*20, 6, CFG.hue+k*18);
+  }
+  for(let i=0;i<70;i++) stepSim(1/60);
+  renderSim();
+  let pending=false;
+  canvas.addEventListener('pointermove', ()=>{
+    if(pending) return; pending=true;
+    requestAnimationFrame(()=>{ stepSim(1/60); renderSim(); pending=false; });
+  });
+  canvas.addEventListener('pointerdown', ()=>{ stepSim(1/60); renderSim(); });
+} else {
+  introDemo();
+  let last = performance.now();
+  function loop(now){
+    const dt = Math.min(0.033, (now-last)/1000); last = now;
+    maybeAmbient(now);
+    stepSim(dt);
+    renderSim();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

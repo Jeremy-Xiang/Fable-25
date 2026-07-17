@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LATHE — throw a vessel with your hands</title>
+<meta name="description" content="LATHE is an interactive pottery wheel: drag to push and pull a live radial profile, revolved in real time into a wet-clay 3D vessel with Three.js LatheGeometry.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vollkorn:ital,wght@0,500;0,700;1,500&family=Inconsolata:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1c140f;
+    --clay:#b0603a;
+    --clay-lt:#d98a5c;
+    --cream:#efe3d2;
+    --dim:#a9927f;
+    --line:rgba(239,227,210,.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--cream);font-family:'Vollkorn',Georgia,serif;
+    overflow:hidden;position:relative}
+  ::selection{background:var(--clay);color:#fff}
+  #stage{position:fixed;inset:0;z-index:0;touch-action:none;cursor:grab}
+  #stage.dragging{cursor:grabbing}
+  #stage:focus-visible{outline:2px solid var(--clay-lt);outline-offset:-4px}
+
+  header{position:fixed;top:0;left:0;right:0;z-index:3;display:flex;justify-content:space-between;
+    align-items:center;padding:1.3rem 2rem;pointer-events:none}
+  header *{pointer-events:auto}
+  .m{font-weight:700;font-size:1.15rem;letter-spacing:.06em}
+  .m i{color:var(--clay-lt);font-style:normal}
+  nav{font-family:'Inconsolata',monospace;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--cream);text-decoration:none;opacity:.75;margin-left:1.5rem}
+  nav a:hover{opacity:1;color:var(--clay-lt)}
+
+  .intro{position:fixed;top:6.5rem;left:2rem;z-index:2;max-width:280px;pointer-events:none}
+  .intro h1{font-weight:700;font-size:clamp(1.5rem,3.4vw,2.2rem);line-height:1.15;
+    text-shadow:0 2px 20px rgba(0,0,0,.5)}
+  .intro h1 em{font-style:italic;color:var(--clay-lt)}
+  .intro p{font-family:'Inconsolata',monospace;font-size:.72rem;letter-spacing:.06em;
+    line-height:1.7;color:var(--dim);margin-top:1rem}
+
+  .panel{position:fixed;bottom:1.6rem;left:50%;transform:translateX(-50%);z-index:3;
+    display:flex;gap:1.1rem;align-items:center;background:rgba(28,20,15,.78);
+    backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:99px;
+    padding:.65rem .8rem .65rem 1.3rem;max-width:92vw}
+  .stat{font-family:'Inconsolata',monospace;font-size:.66rem;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--dim);white-space:nowrap}
+  .stat b{color:var(--clay-lt);font-weight:600}
+  .divider{width:1px;height:22px;background:var(--line)}
+  button{font-family:'Inconsolata',monospace;font-size:.68rem;letter-spacing:.1em;
+    text-transform:uppercase;background:var(--clay);border:none;color:#fff;
+    padding:.6rem 1.15rem;border-radius:99px;cursor:pointer;transition:.2s;font-weight:600}
+  button:hover{background:var(--clay-lt)}
+  button.ghost{background:none;border:1px solid var(--line);color:var(--cream)}
+  button.ghost:hover{border-color:var(--clay-lt);color:var(--clay-lt)}
+
+  #hint{position:fixed;inset:0;z-index:1;display:grid;place-items:end;justify-items:center;
+    padding-bottom:9.5rem;pointer-events:none;transition:opacity .6s}
+  #hint span{font-family:'Inconsolata',monospace;font-size:.66rem;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--dim);opacity:.8;animation:pulse 2.4s ease-in-out infinite}
+  #hint.off{opacity:0}
+  @keyframes pulse{50%{opacity:.35}}
+
+  footer{position:fixed;bottom:.5rem;right:1.4rem;z-index:2;font-family:'Inconsolata',monospace;
+    font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;opacity:.4}
+  footer a{color:var(--cream)}
+
+  @media(max-width:720px){
+    .intro{left:1.2rem;top:6rem;max-width:220px}
+    .intro h1{font-size:1.35rem}
+    .panel{flex-wrap:wrap;justify-content:center;bottom:1rem;padding:.6rem .9rem}
+    .stat{font-size:.6rem}
+    footer{display:none}
+    #hint{display:none}
+  }
+  @media (prefers-reduced-motion: reduce){
+    #hint span{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stage" tabindex="0" role="application" aria-label="Interactive clay vessel. Drag to shape, or use arrow keys: up and down move the focus band along the wall, left and right push and pull the clay."></canvas>
+
+<div id="hint"><span>drag the clay — sideways to push/pull, upward to raise the wall</span></div>
+
+<header>
+  <span class="m">LA<i>THE</i></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="intro">
+  <h1>Throw a vessel <em>by hand.</em></h1>
+  <p>a live radial profile, revolved into wet clay — every drag reshapes the form and leaves a throwing line behind</p>
+</div>
+
+<div class="panel">
+  <span class="stat">Height <b id="statH">—</b></span>
+  <span class="stat">Belly <b id="statR">—</b></span>
+  <div class="divider"></div>
+  <button class="ghost" id="btnReset">Reset clay</button>
+  <button id="btnSpin">Pause wheel</button>
+</div>
+
+<footer>LATHE — SITE 59 OF 62 · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------------- profile model ---------------- */
+const N = 44;                 // profile resolution, base -> rim
+const MIN_R = 0.06, MAX_R = 1.55;
+let baseHeight = 2.6;
+let heightScale = 1;          // grows when pulling up
+const profile = [];           // {r, rough}
+function defaultProfile(){
+  profile.length = 0;
+  for(let i=0;i<N;i++){
+    const t = i/(N-1);
+    // classic vase silhouette: narrow foot, wide belly, narrow neck, flared lip
+    const belly  = Math.sin(t*Math.PI*0.86) * 0.95;
+    const lip    = t > 0.86 ? (t-0.86)*1.6 : 0;
+    const r = Math.max(MIN_R, 0.28 + belly*0.72 + lip - (t<0.12? (0.12-t)*1.4:0));
+    profile.push({ r: Math.min(MAX_R,r), rough: 0 });
+  }
+  heightScale = 1;
+}
+defaultProfile();
+
+/* ---------------- three.js scene ---------------- */
+const canvas = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1c140f);
+scene.fog = new THREE.Fog(0x1c140f, 6, 15);
+
+const camera = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.1, 50);
+function placeCamera(){ camera.position.set(0, 1.35, 6.4); camera.lookAt(0, 0.9, 0); }
+placeCamera();
+
+// studio lighting: warm key, cool fill, rim
+const key = new THREE.SpotLight(0xffd9ad, 5.5, 20, Math.PI/5, 0.5, 1.2);
+key.position.set(3.4, 4.6, 3.2); key.target.position.set(0,0.8,0);
+key.castShadow = true; key.shadow.mapSize.set(1024,1024);
+key.shadow.bias = -0.0025; key.shadow.normalBias = 0.02;
+key.shadow.camera.near = 1; key.shadow.camera.far = 12;
+scene.add(key, key.target);
+const fill = new THREE.PointLight(0x6b7fa8, 1.1, 14);
+fill.position.set(-3, 1.6, -2); scene.add(fill);
+const rim = new THREE.PointLight(0xffb27a, 1.4, 12);
+rim.position.set(-1.2, 3, -3.4); scene.add(rim);
+const hemi = new THREE.HemisphereLight(0x453224, 0x0d0906, 0.55);
+scene.add(hemi);
+
+// wheel head (turntable disc) + floor
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(6, 64),
+  new THREE.MeshStandardMaterial({ color:0x140d09, roughness:1 })
+);
+floor.rotation.x = -Math.PI/2; floor.position.y = -0.14; floor.receiveShadow = true;
+scene.add(floor);
+const wheelHead = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.56, 0.6, 0.08, 64),
+  new THREE.MeshStandardMaterial({ color:0x5a4433, roughness:0.75, metalness:0.15 })
+);
+// kept small and comfortably below the vessel's base (y=0): an earlier, much
+// larger turntable disc extended close enough to the camera that, purely as
+// a perspective-projection effect, its near edge visually cut into the
+// vessel's lower silhouette even though the two never intersected in 3D
+wheelHead.position.y = -0.16; wheelHead.receiveShadow = true; wheelHead.castShadow = true;
+scene.add(wheelHead);
+// grooves on the wheel head for detail
+const grooves = new THREE.Mesh(
+  new THREE.RingGeometry(0.16, 0.54, 64, 6),
+  new THREE.MeshStandardMaterial({ color:0x4a3626, roughness:0.9, side:THREE.DoubleSide })
+);
+grooves.rotation.x = -Math.PI/2; grooves.position.y = -0.115;
+scene.add(grooves);
+
+/* -------- procedural "throw line" texture (bump/roughness) -------- */
+const TEX_W = 64, TEX_H = 256;
+const texCanvas = document.createElement('canvas');
+texCanvas.width = TEX_W; texCanvas.height = TEX_H;
+const tctx = texCanvas.getContext('2d');
+const throwTexture = new THREE.CanvasTexture(texCanvas);
+throwTexture.wrapS = THREE.RepeatWrapping;
+throwTexture.wrapT = THREE.ClampToEdgeWrapping;
+function paintThrowTexture(){
+  const img = tctx.createImageData(TEX_W, TEX_H);
+  for(let y=0;y<TEX_H;y++){
+    const t = y/(TEX_H-1);
+    const idx = Math.min(N-1, Math.floor(t*(N-1)));
+    const rough = profile[idx].rough;
+    for(let x=0;x<TEX_W;x++){
+      const band = Math.sin(x*0.9 + idx*1.7) * 0.5 + 0.5;
+      const noise = (Math.sin(x*3.1+y*0.7)*0.5+0.5);
+      const v = 128 + (band*40 + noise*30 - 35) * Math.min(1,rough*2.2);
+      const p = (y*TEX_W+x)*4;
+      img.data[p]=img.data[p+1]=img.data[p+2]=v;
+      img.data[p+3]=255;
+    }
+  }
+  tctx.putImageData(img,0,0);
+  throwTexture.needsUpdate = true;
+}
+paintThrowTexture();
+
+/* -------- a tiny procedural environment so the clearcoat has something
+   warm to reflect instead of flat void -------- */
+function makeEnvTexture(){
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const ectx = c.getContext('2d');
+  const g = ectx.createLinearGradient(0,0,0,128);
+  g.addColorStop(0,'#4a3626'); g.addColorStop(0.45,'#20160f'); g.addColorStop(1,'#0a0705');
+  ectx.fillStyle = g; ectx.fillRect(0,0,256,128);
+  const rg = ectx.createRadialGradient(190,28,4,190,28,110);
+  rg.addColorStop(0,'rgba(255,210,150,0.95)'); rg.addColorStop(1,'rgba(255,210,150,0)');
+  ectx.fillStyle = rg; ectx.fillRect(0,0,256,128);
+  const rg2 = ectx.createRadialGradient(40,90,4,40,90,90);
+  rg2.addColorStop(0,'rgba(140,165,210,0.5)'); rg2.addColorStop(1,'rgba(140,165,210,0)');
+  ectx.fillStyle = rg2; ectx.fillRect(0,0,256,128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envTex = makeEnvTexture();
+scene.environment = pmrem.fromEquirectangular(envTex).texture;
+envTex.dispose();
+
+/* -------- clay material (wet, warm sheen) -------- */
+const clayMat = new THREE.MeshPhysicalMaterial({
+  color: 0xb0603a,
+  roughness: 0.48,
+  metalness: 0.0,
+  clearcoat: 0.5,
+  clearcoatRoughness: 0.4,
+  envMapIntensity: 0.85,
+  bumpMap: throwTexture,
+  bumpScale: 0.012,
+  roughnessMap: throwTexture,
+  side: THREE.DoubleSide
+});
+
+let vessel = null;
+function rebuildVessel(){
+  const pts = profile.map((p,i)=> new THREE.Vector2(
+    i===0 ? 0 : Math.max(0.02, p.r*0.62),   // close the base to a point so there's
+    (i/(N-1)) * baseHeight * heightScale     // no open hole to see through
+  ));
+  const geo = new THREE.LatheGeometry(pts, 72);
+  geo.computeVertexNormals();
+  if(vessel){ vessel.geometry.dispose(); vessel.geometry = geo; }
+  else {
+    vessel = new THREE.Mesh(geo, clayMat);
+    // self-shadowing on a thin open shell produces a dark seam artifact; the
+    // vessel is lit directly instead of via shadow map
+    vessel.castShadow = false; vessel.receiveShadow = false;
+    scene.add(vessel);
+  }
+}
+rebuildVessel();
+
+/* ---------------- interaction: shape the profile ---------------- */
+let dragging = false, spinning = !reduceMotion;
+let lastX = 0, lastY = 0;
+const btnSpin = document.getElementById('btnSpin');
+btnSpin.textContent = spinning ? 'Pause wheel' : 'Resume wheel';
+
+function screenToHeightT(clientY){
+  // vessel occupies roughly the vertical band from 78% (base) to 18% (rim) of viewport height
+  const topPx = innerHeight*0.14, botPx = innerHeight*0.86;
+  let t = 1 - (clientY - topPx) / (botPx - topPx);
+  return Math.max(0, Math.min(1, t));
+}
+function applyBrush(clientX, clientY, dx, dy){
+  const t = screenToHeightT(clientY);
+  const centerIdx = t*(N-1);
+  const BRUSH = 3.2;
+  const radialDelta = dx * 0.0034;
+  for(let i=0;i<N;i++){
+    const dist = Math.abs(i-centerIdx);
+    if(dist > BRUSH*2.2) continue;
+    const falloff = Math.exp(-(dist*dist)/(2*BRUSH*BRUSH));
+    profile[i].r = Math.max(MIN_R, Math.min(MAX_R, profile[i].r + radialDelta*falloff));
+    profile[i].rough = Math.min(1, profile[i].rough + Math.min(1,Math.abs(dx)/26)*falloff*0.35);
+  }
+  // dragging upward near the rim pulls the whole form taller
+  if(t > 0.55 && dy < 0){
+    heightScale = Math.min(1.85, heightScale + (-dy)*0.00048);
+  }
+  rebuildVessel();
+}
+let roughDirty = false;
+function pointerDown(e){
+  dragging = true; canvas.classList.add('dragging');
+  document.getElementById('hint').classList.add('off');
+  const p = e.touches ? e.touches[0] : e;
+  lastX = p.clientX; lastY = p.clientY;
+}
+function pointerMove(e){
+  if(!dragging) return;
+  const p = e.touches ? e.touches[0] : e;
+  const dx = p.clientX - lastX, dy = p.clientY - lastY;
+  lastX = p.clientX; lastY = p.clientY;
+  applyBrush(p.clientX, p.clientY, dx, dy);
+  roughDirty = true;
+  updateStats();
+}
+function pointerUp(){
+  dragging = false; canvas.classList.remove('dragging');
+  if(roughDirty){ paintThrowTexture(); roughDirty = false; }
+}
+canvas.addEventListener('pointerdown', pointerDown);
+addEventListener('pointermove', pointerMove);
+addEventListener('pointerup', pointerUp);
+canvas.addEventListener('touchstart', e=>{ pointerDown(e); }, {passive:true});
+canvas.addEventListener('touchmove', e=>{ pointerMove(e); e.preventDefault(); }, {passive:false});
+addEventListener('touchend', pointerUp);
+
+/* keyboard path: arrow keys shape the profile without a pointer */
+let kbT = 0.5;
+canvas.addEventListener('keydown', e=>{
+  const centerIdx = kbT*(N-1);
+  const BRUSH = 3.2;
+  let changed = false;
+  if(e.key==='ArrowUp'){ kbT = Math.min(1, kbT+0.035); changed = true; }
+  else if(e.key==='ArrowDown'){ kbT = Math.max(0, kbT-0.035); changed = true; }
+  else if(e.key==='ArrowRight' || e.key==='ArrowLeft'){
+    const sign = e.key==='ArrowRight' ? 1 : -1;
+    for(let i=0;i<N;i++){
+      const dist = Math.abs(i-centerIdx);
+      if(dist > BRUSH*2.2) continue;
+      const falloff = Math.exp(-(dist*dist)/(2*BRUSH*BRUSH));
+      profile[i].r = Math.max(MIN_R, Math.min(MAX_R, profile[i].r + sign*0.05*falloff));
+      profile[i].rough = Math.min(1, profile[i].rough + falloff*0.2);
+    }
+    rebuildVessel(); paintThrowTexture(); updateStats(); changed = true;
+  }
+  if(changed){ e.preventDefault(); document.getElementById('hint').classList.add('off'); }
+});
+
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  defaultProfile(); rebuildVessel(); paintThrowTexture(); updateStats();
+});
+btnSpin.addEventListener('click', ()=>{
+  spinning = !spinning;
+  btnSpin.textContent = spinning ? 'Pause wheel' : 'Resume wheel';
+});
+
+function updateStats(){
+  document.getElementById('statH').textContent = (baseHeight*heightScale).toFixed(2)+'u';
+  let maxR=0; for(const p of profile) maxR=Math.max(maxR,p.r);
+  document.getElementById('statR').textContent = maxR.toFixed(2)+'u';
+}
+updateStats();
+
+/* ---------------- resize ---------------- */
+function onResize(){
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
+addEventListener('resize', onResize);
+onResize();
+
+/* ---------------- render loop ---------------- */
+let lastRough = 0;
+function tick(tms){
+  if(spinning && vessel) vessel.rotation.y += 0.0068;
+  wheelHead.rotation.y = vessel ? vessel.rotation.y : 0;
+  grooves.rotation.y = wheelHead.rotation.y;
+  // periodically refresh the throw-line texture while dragging, throttled
+  if(dragging && tms - lastRough > 90){ paintThrowTexture(); lastRough = tms; }
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

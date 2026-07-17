@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPIELPLATZ — a Bauhaus composition machine</title>
+<meta name="description" content="SPIELPLATZ is a playable Bauhaus poster: drag the primary forms, double-click to rotate, shuffle for a new composition. Form follows fun.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,300;0,400;0,600;0,700;1,300&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --off:#f0ebe0;
+    --k:#191512;
+    --rot:#d92b1c;
+    --blau:#1c56c2;
+    --gelb:#f2b705;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--off);color:var(--k);font-family:'Josefin Sans',sans-serif;overflow-x:hidden}
+  ::selection{background:var(--gelb);color:var(--k)}
+
+  .bar{display:flex;justify-content:space-between;align-items:center;padding:1.3rem 2rem;
+    border-bottom:3px solid var(--k)}
+  .bar .wordmark{font-weight:700;font-size:1.15rem;letter-spacing:.28em;text-transform:uppercase;display:flex;align-items:center;gap:.9rem}
+  .bar .wordmark::before{content:"";width:18px;height:18px;border-radius:50%;background:var(--rot)}
+  .bar nav{display:flex;gap:1.6rem;font-size:.72rem;letter-spacing:.24em;text-transform:uppercase}
+  .bar a{color:var(--k);text-decoration:none;border-bottom:2px solid transparent;padding-bottom:2px}
+  .bar a:hover{border-color:var(--k)}
+
+  .hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);min-height:calc(100vh - 68px)}
+  .hero .left{padding:5rem 3rem;border-right:3px solid var(--k);display:flex;flex-direction:column;justify-content:space-between;gap:3rem}
+  .hero h1{font-weight:700;text-transform:uppercase;font-size:clamp(2.6rem,5.5vw,5rem);line-height:1;letter-spacing:-.01em}
+  .hero h1 .r{color:var(--rot)}.hero h1 .b{color:var(--blau)}.hero h1 .g{color:var(--gelb)}
+  .hero .left p{font-weight:300;font-size:1.05rem;line-height:1.8;max-width:38ch}
+  .hero .left .controls{display:flex;gap:1rem;flex-wrap:wrap}
+  button.bh{
+    font-family:'Josefin Sans';font-weight:600;font-size:.78rem;letter-spacing:.22em;text-transform:uppercase;
+    padding:1rem 1.8rem;border:3px solid var(--k);background:var(--off);color:var(--k);cursor:pointer;
+    transition:.15s;box-shadow:6px 6px 0 var(--k);
+  }
+  button.bh:hover{transform:translate(2px,2px);box-shadow:4px 4px 0 var(--k)}
+  button.bh:active{transform:translate(6px,6px);box-shadow:0 0 0 var(--k)}
+  button.bh.red{background:var(--rot);color:var(--off)}
+
+  #stage{position:relative;overflow:hidden;touch-action:none;
+    background-image:radial-gradient(rgba(25,21,18,.16) 1.2px,transparent 1.2px);background-size:34px 34px}
+  .shape{position:absolute;cursor:grab;transition:filter .2s;will-change:transform;user-select:none}
+  .shape:hover{filter:drop-shadow(6px 8px 0 rgba(25,21,18,.28))}
+  .shape:active{cursor:grabbing}
+  .shape svg{display:block;overflow:visible}
+
+  .strip{display:flex;border-top:3px solid var(--k);border-bottom:3px solid var(--k)}
+  .strip>div{flex:1;padding:2.2rem 1rem;text-align:center;font-weight:600;letter-spacing:.3em;
+    text-transform:uppercase;font-size:.72rem;border-right:3px solid var(--k)}
+  .strip>div:last-child{border-right:none}
+  .strip .s-rot{background:var(--rot);color:var(--off)}
+  .strip .s-gelb{background:var(--gelb)}
+  .strip .s-blau{background:var(--blau);color:var(--off)}
+
+  .manifest{max-width:1100px;margin:0 auto;padding:12vh 5vw;display:grid;grid-template-columns:auto 1fr;gap:4rem;align-items:start}
+  .manifest .num{font-size:8rem;font-weight:700;line-height:.8;color:var(--rot)}
+  .manifest h2{font-weight:700;text-transform:uppercase;font-size:clamp(1.8rem,4vw,3rem);letter-spacing:0;line-height:1.05;margin-bottom:1.6rem}
+  .manifest p{font-weight:300;font-size:1.08rem;line-height:1.9;max-width:58ch}
+  .manifest p+p{margin-top:1.2rem}
+
+  footer{border-top:3px solid var(--k);padding:2.6rem 2rem;display:flex;flex-wrap:wrap;gap:1.4rem;
+    justify-content:space-between;font-size:.7rem;letter-spacing:.22em;text-transform:uppercase}
+  footer a{color:var(--rot);text-decoration:none;font-weight:600}
+
+  @media(max-width:900px){
+    .hero{grid-template-columns:1fr}
+    .hero .left{border-right:none;border-bottom:3px solid var(--k);padding:3rem 2rem}
+    #stage{min-height:60vh}
+    .manifest{grid-template-columns:1fr;gap:1.5rem}
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="wordmark">Spielplatz</span>
+  <nav><a href="#warum">Warum</a><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</div>
+
+<div class="hero">
+  <div class="left">
+    <h1>Form<br>follows<br><span class="r">f</span><span class="b">u</span><span class="g">n</span>.</h1>
+    <p>This is a Bauhaus poster that refuses to hold still. Drag the forms. Double-tap to rotate them. Press shuffle and the machine composes a new arrangement — Dessau, 1923, with pointer events.</p>
+    <div class="controls">
+      <button class="bh red" id="shuffle">Shuffle ⟳</button>
+      <button class="bh" id="reset">Reset</button>
+    </div>
+  </div>
+  <div id="stage" aria-label="Interactive composition stage. Drag shapes to rearrange."></div>
+</div>
+
+<div class="strip">
+  <div class="s-rot">Kreis</div>
+  <div class="s-gelb">Dreieck</div>
+  <div class="s-blau">Quadrat</div>
+  <div>Punkt · Linie · Fläche</div>
+</div>
+
+<section class="manifest" id="warum">
+  <div class="num">03</div>
+  <div>
+    <h2>Rules of the playground</h2>
+    <p>One: only the primaries, plus black and the color of good paper. Kandinsky insisted the circle is blue, the triangle yellow, the square red; we honor the palette and ignore the assignments, as every student did.</p>
+    <p>Two: the grid exists so the diagonal can betray it. Every shuffle places one element at 15 degrees for exactly this purpose.</p>
+    <p>Three: nothing here is an image. Every form is an SVG primitive, dragged by the same hand that once held the compass — yours.</p>
+  </div>
+</section>
+
+<footer>
+  <span>Spielplatz — Ein Kompositionsautomat</span>
+  <span>Built by Claude (Fable 5) · <a href="guide/">How</a> · <a href="../">All 25</a></span>
+</footer>
+
+<script>
+const stage=document.getElementById('stage');
+const SHAPES=[
+  {svg:'<svg width="150" height="150" viewBox="0 0 150 150"><circle cx="75" cy="75" r="72" fill="#d92b1c"/></svg>'},
+  {svg:'<svg width="180" height="156" viewBox="0 0 180 156"><polygon points="90,0 180,156 0,156" fill="#f2b705"/></svg>'},
+  {svg:'<svg width="130" height="130" viewBox="0 0 130 130"><rect width="130" height="130" fill="#1c56c2"/></svg>'},
+  {svg:'<svg width="170" height="85" viewBox="0 0 170 85"><path d="M0 85 A85 85 0 0 1 170 85 Z" fill="#191512"/></svg>'},
+  {svg:'<svg width="200" height="26" viewBox="0 0 200 26"><rect width="200" height="26" fill="#d92b1c"/></svg>'},
+  {svg:'<svg width="110" height="110" viewBox="0 0 110 110"><circle cx="55" cy="55" r="52" fill="none" stroke="#191512" stroke-width="7"/></svg>'},
+  {svg:'<svg width="120" height="120" viewBox="0 0 120 120"><rect x="46" width="28" height="120" fill="#1c56c2"/><rect y="46" width="120" height="28" fill="#1c56c2"/></svg>'},
+  {svg:'<svg width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="45" fill="#f2b705"/></svg>'},
+  {svg:'<svg width="150" height="24" viewBox="0 0 150 24"><rect width="150" height="24" fill="#191512"/></svg>'},
+];
+let els=[];
+function build(){
+  stage.innerHTML='';els=[];
+  SHAPES.forEach((s,i)=>{
+    const d=document.createElement('div');
+    d.className='shape';d.innerHTML=s.svg;
+    d.dataset.rot=0;
+    stage.appendChild(d);
+    els.push(d);
+  });
+  layout(true);
+}
+function layout(first){
+  const W=stage.clientWidth,H=stage.clientHeight;
+  els.forEach((d,i)=>{
+    const w=d.firstChild.getAttribute('width')|0,h=d.firstChild.getAttribute('height')|0;
+    const x=Math.random()*(W-w),y=Math.random()*(H-h);
+    const rot=(Math.random()<.3? (Math.random()<.5?15:-15):0);
+    d.dataset.x=x;d.dataset.y=y;d.dataset.rot=rot;
+    d.style.transition=first?'none':'transform .7s cubic-bezier(.3,1.4,.3,1)';
+    d.style.transform=`translate(${x}px,${y}px) rotate(${rot}deg)`;
+    if(!first)setTimeout(()=>d.style.transition='none',720);
+    else requestAnimationFrame(()=>d.style.transition='none');
+  });
+}
+build();
+addEventListener('resize',()=>layout(true));
+document.getElementById('shuffle').addEventListener('click',()=>layout(false));
+document.getElementById('reset').addEventListener('click',()=>layout(false));
+
+/* dragging */
+let drag=null,ox=0,oy=0;
+stage.addEventListener('pointerdown',e=>{
+  const t=e.target.closest('.shape');
+  if(!t)return;
+  drag=t;
+  stage.setPointerCapture(e.pointerId);
+  ox=e.clientX-(+t.dataset.x);oy=e.clientY-(+t.dataset.y);
+  t.style.zIndex=++zTop;
+});
+let zTop=1;
+stage.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const x=e.clientX-ox,y=e.clientY-oy;
+  drag.dataset.x=x;drag.dataset.y=y;
+  drag.style.transform=`translate(${x}px,${y}px) rotate(${drag.dataset.rot}deg)`;
+});
+addEventListener('pointerup',()=>drag=null);
+/* dblclick rotate */
+stage.addEventListener('dblclick',e=>{
+  const t=e.target.closest('.shape');if(!t)return;
+  const r=(+t.dataset.rot+45)%360;
+  t.dataset.rot=r;
+  t.style.transition='transform .4s cubic-bezier(.3,1.6,.3,1)';
+  t.style.transform=`translate(${t.dataset.x}px,${t.dataset.y}px) rotate(${r}deg)`;
+  setTimeout(()=>t.style.transition='none',420);
+});
+</script>
+</body>
+</html>

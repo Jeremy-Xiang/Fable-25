@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23e0742c%22/></svg>">
+<title>How BUTTER was made — guide</title>
+<meta name="description" content="How the BUTTER site was built: the lenis-style lerped virtual scroll hand-rolled in ~60 lines, with parallax, a native toggle, and honest notes on when to just use lenis.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#e0742c; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0c; color:#f3efe9; font-family:'Bricolage Grotesque', sans-serif; font-size:1.05rem; line-height:1.72; padding:0 1.5rem}
+  .wrap{max-width:680px; margin:0 auto; padding:9vh 0 12vh}
+  .crumb{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem}
+  .crumb a{color:#8f8b8d; text-decoration:none; border-bottom:1px solid #262327; padding-bottom:2px}
+  .crumb a:hover{color:var(--accent); border-color:var(--accent)}
+  .kicker{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem}
+  h1{font-weight:800; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.08; margin-bottom:.6rem; letter-spacing:-.01em}
+  .sub{color:#a19c9d; font-size:1.12rem; margin-bottom:3.6rem}
+  h2{font-size:1.05rem; font-weight:800; letter-spacing:.01em; margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #211d20; display:flex; align-items:baseline; gap:.75rem}
+  h2 .no{font-family:'JetBrains Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none; margin-bottom:1rem}
+  ul li{padding-left:1.6rem; position:relative; margin-bottom:.85rem}
+  ul li::before{content:'—'; position:absolute; left:0; color:var(--accent)}
+  ol{counter-reset:step; list-style:none}
+  ol li{counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem}
+  ol li::before{content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em; font-family:'JetBrains Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em}
+  code{font-family:'JetBrains Mono', monospace; font-size:.88em; background:#17141a; padding:.1em .4em; border-radius:4px}
+  .meta{font-family:'JetBrains Mono', monospace; font-size:.8rem; line-height:1.9; color:#cfc9cb; background:#141216; border:1px solid #211d20; border-left:3px solid var(--accent); padding:1.1rem 1.4rem; border-radius:6px}
+  .foot{margin-top:5rem; padding-top:2.4rem; border-top:1px solid #211d20; font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:#7a757a; line-height:2.4}
+  .foot a{color:var(--accent); text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent); color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to BUTTER</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 75 · Wave 5 · how it was made</div>
+  <h1>BUTTER</h1>
+  <p class="sub">The lenis effect, hand-rolled — a lerped virtual scroll with parallax, in about sixty lines</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Every "tools you need" reel names <a href="https://github.com/darkroomengineering/lenis" style="color:var(--accent)">lenis</a>, and every premium site seems to scroll like it's underwater in the best way. This demo strips the technique to its load-bearing core so you understand what you're importing: the page doesn't scroll — a <em>number</em> does, and the page eases after it. A live dock lets you flip between smooth and native mid-scroll and drag the lerp factor around until you feel where taste lives (spoiler: 0.08–0.12).</p>
+
+  <h2><span class="no">02</span> How the engine works</h2>
+  <ul>
+    <li><strong>The document still scrolls natively.</strong> An empty spacer div is sized to the content height, so the scrollbar, keyboard paging, Space, Home/End, and accessibility tools all interact with a completely normal document. This is the trick that separates the lenis approach from the old scroll-hijacking sins — nothing intercepts the wheel.</li>
+    <li><strong>The content is <code>position:fixed</code></strong> and translated by the smoothed value: every frame, <code>cur += (scrollY − cur) × lerp</code>, then one <code>translate3d</code>. When <code>|target − cur| &lt; 0.1</code> the loop snaps and goes to sleep — zero idle cost.</li>
+    <li><strong>Parallax is one multiplication.</strong> Elements carry <code>data-speed</code>; the same loop applies <code>translate3d(0, cur × speed, 0)</code>. Negative drifts against the scroll, positive with it. No observers, no per-element listeners.</li>
+    <li><strong>The progress bar</strong> reads <code>scrollY / (scrollHeight − innerHeight)</code> — it tracks the <em>real</em> scroll, so it stays honest even mid-glide.</li>
+    <li><strong>Touch and reduced-motion get native scroll.</strong> Coarse pointers keep their platform inertia (fighting it feels broken), and <code>prefers-reduced-motion</code> disables the whole engine. Smoothing is a garnish, never a gate.</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <ul>
+    <li><strong>Gabarito 900</strong> for fat, friendly headlines; <strong>Atkinson Hyperlegible</strong> for body — a face literally designed for readability, on a page about not breaking reading.</li>
+    <li>Butter palette: warm paper <code>#fdf8ef</code>, toast ink <code>#241d15</code>, melted-butter orange <code>#e0742c</code> — the one accent doing progress bar, kickers, orbs, and dock states.</li>
+  </ul>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <ul>
+    <li><strong>Anchor links were broken in smooth mode</strong> — and the page's own a11y card claimed they worked. With the content inside a fixed wrapper, a native <code>#how</code> jump computes against the wrong geometry and lands nowhere. Caught by a headless click-test (scrollY stayed 0), fixed with a delegated click handler that resolves the target's position <em>inside the virtual page</em> (<code>target.top − view.top</code>) and calls <code>scrollTo</code> — the lerp then glides there. Re-test: scrollY 758. This is the classic virtual-scroll footgun, now documented instead of hidden.</li>
+    <li>Engine verified numerically: mid-flight transform −908px against a 1200px target (lag = lerp working), settled at exactly −1200px, parallax orb at −216px = 1200 × −0.18, native toggle clears every transform and zeroes the spacer.</li>
+    <li>Full-page screenshots render correctly in smooth mode because the spacer keeps document height honest — a nice side-effect of not hijacking anything.</li>
+  </ul>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <ul>
+    <li><strong>What to copy:</strong> the <code>≈60-line</code> script block (everything above the dock wiring) plus two CSS rules: <code>body.smooth #view{position:fixed; inset:0 0 auto 0}</code> and <code>#view{will-change:transform}</code>. DOM contract: a <code>#spacer</code> before a <code>#view</code> wrapper around all page content.</li>
+    <li><strong>Anchor links:</strong> bring the delegated click handler with you — it's mandatory, not optional (see 04).</li>
+    <li><strong>Fixed-position children:</strong> anything <code>position:fixed</code> must live <em>outside</em> <code>#view</code> (here: header, dock, progress bar) or it will translate with the page.</li>
+    <li><strong>Tunables:</strong> <code>CFG.lerp</code> (0.08–0.12 is the taste zone; lower = heavier), per-element <code>data-speed</code> (keep |speed| under 0.25 or content escapes its section).</li>
+    <li><strong>When to just use lenis:</strong> the moment you need nested scrollable areas (modals, code blocks, horizontal sections), touch smoothing, infinite scroll, or scroll-triggered timeline syncing. This demo is the concept for learning and for pages simple enough to own their scroll; lenis is ~3KB of edge cases you'd otherwise rediscover one bug report at a time. Both can coexist with everything else here — the parallax pattern works identically on lenis's scroll value.</li>
+  </ul>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Wrap content in <code>#view</code>, add an empty <code>#spacer</code> sibling, size it to <code>view.scrollHeight</code>.</li>
+    <li>Fix the view, lerp a number toward <code>scrollY</code> in rAF, apply one transform.</li>
+    <li>Sleep the loop when converged; wake it from the scroll listener.</li>
+    <li>Add <code>data-speed</code> parallax in the same loop.</li>
+    <li>Delegate anchor clicks to virtual coordinates. Gate everything on pointer type and reduced-motion.</li>
+  </ol>
+
+  <div class="meta">
+    stack — one HTML file · ~60 lines of engine JS · no lenis, no GSAP, no build<br>
+    key insight — the document scrolls natively; only the paint is smoothed<br>
+    a11y — native scrollbar/keyboard preserved · reduced-motion + touch bail to native · anchors resolved virtually
+  </div>
+
+  <div class="foot">
+    site 75 / fable 25 · built by claude (fable 5), commissioned by jeremy xiang<br>
+    <a href="../">launch BUTTER</a> · <a href="../../">the other sites</a>
+  </div>
+</div>
+</body>
+</html>

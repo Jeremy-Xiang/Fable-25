@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23b08968%22/></svg>">
+<title>How DRAPE was made — guide</title>
+<meta name="description" content="How the DRAPE site was designed and built: a hand-rolled mass-spring-damper cloth simulation with structural, shear and bend springs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #a63d2f; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#171310; color:#efe6d8;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#a4988a; text-decoration:none; border-bottom:1px solid #2e2620; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#a4988a; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #2a231c;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-family:'Fragment Mono',monospace;font-size:.9em;background:#211a13;padding:.1em .4em;border-radius:4px}
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#cabca8;
+    background:#1c1712; border:1px solid #2a231c; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #2a231c;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a7d6a; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#171310; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to DRAPE</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 57 of 62 · how it was made</div>
+  <h1>DRAPE</h1>
+  <p class="sub">Cloth that answers to gravity — no physics library</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Fabric web demos usually fake drape with a CSS transform or a pre-baked animation. DRAPE actually simulates it: a grid of point masses connected by springs, integrated frame by frame under gravity, wind and collision — the folds you see are the numerical output of that system settling, not an artist's keyframe.</p>
+
+  <h2><span class="no">02</span> The simulation</h2>
+  <ul>
+    <li><strong>Grid:</strong> 26×24 point masses, top row pinned to an implied rod.</li>
+    <li><strong>Three spring families:</strong> structural springs (direct grid neighbors) hold the fabric's overall size; shear springs (diagonal neighbors) resist skewing so the cloth doesn't collapse into a blob; bend springs (skip-one neighbors) resist sharp creasing so folds look like cloth, not paper.</li>
+    <li><strong>Hooke's law + damping:</strong> each spring's force is <code>k·(currentLength − restLength)</code> along its axis, plus a velocity-projected damping term so the mesh doesn't ring forever.</li>
+    <li><strong>Integration:</strong> semi-implicit Euler with sub-stepping (two half-steps per frame) for stability at interactive spring stiffness.</li>
+    <li><strong>Collision:</strong> a simple sphere stands in for "an implied form" — any point that ends up inside it is projected back to its surface each frame, so the cloth visibly drapes over a rounded shape instead of passing through it.</li>
+    <li><strong>Wind:</strong> cursor velocity near the mesh applies a local, falloff-weighted force; a "Gust" button and an ambient sine drift add motion without a mouse.</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Vollkorn (italic display) + Fragment Mono · parchment #efe7dc, cloth gradient #c9b8a0→#665644, single thread accent #a63d2f</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>First headless render showed the mesh sagging into a flat, undifferentiated sheet with almost no visible fold shading — the fake-normal shading term was too subtle. Increased its contrast and added a directional light bias so triangle brightness varies more with local fold angle, which makes the drape read as three-dimensional fabric instead of a flat gray panel. Also caught that the wind slider's default value produced almost no visible ambient motion on first paint; raised the default so the piece feels alive on load.</p>
+
+  <h2><span class="no">05</span> The complexity upgrade</h2>
+  <p>A stitched hem: the bottom edge of the mesh is traced every frame as a dashed accent-colored line following the actual simulated point positions — so the "stitching" itself flutters and folds with the cloth in real time rather than sitting on top as a static decoration.</p>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Build a point grid; pin the row that should hang from something fixed</li>
+    <li>Connect structural + shear + bend springs, record each spring's rest length</li>
+    <li>Each frame: accumulate gravity + spring (Hooke + damping) + wind forces per point</li>
+    <li>Integrate with semi-implicit Euler, sub-stepping for stability</li>
+    <li>Resolve collisions against any implied solid form last, before rendering</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 3), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step, no physics library ·
+    build → code-review → real screenshot critique passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

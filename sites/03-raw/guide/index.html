@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How RAW.WORK was made — guide</title>
+<meta name="description" content="How the RAW.WORK site was designed and built: techniques, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #ff2e00; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#101014; color:#e9e9ee;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9a9aa6; text-decoration:none; border-bottom:1px solid #2a2a33; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#9a9aa6; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #232329;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#b9b9c4;
+    background:#16161c; border:1px solid #232329; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #232329;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a8a96; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#101014; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to RAW.WORK</a>
+    <a href="../../">all 25 sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 03 of 25 · how it was made</div>
+  <h1>RAW.WORK</h1>
+  <p class="sub">An anti-design zine</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>A deliberately loud anti-design zine — Archivo Black, safety-orange, visible borders, marquees — that is secretly disciplined: an 8px baseline grid governs every 'random' collision, which is why the chaos reads as style rather than error.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Brutalist collage layout on a strict hidden baseline grid</li>
+    <li>Native CSS marquee reimplementation with @keyframes translate loops</li>
+    <li>Hover states that invert whole sections (background/color swap)</li>
+    <li>Randomized sticker rotation seeded once so reloads feel hand-placed</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Archivo Black + monospace annotations · white, black, safety orange #ff2e00</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Set a hard 8px vertical rhythm, then break it only at section seams</li>
+    <li>Build marquees as duplicated flex tracks translated -50% in a loop</li>
+    <li>Use outline instead of border for the 'pasted on top' look</li>
+    <li>Cap the palette at 3 colors; brutalism dies with a fourth</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 5), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    3+ iteration passes in a real browser before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

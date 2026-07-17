@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MARIONETTE — pull the strings</title>
+<meta name="description" content="MARIONETTE is a puppet suspended by real verlet-integrated strings you can grab and pull — hand-rolled point-and-constraint physics, no library, warm stage light.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{ --amber:#e8a355; --stage:#1a1108; --bg:#0d0804; --cream:#f2e6d0; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overscroll-behavior:none}
+  body{background:var(--bg);color:var(--cream);font-family:'Fraunces',serif;overflow:hidden}
+  ::selection{background:var(--amber);color:#1a1108}
+
+  canvas#stage{position:fixed;inset:0;display:block;touch-action:none;cursor:grab}
+  canvas#stage.dragging{cursor:grabbing}
+
+  header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+    padding:1.4rem 2rem;pointer-events:none}
+  header *{pointer-events:auto}
+  .m{font-weight:700;font-size:1.1rem;letter-spacing:.04em}
+  .m span{color:var(--amber)}
+  nav{font-family:'Fragment Mono',monospace;font-size:.66rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--cream);text-decoration:none;opacity:.65;margin-left:1.5rem;transition:opacity .2s}
+  nav a:hover{opacity:1;color:var(--amber)}
+
+  .titlecard{position:fixed;top:6.5rem;left:0;right:0;z-index:3;text-align:center;pointer-events:none;padding:0 1.5rem}
+  .titlecard h1{font-weight:700;font-size:clamp(1.8rem,5vw,3.2rem);letter-spacing:-.01em;
+    text-shadow:0 4px 40px rgba(0,0,0,.6)}
+  .titlecard h1 em{font-style:italic;color:var(--amber)}
+  .titlecard p{font-family:'Fragment Mono',monospace;font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--cream);opacity:.6;margin-top:.7rem}
+
+  footer{position:fixed;bottom:0;left:0;right:0;z-index:5;text-align:center;font-family:'Fragment Mono',monospace;
+    font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--cream);opacity:.55;padding:0 1rem 1.2rem;
+    pointer-events:none}
+  footer a{color:var(--amber);pointer-events:auto}
+
+  .cutbtn{position:fixed;bottom:2.6rem;right:1.6rem;z-index:5;font-family:'Fragment Mono',monospace;
+    font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;background:rgba(232,163,85,.1);
+    border:1px solid rgba(232,163,85,.4);color:var(--amber);padding:.6rem 1.1rem;border-radius:99px;
+    cursor:pointer;transition:.2s}
+  .cutbtn:hover{background:rgba(232,163,85,.22)}
+
+  @media(max-width:760px){
+    header{padding:1.1rem 1.3rem}
+    .titlecard{top:5.6rem}
+    .titlecard h1{font-size:clamp(1.5rem,7vw,2.2rem)}
+    footer{font-size:.53rem;line-height:1.6}
+    .cutbtn{bottom:2.2rem;right:1rem;padding:.5rem .9rem;font-size:.58rem}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+
+<header>
+  <span class="m">MARIO<span>NETTE</span></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="titlecard">
+  <h1>Every string <em>obeys</em> gravity.</h1>
+  <p>drag any string · release to let it swing</p>
+</div>
+
+<button class="cutbtn" id="resetBtn" aria-label="Reset the puppet to rest">Reset pose</button>
+
+<footer>MARIONETTE — VERLET STRING PHYSICS · SITE 52 OF 62 · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a></footer>
+
+<script>
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let W,H,DPR;
+function resize(){
+  DPR = Math.min(devicePixelRatio||1, 2);
+  W = innerWidth; H = innerHeight;
+  canvas.width = W*DPR; canvas.height = H*DPR;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  layout();
+}
+
+/* ---------- Verlet point-mass system ---------- */
+class Pt{
+  constructor(x,y,pinned=false){
+    this.x=x;this.y=y;this.px=x;this.py=y;this.pinned=pinned;this.anchorX=x;this.anchorY=y;
+  }
+}
+let pts = [];
+let sticks = []; // {a,b,len,color,isString}
+let bars = []; // rigid control bar segments (drawn, also physical via sticks)
+const GRAV = 980;
+
+function addStick(a,b,color,isString,stiffness=1){
+  const len = Math.hypot(a.x-b.x, a.y-b.y);
+  sticks.push({a,b,len,color,isString,stiffness});
+}
+
+let controlBar, headPt, lShoulder, rShoulder, lHip, rHip, lHandle, rHandle;
+let lElbow, rElbow, lHand, rHand, lKnee, rKnee, lFoot, rFoot, hipCenter, chest;
+
+function layout(){
+  pts = []; sticks = [];
+  const cx = W*0.5;
+  const barY = Math.max(H*0.14, 230);
+  const scale = Math.min(W,H)/9;
+
+  // control bar (pinned, the visitor's implicit "hand" — anchored at top, slight sway)
+  controlBar = { y: barY, x: cx, w: scale*3.2 };
+
+  // control points on the bar (visual only, sticks originate from bar ends)
+  const barL = new Pt(cx-controlBar.w/2, barY, true);
+  const barR = new Pt(cx+controlBar.w/2, barY, true);
+  barL.isBar = true; barR.isBar = true;
+  pts.push(barL, barR);
+
+  // puppet skeleton, hanging below
+  const bodyTop = barY + scale*2.0;
+  headPt   = new Pt(cx, bodyTop);
+  chest    = new Pt(cx, bodyTop + scale*1.0);
+  hipCenter= new Pt(cx, bodyTop + scale*2.1);
+  lShoulder= new Pt(cx-scale*0.65, bodyTop+scale*0.55);
+  rShoulder= new Pt(cx+scale*0.65, bodyTop+scale*0.55);
+  lElbow   = new Pt(cx-scale*1.05, bodyTop+scale*1.25);
+  rElbow   = new Pt(cx+scale*1.05, bodyTop+scale*1.25);
+  lHand    = new Pt(cx-scale*1.15, bodyTop+scale*1.95);
+  rHand    = new Pt(cx+scale*1.15, bodyTop+scale*1.95);
+  lHip     = new Pt(cx-scale*0.5, bodyTop+scale*2.1);
+  rHip     = new Pt(cx+scale*0.5, bodyTop+scale*2.1);
+  lKnee    = new Pt(cx-scale*0.62, bodyTop+scale*3.15);
+  rKnee    = new Pt(cx+scale*0.62, bodyTop+scale*3.15);
+  lFoot    = new Pt(cx-scale*0.7, bodyTop+scale*4.15);
+  rFoot    = new Pt(cx+scale*0.7, bodyTop+scale*4.15);
+
+  pts.push(headPt,chest,hipCenter,lShoulder,rShoulder,lElbow,rElbow,lHand,rHand,
+    lHip,rHip,lKnee,rKnee,lFoot,rFoot);
+
+  // rigid-ish body skeleton (drawn as jointed limbs, stiff sticks)
+  const BODY = '#3a2412';
+  addStick(headPt,chest,BODY,false,1);
+  addStick(chest,hipCenter,BODY,false,1);
+  addStick(chest,lShoulder,BODY,false,1);
+  addStick(chest,rShoulder,BODY,false,1);
+  addStick(lShoulder,lElbow,BODY,false,1);
+  addStick(lElbow,lHand,BODY,false,1);
+  addStick(rShoulder,rElbow,BODY,false,1);
+  addStick(rElbow,rHand,BODY,false,1);
+  addStick(hipCenter,lHip,BODY,false,1);
+  addStick(hipCenter,rHip,BODY,false,1);
+  addStick(lHip,lKnee,BODY,false,1);
+  addStick(lKnee,lFoot,BODY,false,1);
+  addStick(rHip,rKnee,BODY,false,1);
+  addStick(rKnee,rFoot,BODY,false,1);
+
+  // control strings — the interactive verlet part (soft, springy)
+  const STRING = 'rgba(242,230,208,0.85)';
+  addStick(barL,headPt,STRING,true,0.35);
+  addStick(barR,headPt,STRING,true,0.35);
+  addStick(barL,lHand,STRING,true,0.22);
+  addStick(barR,rHand,STRING,true,0.22);
+  addStick(barL,lKnee,STRING,true,0.18);
+  addStick(barR,rKnee,STRING,true,0.18);
+
+  bars = [barL, barR];
+}
+
+/* pointer drag */
+let dragPt = null, dragOffX=0, dragOffY=0;
+let pointer = {x:-999,y:-999,down:false};
+
+function nearestPt(x,y){
+  let best=null,bd=26*26;
+  for(const p of pts){
+    const d=(p.x-x)**2+(p.y-y)**2;
+    if(d<bd){bd=d;best=p;}
+  }
+  return best;
+}
+
+canvas.addEventListener('pointerdown', e=>{
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX-r.left, y = e.clientY-r.top;
+  const p = nearestPt(x,y);
+  if(p){
+    dragPt = p;
+    canvas.classList.add('dragging');
+  }
+  pointer.down = true; pointer.x=x; pointer.y=y;
+});
+addEventListener('pointermove', e=>{
+  const r = canvas.getBoundingClientRect();
+  pointer.x = e.clientX-r.left; pointer.y = e.clientY-r.top;
+  if(dragPt){ dragPt.x = pointer.x; dragPt.y = pointer.y; }
+});
+addEventListener('pointerup', ()=>{
+  dragPt = null; pointer.down=false;
+  canvas.classList.remove('dragging');
+});
+
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  layout();
+});
+
+/* ---------- physics step ---------- */
+function step(dt){
+  dt = Math.min(dt, 1/30);
+
+  // gentle sway of the bar to keep it alive
+  const t = performance.now()/1000;
+  if(!dragPt || (dragPt!==bars[0] && dragPt!==bars[1])){
+    const sway = Math.sin(t*0.6)*10;
+    bars[0].x = W*0.5 - (bars[0].anchorX ? 0 : 0);
+  }
+
+  const barSway = reduceMotion ? 0 : Math.sin(t*0.55)*14;
+  const cx = W*0.5;
+  const scale = Math.min(W,H)/9;
+  if(dragPt !== bars[0]){ bars[0].x = cx - scale*1.6 + barSway; bars[0].y = Math.max(H*0.14,230); }
+  if(dragPt !== bars[1]){ bars[1].x = cx + scale*1.6 + barSway; bars[1].y = Math.max(H*0.14,230); }
+  bars[0].pinned = true; bars[1].pinned = true;
+
+  for(const p of pts){
+    if(p===dragPt || p.pinned) continue;
+    const vx = (p.x-p.px)*0.985;
+    const vy = (p.y-p.py)*0.985;
+    const nx = p.x+vx;
+    const ny = p.y+vy+GRAV*dt*dt;
+    p.px=p.x; p.py=p.y;
+    p.x=nx; p.y=ny;
+  }
+  if(dragPt && !dragPt.pinned){ dragPt.px = dragPt.x; dragPt.py = dragPt.y; }
+
+  // constraint relaxation
+  for(let iter=0; iter<6; iter++){
+    for(const s of sticks){
+      const dx = s.b.x-s.a.x, dy=s.b.y-s.a.y;
+      const dist = Math.hypot(dx,dy)||0.0001;
+      const diff = (dist - s.len)/dist;
+      const stiff = s.isString ? 0.5 : 0.9;
+      const ax = s.a.pinned||s.a===dragPt ? 0 : 0.5*stiff;
+      const bx = s.b.pinned||s.b===dragPt ? 0 : 0.5*stiff;
+      const totalW = ax+bx;
+      if(totalW<=0) continue;
+      const off = diff;
+      if(!(s.a.pinned||s.a===dragPt)) { s.a.x += dx*off*(ax/totalW); s.a.y += dy*off*(ax/totalW); }
+      if(!(s.b.pinned||s.b===dragPt)) { s.b.x -= dx*off*(bx/totalW); s.b.y -= dy*off*(bx/totalW); }
+    }
+    // floor
+    const floorY = H - 34;
+    for(const p of pts){
+      if(p.y>floorY && !p.pinned && p!==dragPt){ p.y=floorY; }
+    }
+  }
+}
+
+/* ---------- render ---------- */
+function draw(){
+  // stage backdrop: spotlight vignette
+  const g = ctx.createRadialGradient(W*0.5,H*0.32,20, W*0.5,H*0.42, Math.max(W,H)*0.72);
+  g.addColorStop(0,'#2c1c0c');
+  g.addColorStop(0.55,'#150d05');
+  g.addColorStop(1,'#070402');
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,W,H);
+
+  // faint stage floor line
+  ctx.strokeStyle='rgba(232,163,85,0.12)';
+  ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,H-34); ctx.lineTo(W,H-34); ctx.stroke();
+
+  // control bar
+  ctx.strokeStyle = '#4a3216';
+  ctx.lineWidth = 6;
+  ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(bars[0].x,bars[0].y); ctx.lineTo(bars[1].x,bars[1].y); ctx.stroke();
+  ctx.fillStyle='#6b4a24';
+  for(const b of bars){ ctx.beginPath(); ctx.arc(b.x,b.y,5,0,7); ctx.fill(); }
+
+  // strings (drawn first, thin, glowing)
+  ctx.lineCap='round';
+  for(const s of sticks){
+    if(!s.isString) continue;
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 1.4;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.moveTo(s.a.x,s.a.y); ctx.lineTo(s.b.x,s.b.y); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // body limbs (thicker, warm wood tone with highlight)
+  for(const s of sticks){
+    if(s.isString) continue;
+    ctx.strokeStyle = '#5c3a1c';
+    ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.moveTo(s.a.x,s.a.y); ctx.lineTo(s.b.x,s.b.y); ctx.stroke();
+    ctx.strokeStyle = 'rgba(232,163,85,0.35)';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(s.a.x,s.a.y); ctx.lineTo(s.b.x,s.b.y); ctx.stroke();
+  }
+  // joints
+  for(const p of pts){
+    if(p===bars[0]||p===bars[1]) continue;
+    ctx.fillStyle='#7a5228';
+    ctx.beginPath(); ctx.arc(p.x,p.y,5,0,7); ctx.fill();
+  }
+  // head (bigger circle with simple face)
+  ctx.fillStyle='#caa26a';
+  ctx.beginPath(); ctx.arc(headPt.x,headPt.y,22,0,7); ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle='rgba(30,18,8,0.7)';
+  ctx.beginPath(); ctx.arc(headPt.x-7,headPt.y-2,2.4,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(headPt.x+7,headPt.y-2,2.4,0,7); ctx.fill();
+  ctx.strokeStyle='rgba(30,18,8,0.6)'; ctx.lineWidth=1.6;
+  ctx.beginPath(); ctx.arc(headPt.x,headPt.y+6,6,0.15*Math.PI,0.85*Math.PI); ctx.stroke();
+
+  // hands/feet caps
+  ctx.fillStyle='#caa26a';
+  for(const p of [lHand,rHand,lFoot,rFoot]){ ctx.beginPath(); ctx.arc(p.x,p.y,6,0,7); ctx.fill(); }
+
+  // pointer glow when dragging
+  if(dragPt){
+    ctx.strokeStyle='rgba(232,163,85,0.5)';
+    ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(dragPt.x,dragPt.y,14,0,7); ctx.stroke();
+  }
+
+  // subtle dust motes for atmosphere
+  drawMotes();
+}
+
+let motes = [];
+function initMotes(){
+  motes = [];
+  const n = Math.min(40, Math.floor(W*H/38000));
+  for(let i=0;i<n;i++){
+    motes.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.4+0.3,
+      s:Math.random()*0.4+0.15, ph:Math.random()*10});
+  }
+}
+function drawMotes(){
+  const t = performance.now()/1000;
+  ctx.fillStyle='rgba(232,163,85,0.5)';
+  for(const m of motes){
+    const y = (m.y - (reduceMotion?0:t*m.s*14)) % (H+20);
+    const yy = y<0 ? y+H+20 : y;
+    const x = m.x + (reduceMotion?0:Math.sin(t*0.3+m.ph)*8);
+    ctx.globalAlpha = 0.35;
+    ctx.beginPath(); ctx.arc(x,yy,m.r,0,7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+let last = performance.now();
+function frame(now){
+  const dt = (now-last)/1000; last=now;
+  step(dt);
+  draw();
+  if(!reduceMotion) requestAnimationFrame(frame);
+}
+
+addEventListener('resize', ()=>{ resize(); initMotes(); });
+resize();
+initMotes();
+
+if(reduceMotion){
+  // render a settled static pose, still responsive to drag via pointer events (re-draw on move)
+  step(1/60); step(1/60); draw();
+  addEventListener('pointermove', ()=>{ if(dragPt){ step(1/60); draw(); } });
+  addEventListener('pointerdown', ()=>{ step(1/60); draw(); });
+} else {
+  requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>

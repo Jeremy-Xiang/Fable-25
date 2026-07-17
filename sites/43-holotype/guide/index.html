@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How HOLOTYPE was made — guide</title>
+<meta name="description" content="How the HOLOTYPE site was designed and built: techniques, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Inter:ital,wght@0,400;0,600;1,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #3bc9ff; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#060608; color:#f4f2f8;
+    font-family:'Inter', sans-serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#8c8a97; text-decoration:none; border-bottom:1px solid #1c1c22; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-family:'Big Shoulders Display',sans-serif; font-weight:900; text-transform:uppercase;
+    font-size:clamp(2.3rem,6vw,3.6rem); line-height:1.02; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#8c8a97; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #1c1c22;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code { font-family:'Fragment Mono', monospace; font-size:.92em; background:#121218; padding:.1em .35em; border-radius:4px; }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#c7c5cf;
+    background:#0d0d11; border:1px solid #1c1c22; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #1c1c22;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8c8a97; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#060608; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to HOLOTYPE</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 43 of 50 · how it was made</div>
+  <h1>HOLOTYPE</h1>
+  <p class="sub">Light that only exists at this angle</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Wing II's pipeline runs a Higgsfield-generated image through hand-written HTML/CSS/JS, no frameworks or build step. HOLOTYPE takes that pipeline toward physical-object simulation: a single generated holographic-foil texture becomes the art on a trading card that behaves like foil actually behaves — its rainbow sheen shifts with viewing angle, not with time, because real foil doesn't animate on its own, it only reacts to how you're looking at it.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>One generated hero asset: an iridescent rainbow foil texture on black, used as the card's base image layer</li>
+    <li>The holo sheen is a <code>conic-gradient</code> (magenta → gold → mint → cyan → violet) whose start angle and center point are CSS custom properties driven live by pointer position, blended onto the image with <code>mix-blend-mode: color-dodge</code> so bright image pixels bloom with color and dark pixels stay dark</li>
+    <li>A second, fainter overlay of thin diagonal lines at <code>mix-blend-mode: overlay</code> shifts horizontally with the same pointer input, standing in for the fine line-diffraction texture real foil stock has</li>
+    <li>A soft radial glare tracks the same coordinates at <code>mix-blend-mode: soft-light</code>, reinforcing the sense of a light source moving across a glossy surface</li>
+    <li>The card itself sits in a <code>perspective</code> stage and rotates on both axes based on pointer offset from its own center, not the viewport's, so it tilts the way an object tilts in your hand rather than swinging around a fixed page point</li>
+    <li>All numeric targets (rotation, gradient angle, glare position) are eased toward on every frame rather than snapped to, which is what keeps the tilt feeling weighted instead of jittery</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Big Shoulders Display (bold condensed) + Inter (body) + Fragment Mono (labels) · black base #060608, panel #0d0d11, full-spectrum accents magenta #ff3b7a / gold #ffd23b / mint #3bffb0 / cyan #3bc9ff / violet #b93bff</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Build the card as a <code>perspective</code> container holding a stack of absolutely-positioned layers: image, holo gradient, fine-line overlay, glare, border — all sharing the same border-radius</li>
+    <li>On <code>pointermove</code>, compute the cursor's position relative to the card's own bounding rect (0–1 on each axis), not the window, and derive rotation, gradient angle, and glare center from that single pair of numbers</li>
+    <li>Ease every driven value toward its target each animation frame (<code>v += (target - v) * 0.12</code>) instead of assigning directly, so the tilt settles rather than snapping</li>
+    <li>Mirror the same pointer-position math from <code>deviceorientation</code> beta/gamma on touch devices, gated behind an explicit "enable tilt" tap since iOS requires a user gesture before granting motion permission</li>
+    <li>Give the card <code>tabindex="0"</code> and arrow-key handlers that nudge the same rotation targets, so the whole effect is reachable without a pointer</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration notes</h2>
+  <ul>
+    <li><b>Build pass:</b> first draft rotated the card around the viewport's center, which made the tilt feel like the whole page was warping rather than one object turning; switched to computing pointer offset from the card's own bounding rect and the tilt immediately read as physical</li>
+    <li><b>Code-review pass:</b> checked dim-text-on-black contrast for the body copy, confirmed the reduced-motion branch fully skips the requestAnimationFrame loop rather than just slowing it (so a reduced-motion visitor gets a static, centered holo card, not a subtle animation), and added an explicit keyboard path (arrow keys + Escape to reset) since the base interaction is pointer/gyroscope only</li>
+    <li><b>Live-browser pass:</b> served locally and tested pointer drag across the card — caught that fast cursor movement briefly showed a jittery gradient because the angle variable wasn't wrapping past 360°, fixed by keeping the angle formula bounded to a small range rather than accumulating; also confirmed the gyroscope permission button only appears on touch devices, since <code>deviceorientation</code> is meaningless on desktop</li>
+  </ul>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable, Wing II), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    hero asset generated with Higgsfield, downloaded and re-hosted locally ·
+    3 documented iteration passes before sign-off ·
+    <a href="../../guide/">read the master guide →</a>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How MODULAR was made — guide</title>
+<meta name="description" content="How the MODULAR site was designed and built: a real XY oscilloscope driven by stereo-panned Web Audio oscillators, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #3dffa0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#101014; color:#e9e9ee;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9a9aa6; text-decoration:none; border-bottom:1px solid #2a2a33; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#9a9aa6; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #232329;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { margin-bottom:1rem; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#b9b9c4;
+    background:#16161c; border:1px solid #232329; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  code{ font-family:'Fragment Mono', monospace; font-size:.86em; background:#1b1b22; padding:.1em .35em; border-radius:4px; }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #232329;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a8a96; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#101014; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to MODULAR</a>
+    <a href="../../">all 50 sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 32 of 50 · how it was made · Wing II</div>
+  <h1>MODULAR</h1>
+  <p class="sub">An oscilloscope you can patch</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>25-resonance closed Wing I with a polysynth whose visual was a radial spectrum. This site reuses the "synth you can play" idea but makes the readout an honest XY oscilloscope instead — two oscillators, hard-panned left and right, traced against each other as a Lissajous curve, the way an analog scope in X-Y mode actually works. A Higgsfield video loop of a real modular rack (with a real scope mid-shot showing exactly that kind of curve) sits behind it as the backdrop.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Two <code>OscillatorNode</code>s (osc X, osc Y), each through its own gain and a <code>StereoPannerNode</code> panned hard −1/+1, merged with <code>ChannelMergerNode</code></li>
+    <li>A <code>ChannelSplitterNode</code> pulls the two channels back apart post-merge into two <code>AnalyserNode</code>s so the canvas reads real per-channel time-domain data — this is a genuine two-channel oscilloscope, not a simulated parametric curve</li>
+    <li>Each frame: <code>getFloatTimeDomainData</code> on both analysers, samples paired index-for-index as (x,y) and stroked as one continuous path with a phosphor glow (<code>shadowBlur</code>)</li>
+    <li>Frequency ratio presets (1:1, 1:2, 2:3, 3:4, 4:5) set the classic Lissajous family of shapes; a small "drift" Hz offset keeps the two oscillators very slightly detuned so the pattern slowly rotates instead of locking static</li>
+    <li>Video hero: a 5s Kling loop of a real eurorack + scope, muted/looped/inline, with the still frame as <code>poster</code> and hard fallback</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Space Mono (display) + IBM Plex Mono (body/labels) · near-black #07090a, CRT phosphor green #3dffa0, VU amber #ffae42</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Build the audio graph before any user gesture fires it — <code>AudioContext</code> itself must still wait for a click/keypress</li>
+    <li>Pan two oscillators hard left/right, merge to stereo, then split again to feed two independent analysers</li>
+    <li>Plot <code>dataX[i]</code> against <code>dataY[i]</code> each frame instead of a single channel against time — that's the whole trick</li>
+    <li>Fade the canvas each frame with a low-alpha fill instead of a hard clear, for a persistence-of-phosphor trail</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration notes</h2>
+  <ul>
+    <li><strong>Build pass:</strong> first pass drew a purely mathematical parametric Lissajous curve; switched to real per-channel analyser data so the visual is honestly derived from the audio graph, matching the "driven by a small Web Audio synth" brief rather than faking it alongside the synth.</li>
+    <li><strong>Code-review pass:</strong> added a <code>prefers-reduced-motion</code> branch that hides the video entirely (swapping to the static poster image) and replaces the animated <code>requestAnimationFrame</code> trace with a single static parametric curve redrawn only on control change — no continuous animation loop runs at all when reduced motion is requested.</li>
+    <li><strong>Live-browser pass:</strong> served locally in headless Chrome; caught that the video element could silently fail to autoplay on some engines even when muted, so added a <code>.catch()</code> that falls back to the still image if <code>play()</code> rejects; confirmed the power-on gate correctly gesture-unlocks the AudioContext on both the boot overlay and the console's Power button.</li>
+  </ul>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    hero video generated with Higgsfield (Kling), still fallback via nano_banana_pro-class capture ·
+    3 iteration passes in a real browser before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

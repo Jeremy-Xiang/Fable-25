@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRESSWORK — four plates, slightly drunk</title>
+<meta name="description" content="A live CMYK halftone press: four rotated dot screens print a poster in layers, and your cursor pushes the plates out of register — misprint as an interaction.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f6f2e8'/%3E%3Ccircle cx='13' cy='14' r='6' fill='%2300b7c4' opacity='.8'/%3E%3Ccircle cx='19' cy='14' r='6' fill='%23e5378a' opacity='.8'/%3E%3Ccircle cx='16' cy='20' r='6' fill='%23f5c400' opacity='.8'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f6f2e8; --ink:#221f1a; --dim:#7d766a;
+  --c:#00b7c4; --m:#e5378a; --y:#f5c400;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper); color:var(--ink); font-family:'Courier Prime',monospace; min-height:100vh;
+  display:flex; flex-direction:column; overflow-x:hidden}
+::selection{background:var(--m); color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid var(--m); outline-offset:3px}
+
+header{display:flex; justify-content:space-between; align-items:center; padding:1.2rem 1.6rem}
+.mark{font-family:'Anton',sans-serif; font-size:1.05rem; letter-spacing:.08em; text-transform:uppercase}
+.mark .cc{color:var(--c)} .mark .mm{color:var(--m)} .mark .yy{color:var(--y)}
+nav{display:flex; gap:1.5rem}
+nav a{font-size:.66rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--m)}
+
+.hero{text-align:center; padding:.3rem 1.2rem 1.3rem}
+.hero h1{font-family:'Anton',sans-serif; font-size:clamp(1.6rem,4.6vw,2.7rem); text-transform:uppercase; letter-spacing:.02em}
+.hero p{font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); margin-top:.5rem}
+
+main{flex:1; display:flex; flex-direction:column; align-items:center; gap:1.1rem; padding:0 1.2rem 1.6rem}
+.press{position:relative; box-shadow:0 24px 60px rgba(34,31,26,.35); border:1px solid rgba(34,31,26,.2); background:#fff}
+#poster{display:block; max-width:min(92vw,760px); height:auto; cursor:crosshair}
+
+.deck{display:flex; gap:1rem 1.8rem; align-items:flex-end; justify-content:center; flex-wrap:wrap}
+.grp{display:flex; flex-direction:column; gap:.45rem; align-items:center}
+.grp label{font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim)}
+.grp label b{color:var(--ink); font-weight:700}
+input[type=range]{-webkit-appearance:none; appearance:none; width:140px; height:3px; background:rgba(34,31,26,.2); border-radius:2px; cursor:ew-resize}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--m); border:2px solid #fff}
+input[type=range]::-moz-range-thumb{width:12px; height:12px; border:2px solid #fff; border-radius:50%; background:var(--m)}
+.deck button{
+  font:inherit; font-size:.64rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+  border:2px solid var(--ink); background:#fff; color:var(--ink); padding:.6rem 1.1rem; cursor:pointer;
+  box-shadow:3px 3px 0 var(--ink); transition:.12s;
+}
+.deck button:hover{transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--ink)}
+.deck button:active{transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink)}
+
+footer{display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem; padding:1rem 1.6rem 1.4rem;
+  font-size:.58rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim)}
+footer a{color:var(--m); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">PRESS<span class="cc">W</span><span class="mm">O</span><span class="yy">R</span>K</span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>Four plates, slightly drunk.</h1>
+  <p>live cmyk halftone · cursor shoves the plates out of register</p>
+</div>
+
+<main>
+  <div class="press">
+    <canvas id="poster" width="900" height="620" aria-label="CMYK halftone poster; move the cursor to misregister the plates"></canvas>
+  </div>
+  <div class="deck" role="group" aria-label="Press controls">
+    <div class="grp"><label>Dot pitch <b id="vPitch">9px</b></label><input type="range" id="rPitch" min="6" max="16" value="9"></div>
+    <div class="grp"><label>Wobble <b id="vWob">1.0</b></label><input type="range" id="rWob" min="0" max="30" value="10"></div>
+    <button id="bPoster">next poster</button>
+  </div>
+</main>
+
+<footer>
+  <span>site 94 / fable 25 · built by claude (fable 5)</span>
+  <span><a href="guide/">how it was made</a></span>
+</footer>
+
+<script>
+/* ═════ PRESSWORK — live CMYK halftone with misregistration ═════
+   A hidden source canvas holds the poster art. Each frame, four dot
+   screens (C 15°, M 75°, Y 0°, K 45°) sample it: dot radius ∝ channel
+   ink at each grid point. The cursor displaces each plate by a
+   different vector — classic misprint fringing, interactive. */
+
+const cv = document.getElementById('poster');
+const x = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CFG = { pitch:9, wobble:1.0 };
+
+/* — source art (regenerable) — */
+const src = document.createElement('canvas');
+src.width=W; src.height=H;
+const sx = src.getContext('2d', { willReadFrequently:true });
+let art = 0;
+const ARTS = [
+  ()=>{ // sunset wave poster
+    const g=sx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#ffd24d'); g.addColorStop(.55,'#ff6b4d'); g.addColorStop(1,'#7d2fbd');
+    sx.fillStyle=g; sx.fillRect(0,0,W,H);
+    sx.fillStyle='#131028';
+    sx.beginPath(); sx.moveTo(0,H*.72);
+    for(let px=0;px<=W;px+=10) sx.lineTo(px, H*.72 + Math.sin(px*.012)*36);
+    sx.lineTo(W,H); sx.lineTo(0,H); sx.fill();
+    sx.fillStyle='#fff3d6';
+    sx.beginPath(); sx.arc(W*.64,H*.38,86,0,7); sx.fill();
+    sx.font='900 110px Anton, sans-serif'; sx.fillStyle='#131028';
+    sx.fillText('PAPER', 60, 140);
+    sx.fillText('SUN', 60, 250);
+  },
+  ()=>{ // deco arcs
+    sx.fillStyle='#10243a'; sx.fillRect(0,0,W,H);
+    for(let r=430;r>40;r-=48){
+      sx.fillStyle = ['#e8543f','#f5c400','#f6f2e8','#3a86a8'][ (r/48|0)%4 ];
+      sx.beginPath(); sx.arc(W/2, H+60, r, Math.PI, 0); sx.fill();
+    }
+    sx.font='900 92px Anton, sans-serif'; sx.fillStyle='#f6f2e8';
+    sx.textAlign='center';
+    sx.fillText('RISE', W/2, 130);
+    sx.textAlign='left';
+  },
+  ()=>{ // fruit still-life
+    sx.fillStyle='#f2e6c9'; sx.fillRect(0,0,W,H);
+    sx.fillStyle='#274232'; sx.fillRect(0,H*.62,W,H*.38);
+    const fruits=[['#e8543f',W*.32,H*.55,95],['#f5a623',W*.55,H*.6,75],['#8c2f4f',W*.72,H*.52,60]];
+    for(const [col,fx,fy,fr] of fruits){
+      sx.fillStyle=col; sx.beginPath(); sx.arc(fx,fy,fr,0,7); sx.fill();
+      sx.fillStyle='rgba(255,255,255,.45)'; sx.beginPath(); sx.arc(fx-fr*.3,fy-fr*.35,fr*.24,0,7); sx.fill();
+    }
+    sx.font='900 84px Anton, sans-serif'; sx.fillStyle='#274232';
+    sx.fillText('MERCADO', 56, 110);
+  },
+];
+function shoot(){ ARTS[art%ARTS.length](); art++; srcData = sx.getImageData(0,0,W,H).data; }
+let srcData = null;
+
+/* rgb → cmyk */
+function cmykAt(px, py){
+  const cx2 = Math.max(0, Math.min(W-1, px|0));
+  const cy2 = Math.max(0, Math.min(H-1, py|0));
+  const i = (cy2*W + cx2)*4;
+  const r = srcData[i]/255, g = srcData[i+1]/255, b = srcData[i+2]/255;
+  const k = 1 - Math.max(r,g,b);
+  const den = 1-k || 1;
+  return [ (1-r-k)/den, (1-g-k)/den, (1-b-k)/den, k ];
+}
+
+/* one halftone plate */
+function plate(chan, angle, color, ox, oy){
+  const pitch = CFG.pitch;
+  const cosA = Math.cos(angle), sinA = Math.sin(angle);
+  x.fillStyle = color;
+  const diag = Math.hypot(W,H);
+  for (let v=-diag/2; v<diag/2; v+=pitch){
+    for (let u=-diag/2; u<diag/2; u+=pitch){
+      // rotate grid point back into image space
+      const px = W/2 + u*cosA - v*sinA + ox;
+      const py = H/2 + u*sinA + v*cosA + oy;
+      if (px<-pitch||px>W+pitch||py<-pitch||py>H+pitch) continue;
+      const ink = cmykAt(px, py)[chan];
+      if (ink < .05) continue;
+      const r = pitch*.62 * Math.sqrt(ink);
+      x.beginPath();
+      x.arc(px, py, r, 0, 7);
+      x.fill();
+    }
+  }
+}
+
+let mx = W/2, my = H/2;
+cv.addEventListener('pointermove', e=>{
+  const r = cv.getBoundingClientRect();
+  mx = (e.clientX-r.left) * (W/r.width);
+  my = (e.clientY-r.top) * (H/r.height);
+});
+
+let t0 = performance.now();
+function frame(now){
+  requestAnimationFrame(frame);
+  const t = (now-t0)/1000;
+  x.fillStyle = '#fdfbf4';
+  x.fillRect(0,0,W,H);
+  x.globalCompositeOperation = 'multiply';
+  // misregistration: cursor offset from center, per-plate direction + idle breathing
+  const dx = (mx - W/2)/W, dy = (my - H/2)/H;
+  const wob = CFG.wobble * (reduce ? 0 : 1);
+  const br = reduce ? 0 : Math.sin(t*.8)*1.4*CFG.wobble;
+  plate(0, .262, 'rgba(0,183,196,.85)',  dx*26*wob + br, dy*18*wob);        // C 15°
+  plate(1, 1.309,'rgba(229,55,138,.85)', -dx*22*wob, dy*24*wob - br);       // M 75°
+  plate(2, 0,    'rgba(245,196,0,.85)',  dx*14*wob - br, -dy*20*wob);       // Y 0°
+  plate(3, .785, 'rgba(34,31,26,.92)',   0, 0);                             // K 45° stays true
+  x.globalCompositeOperation = 'source-over';
+}
+
+shoot();
+requestAnimationFrame(frame);
+
+/* deck */
+document.getElementById('rPitch').addEventListener('input', e=>{
+  CFG.pitch = +e.target.value;
+  document.getElementById('vPitch').textContent = CFG.pitch+'px';
+});
+document.getElementById('rWob').addEventListener('input', e=>{
+  CFG.wobble = e.target.value/10;
+  document.getElementById('vWob').textContent = CFG.wobble.toFixed(1);
+});
+document.getElementById('bPoster').addEventListener('click', shoot);
+</script>
+</body>
+</html>

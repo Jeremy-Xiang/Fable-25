@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>METAMORPH — squares become birds become squares</title>
+<meta name="description" content="An Escher-style tiling metamorphosis: drag the horizon and watch a strict grid of squares interpolate, tile by tile, into a flock of birds — every intermediate shape still tiles the plane.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23ece7db'/%3E%3Cpath d='M6 20 L14 14 L10 22 Z' fill='%23303446'/%3E%3Crect x='18' y='8' width='8' height='8' fill='%23303446'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{ --paper:#ece7db; --ink:#303446; --dim:#8a8577; --rust:#b8562e; --line:rgba(48,52,70,.14); }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper); color:var(--ink); font-family:'EB Garamond',serif; height:100vh; overflow:hidden}
+::selection{background:var(--rust); color:#fff}
+a:focus-visible,input:focus-visible{outline:2px solid var(--rust); outline-offset:3px}
+
+#tiles{position:fixed; inset:0; width:100%; height:100%; cursor:ew-resize}
+
+header{position:fixed; top:0; left:0; right:0; z-index:5; display:flex; justify-content:space-between;
+  padding:1rem 1.6rem; pointer-events:none; background:rgba(236,231,219,.94); border-bottom:1.5px solid var(--ink)}
+header *{pointer-events:auto}
+.mark{font-weight:600; font-size:1.1rem; letter-spacing:.14em}
+.mark em{font-style:italic; color:var(--rust)}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--rust)}
+
+.plate{position:fixed; left:1.6rem; bottom:1.4rem; z-index:5; pointer-events:none; max-width:22rem;
+  background:rgba(236,231,219,.94); border:1.5px solid var(--ink); padding:1rem 1.2rem;
+  box-shadow:5px 5px 0 rgba(48,52,70,.25)}
+.plate h1{font-size:clamp(1.4rem,3.2vw,2.1rem); line-height:1.25}
+.plate h1 em{font-style:italic; color:var(--rust)}
+.plate p{font-family:'Space Mono',monospace; font-size:.58rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); margin-top:.7rem; line-height:1.9}
+
+.dial{position:fixed; right:1.6rem; bottom:1.5rem; z-index:5; display:flex; flex-direction:column; gap:.5rem; align-items:flex-end;
+  background:rgba(236,231,219,.94); border:1.5px solid var(--ink); padding:.9rem 1.1rem;
+  box-shadow:5px 5px 0 rgba(48,52,70,.25)}
+.dial label{font-family:'Space Mono',monospace; font-size:.58rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim)}
+.dial label b{color:var(--rust); font-weight:700}
+input[type=range]{-webkit-appearance:none; appearance:none; width:190px; height:2px; background:var(--line); border-radius:2px; cursor:ew-resize}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--rust)}
+input[type=range]::-moz-range-thumb{width:14px; height:14px; border:none; border-radius:50%; background:var(--rust)}
+</style>
+</head>
+<body>
+
+<canvas id="tiles" aria-label="Tiling that morphs from squares to birds; drag horizontally"></canvas>
+
+<header>
+  <span class="mark">META<em>MORPH</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="plate">
+  <h1>Squares become <em>birds</em><br>become squares.</h1>
+  <p>tessellation metamorphosis · after escher<br>drag anywhere, or ride the slider</p>
+</div>
+
+<div class="dial">
+  <label>Metamorphosis <b id="vM">auto</b></label>
+  <input type="range" id="rM" min="0" max="1000" value="0" aria-label="Metamorphosis position">
+</div>
+
+<script>
+/* ═════ METAMORPH — Escher-style tiling interpolation ═════
+   One bird outline is defined as a closed polygon inside a unit square,
+   built so that opposite edges are complementary (what juts out on the
+   right is carved from the left) — the Escher trick that keeps every
+   intermediate shape gap-free when tiled. Each tile interpolates
+   square→bird by its own phase, staggered along X, so the flock
+   "emerges" across the plane like the famous Metamorphosis strips. */
+
+const cv = document.getElementById('tiles');
+const x = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H;
+function resize(){ W=cv.width=innerWidth; H=cv.height=innerHeight; }
+addEventListener('resize', resize); resize();
+
+/* — the bird polygon (unit square, 0..1) —
+   Edge-complementary: the top edge's dip = the bottom edge's crest,
+   the right edge's beak notch = the left edge's tail bump. */
+const SQUARE = [
+  [0,0],[.25,0],[.5,0],[.75,0],
+  [1,0],[1,.25],[1,.5],[1,.75],
+  [1,1],[.75,1],[.5,1],[.25,1],
+  [0,1],[0,.75],[0,.5],[0,.25],
+];
+const BIRD = [
+  [0,.08],[.22,-.12],[.5,-.04],[.78,-.12],     // top: back + wing crest (juts up)
+  [1,.08],[1.14,.32],[.96,.5],[1.02,.78],      // right: beak juts out
+  [1,1.08],[.78,.88],[.5,.96],[.22,.88],       // bottom: mirrors the top (carved)
+  [0,1.08],[-.02,.78],[-.04,.5],[.14,.32],     // left: mirrors right (tail carve)
+];
+
+const lerp=(a,b,t)=>a+(b-a)*t;
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+
+function drawTile(px, py, s, t, darkPhase){
+  // t: 0 square → 1 bird
+  x.beginPath();
+  for (let i=0;i<SQUARE.length;i++){
+    const X = px + lerp(SQUARE[i][0], BIRD[i][0], t)*s;
+    const Y = py + lerp(SQUARE[i][1], BIRD[i][1], t)*s;
+    i===0 ? x.moveTo(X,Y) : x.lineTo(X,Y);
+  }
+  x.closePath();
+  x.fillStyle = darkPhase ? '#303446' : '#ece7db';
+  x.fill();
+  // eye appears as the bird forms
+  if (t > .6 && darkPhase){
+    x.fillStyle = `rgba(236,231,219,${(t-.6)*2.4})`;
+    x.beginPath();
+    x.arc(px + s*.86, py + s*.36, s*.045, 0, 7);
+    x.fill();
+  }
+}
+
+let morph = 0.3;           // 0..1 global position of the metamorphosis front
+let auto = true;
+const S = 64;              // tile size
+
+function frame(now){
+  requestAnimationFrame(frame);
+  if (auto && !reduce) morph = (now/14000 + .3) % 1;
+
+  x.fillStyle = '#ece7db';
+  x.fillRect(0,0,W,H);
+
+  const cols = Math.ceil(W/S)+2, rows = Math.ceil(H/S)+2;
+  // the metamorphosis front sweeps across X; each column's t follows it
+  const frontX = morph * (cols+8) - 4;
+
+  for (let j=-1;j<rows;j++){
+    for (let i=-1;i<cols;i++){
+      const dark = (i+j)%2===0;
+      // distance behind the front decides how bird this column is
+      let t = (frontX - i) / 6;
+      t = Math.max(0, Math.min(1, t));
+      // fully-past columns relax back to squares (the strip loops)
+      let back = (frontX - i - 14) / 6;
+      back = Math.max(0, Math.min(1, back));
+      const tt = ease(t) * (1 - ease(back));
+      // only the dark tiles morph — the light "ground" stays; classic figure/ground
+      drawTile(i*S, j*S + (dark?0:0), S, dark ? tt : 0, dark);
+    }
+  }
+}
+requestAnimationFrame(frame);
+
+/* input: drag anywhere or use the slider */
+const rM = document.getElementById('rM');
+const vM = document.getElementById('vM');
+let dragging=false, dragX=0, dragMorph=0;
+cv.addEventListener('pointerdown', e=>{
+  dragging=true; dragX=e.clientX; dragMorph=morph; auto=false; vM.textContent='manual';
+  try{cv.setPointerCapture(e.pointerId)}catch{}
+});
+cv.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  morph = Math.max(0, Math.min(1, dragMorph + (e.clientX-dragX)/W));
+  rM.value = morph*1000;
+});
+cv.addEventListener('pointerup', ()=>dragging=false);
+cv.addEventListener('dblclick', ()=>{ auto=true; vM.textContent='auto'; });
+rM.addEventListener('input', e=>{
+  auto=false; morph=e.target.value/1000; vM.textContent='manual';
+});
+</script>
+</body>
+</html>

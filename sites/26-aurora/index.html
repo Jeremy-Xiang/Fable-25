@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURORA — a sky that keeps painting itself</title>
+<meta name="description" content="AURORA layers a live perlin flow-field over a generated aurora borealis painting — the image gives it depth a shader alone can't, the shader gives it motion a photo can't. Drag the solar wind slider to feel it shift.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Red+Hat+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050b12;
+    --teal:#4fd7c4;
+    --violet:#8f6bff;
+    --green:#6fffa8;
+    --ice:#dbeeff;
+    --dim:rgba(219,238,255,.6);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ice);font-family:'Bricolage Grotesque',sans-serif;overflow-x:hidden}
+  ::selection{background:var(--teal);color:#03110e}
+  a{color:inherit}
+
+  .hero{position:relative;height:100vh;min-height:560px;overflow:hidden}
+  .hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(1.05) brightness(.86)}
+  .hero canvas{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:screen}
+  .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(5,11,18,.15) 0%,rgba(5,11,18,0) 30%,rgba(5,11,18,.35) 78%,rgba(5,11,18,.92) 100%);pointer-events:none}
+
+  header{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.6rem 2.2rem}
+  .brand{font-weight:800;font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase}
+  .brand span{color:var(--teal)}
+  nav{font-family:'Red Hat Mono',monospace;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase}
+  nav a{text-decoration:none;opacity:.75;margin-left:1.6rem;transition:opacity .2s,color .2s}
+  nav a:hover{opacity:1;color:var(--teal)}
+
+  .mid{position:absolute;z-index:4;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:0 1.4rem;pointer-events:none}
+  .mid .kick{font-family:'Red Hat Mono',monospace;font-size:.68rem;letter-spacing:.3em;text-transform:uppercase;color:var(--teal);margin-bottom:1.2rem;opacity:.9}
+  .mid h1{font-weight:800;font-size:clamp(2.2rem,7vw,5.2rem);line-height:1.04;text-shadow:0 4px 40px rgba(0,0,0,.55)}
+  .mid h1 em{font-style:normal;background:linear-gradient(100deg,var(--teal),var(--violet) 55%,var(--green));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .mid p{margin-top:1.2rem;max-width:34rem;font-weight:400;font-size:1rem;line-height:1.6;color:var(--dim)}
+
+  .console{position:absolute;z-index:5;left:0;right:0;bottom:1.6rem;display:flex;justify-content:center;padding:0 1.4rem;pointer-events:none}
+  .panel{pointer-events:auto;width:min(640px,100%);background:rgba(8,16,24,.6);backdrop-filter:blur(14px);border:1px solid rgba(219,238,255,.16);border-radius:16px;padding:1.1rem 1.4rem}
+  .prow{display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap}
+  .lab{font-family:'Red Hat Mono',monospace;font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;opacity:.65;white-space:nowrap}
+  .slidewrap{flex:1;min-width:140px;display:flex;align-items:center;gap:.8rem}
+  input[type=range]{-webkit-appearance:none;flex:1;height:2px;background:rgba(219,238,255,.28);cursor:ew-resize}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--teal);box-shadow:0 0 12px rgba(79,215,196,.8)}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--teal);border:none;box-shadow:0 0 12px rgba(79,215,196,.8)}
+  .kp{font-family:'Red Hat Mono',monospace;font-size:.78rem;color:var(--teal);min-width:5.4rem;text-align:right}
+  .scrollcue{position:absolute;z-index:5;bottom:9.2rem;left:50%;transform:translateX(-50%);font-family:'Red Hat Mono',monospace;font-size:.6rem;letter-spacing:.28em;text-transform:uppercase;opacity:.5;animation:bob 2.6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,6px)}}
+
+  main{position:relative;z-index:2;background:var(--bg);padding:7vh 6vw 9vh}
+  .grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1.1fr 1fr;gap:4rem}
+  .field h2{font-family:'Red Hat Mono',monospace;font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal);margin-bottom:1rem}
+  .field p{font-size:1.05rem;line-height:1.75;color:var(--dim);max-width:36rem}
+  .field p + p{margin-top:1.1rem}
+  .legend{display:flex;flex-direction:column;gap:1rem}
+  .lrow{display:flex;align-items:center;gap:.9rem;border-bottom:1px solid rgba(219,238,255,.12);padding-bottom:1rem}
+  .swatch{width:34px;height:34px;border-radius:50%;flex-shrink:0}
+  .lrow b{display:block;font-size:.92rem;font-weight:600}
+  .lrow span{display:block;font-family:'Red Hat Mono',monospace;font-size:.68rem;color:var(--dim);margin-top:.2rem;letter-spacing:.03em}
+
+  footer{position:relative;z-index:2;background:var(--bg);text-align:center;font-family:'Red Hat Mono',monospace;font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;opacity:.55;padding:0 1rem 2.6rem}
+  footer a{text-decoration:underline}
+
+  @media(max-width:800px){
+    .grid{grid-template-columns:1fr;gap:2.6rem}
+    .mid h1{font-size:clamp(2rem,9vw,3rem)}
+    .scrollcue{display:none}
+  }
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    .scrollcue{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<section class="hero" id="heroSection">
+  <img src="assets/hero.jpg" alt="Painterly aurora borealis in teal, violet and green over dark silhouetted mountains and a snowfield, generated with nano_banana_pro." id="heroImg">
+  <canvas id="flow" aria-hidden="true"></canvas>
+
+  <header>
+    <span class="brand">AUR<span>ORA</span></span>
+    <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+  </header>
+
+  <div class="mid">
+    <div>
+      <div class="kick">Site 26 of 50 &middot; Wing II</div>
+      <h1>A sky that keeps<br><em>painting itself.</em></h1>
+      <p>One still image of the aurora, and a live flow-field drawing new ribbons on top of it in real time — pull the slider to feel the solar wind pick up.</p>
+    </div>
+  </div>
+
+  <div class="scrollcue">scroll &darr;</div>
+
+  <div class="console">
+    <div class="panel">
+      <div class="prow">
+        <span class="lab">Solar wind</span>
+        <div class="slidewrap">
+          <input type="range" id="wind" min="0" max="100" value="34" aria-label="Solar wind intensity, controls flow-field turbulence and speed">
+        </div>
+        <span class="kp" id="kpDisp">Kp 2 &middot; calm</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<main>
+  <div class="grid">
+    <div class="field">
+      <h2>Field notes</h2>
+      <p>The backdrop is a single generated painting — nano_banana_pro, one prompt, one frame. It carries all the texture a shader can't invent on its own: brushy cloud, snow grain, the particular way violet bleeds into teal at a ribbon's edge.</p>
+      <p>What moves is separate. A value-noise flow field, sampled fresh every frame, pushes a few hundred short-lived strands across the sky in the same three hues as the painting. Turn up the wind and the noise field is sampled faster and rougher — the ribbons thin out and whip instead of drift, the way a real substorm looks when the Kp index climbs.</p>
+    </div>
+    <div class="legend" aria-hidden="false">
+      <div class="lrow"><span class="swatch" style="background:radial-gradient(circle at 35% 30%,#bdf5ea,var(--teal))"></span><div><b>Teal — O</b><span>Oxygen, ~100&ndash;300km, the everyday green-teal curtain</span></div></div>
+      <div class="lrow"><span class="swatch" style="background:radial-gradient(circle at 35% 30%,#e3d9ff,var(--violet))"></span><div><b>Violet — N&#8322;</b><span>Nitrogen, lower altitude, appears in stronger storms</span></div></div>
+      <div class="lrow"><span class="swatch" style="background:radial-gradient(circle at 35% 30%,#d4ffe6,var(--green))"></span><div><b>Green — O high</b><span>Higher-altitude oxygen, the rarest of the three here</span></div></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  AURORA &middot; GENERATED PAINTING + LIVE FLOW-FIELD &middot; SITE 26 OF 50 &middot; BUILT BY CLAUDE (FABLE 25, WING II) &middot; <a href="guide/">/GUIDE</a> &middot; <a href="../">/INDEX</a>
+</footer>
+
+<script>
+(function(){
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const cv = document.getElementById('flow');
+  const ctx = cv.getContext('2d');
+  const heroSection = document.getElementById('heroSection');
+  let W, H, DPR;
+
+  function resize(){
+    DPR = Math.min(devicePixelRatio||1, 2);
+    W = heroSection.clientWidth; H = heroSection.clientHeight;
+    cv.width = W*DPR; cv.height = H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  addEventListener('resize', resize); resize();
+
+  /* cheap 2D value-noise, hashed lattice + smoothstep interpolation */
+  function hash(x,y){
+    let s = Math.sin(x*127.1 + y*311.7)*43758.5453123;
+    return s - Math.floor(s);
+  }
+  function noise(x,y){
+    const xi=Math.floor(x), yi=Math.floor(y);
+    const xf=x-xi, yf=y-yi;
+    const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+    const a=hash(xi,yi), b=hash(xi+1,yi), c=hash(xi,yi+1), d=hash(xi+1,yi+1);
+    return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;
+  }
+
+  const COLORS = [
+    [79,215,196],   // teal
+    [143,107,255],  // violet
+    [111,255,168]   // green
+  ];
+
+  let windVal = 34;
+  const windEl = document.getElementById('wind');
+  const kpEl = document.getElementById('kpDisp');
+  windEl.addEventListener('input', e=>{
+    windVal = +e.target.value;
+    const kp = Math.round(windVal/100*9);
+    const label = kp<=2?'calm':kp<=4?'active':kp<=6?'storm':'severe storm';
+    kpEl.textContent = 'Kp '+kp+' · '+label;
+  });
+
+  const N = reduceMotion ? 0 : 220;
+  const strands = [];
+  function seed(s){
+    s.x = Math.random()*W;
+    s.y = H*(0.05+Math.random()*0.55);
+    s.life = 40+Math.random()*80;
+    s.age = 0;
+    s.hue = COLORS[(Math.random()*3)|0];
+    s.w = .6+Math.random()*1.6;
+  }
+  for(let i=0;i<N;i++){ const s={}; seed(s); s.age = Math.random()*s.life; strands.push(s); }
+
+  let t = 0;
+  function drawStatic(){
+    ctx.clearRect(0,0,W,H);
+  }
+
+  function frame(){
+    if(reduceMotion){ drawStatic(); return; }
+    t += 1;
+    const speed = 0.15 + windVal/100*0.9;
+    const rough = 0.0016 + windVal/100*0.0032;
+    ctx.fillStyle = 'rgba(5,11,18,0.06)';
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillRect(0,0,W,H);
+    ctx.globalCompositeOperation = 'lighter';
+
+    for(const s of strands){
+      const angle = noise(s.x*rough, s.y*rough + t*0.002)*Math.PI*4 - Math.PI*0.3;
+      const nx = s.x + Math.cos(angle)*speed*6;
+      const ny = s.y + Math.sin(angle)*speed*2.2 - speed*0.6;
+      ctx.strokeStyle = `rgba(${s.hue[0]},${s.hue[1]},${s.hue[2]},${0.16+windVal/100*0.22})`;
+      ctx.lineWidth = s.w;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(nx, ny);
+      ctx.stroke();
+      s.x = nx; s.y = ny; s.age++;
+      if(s.age > s.life || s.x<0 || s.x>W || s.y<0 || s.y>H) seed(s);
+    }
+    requestAnimationFrame(frame);
+  }
+  if(reduceMotion){ drawStatic(); } else { requestAnimationFrame(frame); }
+})();
+</script>
+</body>
+</html>

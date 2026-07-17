@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How CENSER was made — guide</title>
+<meta name="description" content="How the CENSER site was designed and built: curl-noise smoke calligraphy, techniques, palette, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #c99a5b; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0c0a07; color:#eee5d8;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#a49a89; text-decoration:none; border-bottom:1px solid #2c2419; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#a49a89; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #292116;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#c7bcac;
+    background:#15110a; border:1px solid #292116; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  code{ font-family:'Fragment Mono',monospace; font-size:.92em; color:var(--accent); }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #292116;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#948a79; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0c0a07; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to CENSER</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 54 of 62 · how it was made</div>
+  <h1>CENSER</h1>
+  <p class="sub">Smoke remembers a shape, then lets it go</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>A few hundred smoke particles drift through a curl-noise flow field, wandering like real incense smoke. On a slow cycle, they abandon free drift, seek a set of hand-authored calligraphic stroke paths, hold that near-legible glyph silhouette for a moment, then release back into the flow field and disperse. Touching or dragging near the smoke gently pulls it, like disturbing real vapor.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Curl noise from scratch: a value-noise field (hashed lattice + smoothstep interpolation) is sampled at four offset points to build a numerical gradient, then rotated 90° — the standard trick for turning a scalar noise field into a divergence-free (non-clumping) velocity field</li>
+    <li>A four-phase cycle (drift → coalesce → hold → disperse) drives a <code>seekT</code> target per particle; only during coalesce/hold does an attraction force toward its assigned glyph-stroke point activate, so the same curl field governs motion throughout — the glyph is a temporary attractor, not a swap to a different system</li>
+    <li>Glyph "strokes" are hand-authored polylines (abstract brush gestures, not real script) sampled into evenly spaced points, one assigned per particle so the coalesced shape has consistent density</li>
+    <li>Canvas trail effect via a low-alpha fill each frame instead of a full clear, giving the smoke natural motion blur without a blur filter</li>
+    <li>Pointer/touch proximity applies a small radial force so the visitor can visibly disturb the smoke without taking over the simulation</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Cormorant + Fragment Mono · warm incense black #0e0c09, muted amber #c99a5b, smoke grey #a89e93</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>Early renders during the "drift" phase looked correct but sparse and directionless — a fair critique of a screenshot caught mid-cycle. Tuned the coalesce/hold timing so the cycle reaches a visibly-forming glyph reasonably early, and increased per-particle glow slightly during coalesce/hold so the shape reads at a glance even in a static frame, not only when watched continuously.</p>
+
+  <h2><span class="no">05</span> The complexity upgrade</h2>
+  <p>Beyond plain curl-noise drift: the four-phase state machine (drift/coalesce/hold/disperse) makes the piece contemplative rather than purely decorative — it has a narrative arc that repeats — and each particle's brightness pulses on its own phase offset so the smoke has fine-grained flicker instead of uniform opacity, closer to how real backlit smoke catches light unevenly.</p>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Build 2D value noise (hash lattice corners, smoothstep-interpolate)</li>
+    <li>Curl: sample noise at <code>(x,y±ε)</code> and <code>(x±ε,y)</code>, take the perpendicular of the finite-difference gradient</li>
+    <li>Advect particles by integrating that curl vector as acceleration each frame, with damping</li>
+    <li>Add a state machine that blends in a secondary attraction force toward target points during specific phases only</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude, Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    build pass, code-review pass, real headless-screenshot critique pass ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

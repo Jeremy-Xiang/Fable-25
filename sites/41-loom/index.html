@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOOM — a weave that remembers the thread</title>
+<meta name="description" content="LOOM is a generative weave grid sampled live from a macro textile photograph — it unravels as you scroll and parts under your cursor like real thread.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Piazzolla:ital,opsz,wght@0,8..30,400;0,8..30,500;0,8..30,700;1,8..30,500&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1a140f;
+    --panel:#221a13;
+    --rust:#c1683a;
+    --cream:#ede1cd;
+    --indigo:#4a5578;
+    --txt:#ede1cd;
+    --dim:#a89a86;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--txt);font-family:'Piazzolla',Georgia,serif;
+    overflow-x:hidden}
+  ::selection{background:var(--rust);color:#1a140f}
+  a{color:inherit}
+
+  #weave{position:fixed;inset:0;z-index:0;width:100%;height:100%}
+  .scrim{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:linear-gradient(105deg,rgba(20,15,11,.82) 0%,rgba(20,15,11,.5) 38%,rgba(20,15,11,.08) 62%,transparent 78%),
+      linear-gradient(0deg,rgba(20,15,11,.55) 0%,transparent 22%)}
+  .noise{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  header{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;justify-content:space-between;
+    align-items:center;padding:1.4rem 2.2rem;mix-blend-mode:difference}
+  .m{font-weight:700;font-size:1.05rem;letter-spacing:.04em;color:#fff}
+  nav{font-family:'Fragment Mono',monospace;font-size:.66rem;letter-spacing:.18em;text-transform:uppercase}
+  nav a{color:#fff;text-decoration:none;opacity:.8;margin-left:1.5rem}
+  nav a:hover{opacity:1}
+
+  main{position:relative;z-index:2}
+  section{position:relative;padding:0 2.2rem}
+
+  .hero{position:relative;min-height:100vh;display:flex;align-items:center;pointer-events:none}
+  .hero-inner{max-width:760px}
+  .kicker{font-family:'Fragment Mono',monospace;font-size:.68rem;letter-spacing:.3em;text-transform:uppercase;
+    color:var(--rust);margin-bottom:1.3rem}
+  h1{font-weight:700;font-size:clamp(2.8rem,9vw,6.4rem);line-height:.98;letter-spacing:-.01em;
+    text-shadow:0 4px 30px rgba(0,0,0,.5)}
+  h1 em{font-style:italic;font-weight:500;color:var(--rust)}
+  .hero p{font-size:1.15rem;max-width:460px;margin-top:1.6rem;color:var(--cream);line-height:1.6;
+    text-shadow:0 2px 12px rgba(0,0,0,.6)}
+  .scrollhint{font-family:'Fragment Mono',monospace;font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;
+    margin-top:2.6rem;color:var(--dim);animation:bob 2.4s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+
+  .swatch{position:absolute;right:6vw;top:50%;transform:translateY(-50%) rotate(3deg);width:min(30vw,300px);
+    aspect-ratio:4/5;border:10px solid var(--cream);box-shadow:0 30px 60px rgba(0,0,0,.55);
+    background-size:cover;background-position:center}
+  .swatch::after{content:'HERO SWATCH — 100% MACRO WOOL';position:absolute;bottom:-2.1rem;left:0;right:0;
+    text-align:center;font-family:'Fragment Mono',monospace;font-size:.56rem;letter-spacing:.14em;
+    color:var(--dim);text-transform:uppercase}
+
+  .card{max-width:620px;background:rgba(26,20,15,.72);backdrop-filter:blur(10px);
+    border:1px solid rgba(237,225,205,.14);border-radius:4px;padding:2.6rem 2.8rem;margin:0 auto}
+  .band{min-height:88vh;display:flex;align-items:center;justify-content:center}
+  .band.right{justify-content:flex-end}
+  .band.right .card{margin:0}
+  .tag{font-family:'Fragment Mono',monospace;font-size:.64rem;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--rust);margin-bottom:1rem}
+  h2{font-weight:600;font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.12;margin-bottom:1.1rem}
+  h2 em{font-style:italic;color:var(--indigo);font-weight:500}
+  .band p{color:var(--dim);line-height:1.75;font-size:1.02rem}
+  .band p+p{margin-top:1rem}
+
+  .interact{text-align:center}
+  .interact .card{max-width:520px}
+
+  footer{position:relative;z-index:2;text-align:center;font-family:'Fragment Mono',monospace;
+    font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);padding:3rem 1rem}
+  footer a{text-decoration:underline;color:var(--dim)}
+  footer a:hover{color:var(--rust)}
+
+  @media(max-width:760px){
+    .swatch{display:none}
+    .card{padding:2rem 1.6rem}
+    .band{min-height:70vh}
+  }
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .scrollhint{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="weave" aria-hidden="true"></canvas>
+<div class="scrim" aria-hidden="true"></div>
+<div class="noise" aria-hidden="true"></div>
+
+<header>
+  <span class="m">LOOM</span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="kicker">Site 41 of 50 · fable wing II</div>
+      <h1>Every thread<br>remembers<br>its <em>crossing.</em></h1>
+      <p>A generative weave, colored live from a macro photograph of real crochet — warp and weft rendered cell by cell, in the exact rust, cream and indigo the yarn was dyed.</p>
+      <p class="scrollhint">↓ scroll to unravel the pattern</p>
+    </div>
+    <div class="swatch" id="swatchImg" role="img" aria-label="Macro photograph of rust, cream and indigo woven textile"></div>
+  </section>
+
+  <section class="band">
+    <div class="card">
+      <div class="tag">01 — the warp</div>
+      <h2>Sixty-four columns hold <em>tension.</em></h2>
+      <p>Behind this text a canvas grid samples color directly from the hero photograph — one pixel read per cell, forty-eight across and twenty-seven down. Odd cells sit the weft over the warp; even cells sit under it. That single alternation is the whole illusion of cloth.</p>
+    </div>
+  </section>
+
+  <section class="band right">
+    <div class="card">
+      <div class="tag">02 — the unravel</div>
+      <h2>Scroll, and the <em>right edge lets go.</em></h2>
+      <p>As you move down the page, columns nearest the right margin lose tension first — they drift, jitter and fade, exactly the way a loose thread pulls free from a finished edge. Scroll back up and the weave re-tightens, cell by cell.</p>
+    </div>
+  </section>
+
+  <section class="band interact">
+    <div class="card">
+      <div class="tag">03 — part the threads</div>
+      <h2>Move your <em>cursor</em> across the cloth.</h2>
+      <p>Threads near the pointer push apart, the way real weave gives under a fingertip, then settle back once you move on. Try it anywhere behind this card — the effect runs across the full page, not just here.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  LOOM — GENERATIVE WEAVE FROM A SAMPLED PHOTOGRAPH · SITE 41 OF 50 · BUILT BY CLAUDE (FABLE, WING II) ·
+  <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+/* ---------- reduced motion ---------- */
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- swatch bg ---------- */
+document.getElementById('swatchImg').style.backgroundImage = "url('assets/hero.jpg')";
+
+/* ---------- weave canvas ---------- */
+const canvas = document.getElementById('weave');
+const ctx = canvas.getContext('2d', { alpha: false });
+const DPR = Math.min(devicePixelRatio || 1, 2);
+let W, H;
+function resize(){
+  W = innerWidth; H = innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  buildGrid();
+}
+
+const COLS = 48, ROWS = 27;
+let cells = []; // {baseColor, jitterSeed}
+let sampled = false;
+
+function buildGrid(){
+  cells = [];
+  for(let j=0;j<ROWS;j++){
+    for(let i=0;i<COLS;i++){
+      cells.push({ i, j, seed: Math.random()*Math.PI*2 });
+    }
+  }
+}
+
+/* sample colors from hero image onto an offscreen canvas */
+const off = document.createElement('canvas');
+off.width = COLS; off.height = ROWS;
+const offCtx = off.getContext('2d');
+const img = new Image();
+img.crossOrigin = 'anonymous';
+img.onload = () => {
+  // cover-fit draw so aspect matches viewport roughly
+  const ir = img.width/img.height, cr = COLS/ROWS;
+  let sw=img.width, sh=img.height, sx=0, sy=0;
+  if(ir > cr){ sw = img.height*cr; sx = (img.width-sw)/2; }
+  else { sh = img.width/cr; sy = (img.height-sh)/2; }
+  offCtx.drawImage(img, sx, sy, sw, sh, 0, 0, COLS, ROWS);
+  try{
+    sampleData = offCtx.getImageData(0,0,COLS,ROWS).data;
+    sampled = true;
+  }catch(e){ sampled = false; }
+};
+img.src = 'assets/hero.jpg';
+let sampleData = null;
+
+function colorAt(i,j){
+  if(sampled){
+    const idx = (j*COLS+i)*4;
+    return [sampleData[idx], sampleData[idx+1], sampleData[idx+2]];
+  }
+  // fallback palette while image loads
+  const pal = [[193,104,58],[237,225,205],[74,85,120]];
+  return pal[(i+j)%3];
+}
+
+/* scroll + pointer state */
+let scrollP = 0;
+function onScroll(){
+  const max = document.body.scrollHeight - innerHeight;
+  scrollP = max>0 ? Math.min(1, scrollY/max) : 0;
+}
+addEventListener('scroll', onScroll, {passive:true});
+
+let mx=-9999, my=-9999;
+addEventListener('pointermove', e=>{ mx=e.clientX; my=e.clientY; });
+addEventListener('pointerleave', ()=>{ mx=-9999; my=-9999; });
+
+let t = 0;
+function draw(){
+  t += reduced ? 0 : 0.016;
+  ctx.fillStyle = '#1a140f';
+  ctx.fillRect(0,0,W,H);
+
+  const cw = W/COLS, ch = H/ROWS;
+  const unravel = scrollP; // 0..1
+  const edgeStart = COLS * (1 - Math.max(0.18, unravel*0.85));
+
+  for(const c of cells){
+    const {i,j,seed} = c;
+    const [r,g,b] = colorAt(i,j);
+    const over = (i+j)%2===0;
+
+    let x = i*cw, y = j*ch;
+    let alpha = 1;
+
+    // unravel: columns past edgeStart drift & fade based on scroll
+    if(i > edgeStart){
+      const depth = (i - edgeStart) / Math.max(1,(COLS-edgeStart));
+      const wobble = reduced ? 0 : Math.sin(t*1.4 + seed)*depth*10;
+      x += depth*unravel*46 + wobble;
+      y += reduced ? 0 : Math.cos(t*1.1+seed)*depth*unravel*14;
+      alpha = 1 - depth*unravel*0.75;
+    }
+
+    // pointer parting
+    const cx = x+cw/2, cy = y+ch/2;
+    const dx = cx-mx, dy = cy-my;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    const radius = 140;
+    if(dist < radius){
+      const push = (1 - dist/radius);
+      const ang = Math.atan2(dy,dx);
+      x += Math.cos(ang)*push*16;
+      y += Math.sin(ang)*push*16;
+    }
+
+    const shade = over ? 1.12 : 0.78;
+    ctx.globalAlpha = Math.max(0, alpha);
+    ctx.fillStyle = `rgb(${Math.min(255,r*shade)|0},${Math.min(255,g*shade)|0},${Math.min(255,b*shade)|0})`;
+
+    if(over){
+      // weft: horizontal bar
+      ctx.fillRect(x, y+ch*0.22, cw*0.96, ch*0.56);
+    } else {
+      // warp: vertical bar
+      ctx.fillRect(x+cw*0.22, y, cw*0.56, ch*0.96);
+    }
+  }
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(draw);
+}
+
+addEventListener('resize', resize);
+resize();
+onScroll();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

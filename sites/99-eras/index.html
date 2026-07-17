@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE LONG SCROLL — one page, thirty years of web design</title>
+<meta name="description" content="Scroll through the eras of the web on a single page: 1996 GeoCities, 2003 table-layout gloss, 2010 skeuomorphism, 2016 flat design, 2026 shader-land — each section built in its own period-correct style.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000080'/%3E%3Ctext x='16' y='21' font-size='13' text-anchor='middle' fill='%23ffff00' font-family='serif'%3Ewww%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Lobster&family=Inter:wght@300;400;700&family=Space+Grotesk:wght@400;600&family=Times+New+Roman&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{overflow-x:hidden; background:#0a0a0f; font-family:Inter,sans-serif}
+a:focus-visible,button:focus-visible{outline:3px solid #ff00ff; outline-offset:2px}
+
+/* fixed wayfinder */
+#hud{position:fixed; right:14px; top:50%; transform:translateY(-50%); z-index:50;
+  display:flex; flex-direction:column; gap:10px; align-items:center}
+#hud a{width:11px; height:11px; border-radius:50%; border:2px solid #fff; opacity:.5; transition:.2s; display:block}
+#hud a.on{opacity:1; background:#fff; scale:1.25}
+#year{position:fixed; left:16px; bottom:14px; z-index:50; font-family:'Space Grotesk',monospace;
+  font-weight:600; font-size:1.9rem; color:#fff; mix-blend-mode:difference; letter-spacing:.04em}
+#topnav{position:fixed; top:0; left:0; right:0; z-index:50; display:flex; justify-content:space-between;
+  padding:.9rem 1.2rem; mix-blend-mode:difference; font-family:'Space Grotesk',sans-serif}
+#topnav b{color:#fff; font-size:.8rem; letter-spacing:.2em}
+#topnav span a{color:#fff; opacity:.75; font-size:.66rem; letter-spacing:.16em; text-transform:uppercase; text-decoration:none; margin-left:1.2rem}
+
+section{min-height:100vh; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:9vh 1.2rem}
+
+/* ── 1996 ── */
+#e1996{background:#000080; font-family:'Times New Roman',serif; color:#ffff00; text-align:center}
+#e1996 .tile{position:absolute; inset:0; opacity:.25;
+  background:repeating-conic-gradient(#000080 0% 25%, #101090 0% 50%) 0 0/28px 28px}
+#e1996 h2{font-size:2.6rem; color:#ffff00; text-shadow:2px 2px #ff0000; position:relative}
+#e1996 .blink{animation:blink 1s steps(1) infinite; color:#00ff00}
+@keyframes blink{50%{opacity:0}}
+#e1996 .marq{width:min(560px,90vw); overflow:hidden; border:2px ridge #c0c0c0; background:#000; margin:1rem 0; position:relative}
+#e1996 .marq span{display:inline-block; white-space:nowrap; padding:.3rem 0; color:#00ff00; font-family:monospace; animation:m96 9s linear infinite}
+@keyframes m96{from{transform:translateX(100%)}to{transform:translateX(-100%)}}
+#e1996 .counter{background:#000; color:#0f0; font-family:monospace; border:2px inset #c0c0c0; padding:.2rem .6rem; position:relative}
+#e1996 .uc{display:inline-block; background:#ffff00; color:#000; font-weight:700; padding:.2rem .5rem; transform:rotate(-4deg); font-size:.8rem; margin-top:1rem; position:relative}
+#e1996 p{position:relative}
+
+/* ── 2003 ── */
+#e2003{background:#d7e3f4 url('') ; color:#26364d; font-family:Verdana,Geneva,sans-serif}
+#e2003 .box{width:min(620px,92vw); background:linear-gradient(#fff,#dfe9f7); border:1px solid #9db3cf; border-radius:10px;
+  box-shadow:0 3px 8px rgba(38,54,77,.3); overflow:hidden}
+#e2003 .bar{background:linear-gradient(#5f8dd3,#3765ab); color:#fff; padding:.55rem 1rem; font-weight:700; font-size:.9rem;
+  text-shadow:0 -1px 0 rgba(0,0,0,.4)}
+#e2003 .inner{padding:1.1rem; font-size:.8rem; line-height:1.7}
+#e2003 .btn03{display:inline-block; margin-top:.8rem; padding:.45rem 1.1rem; border-radius:6px; font-weight:700; color:#fff;
+  background:linear-gradient(#8fd35f,#4d9a1f); border:1px solid #3a7717; text-shadow:0 -1px 0 rgba(0,0,0,.35);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 2px 4px rgba(0,0,0,.25)}
+#e2003 .badges{margin-top:.9rem; display:flex; gap:.5rem; font-size:.62rem}
+#e2003 .badges i{background:#eef4fb; border:1px solid #9db3cf; padding:.2rem .5rem; border-radius:4px; font-style:normal}
+
+/* ── 2010 ── */
+#e2010{background:linear-gradient(#3a3a3f,#1c1c20); color:#efefef; font-family:'Lobster',cursive}
+#e2010 .shelf{width:min(560px,92vw); background:linear-gradient(#5a3d28,#3c2818); border-radius:12px; padding:1.4rem;
+  box-shadow:0 14px 34px rgba(0,0,0,.6), inset 0 2px 3px rgba(255,255,255,.15)}
+#e2010 .appicon{
+  width:96px; height:96px; border-radius:22px; margin:0 auto;
+  background:linear-gradient(#7fc4f4,#2a76c4);
+  box-shadow:inset 0 2px 4px rgba(255,255,255,.7), inset 0 -6px 10px rgba(0,0,0,.3), 0 6px 14px rgba(0,0,0,.5);
+  display:flex; align-items:center; justify-content:center; font-size:2.6rem;
+  position:relative; overflow:hidden;
+}
+#e2010 .appicon::after{content:''; position:absolute; left:0; right:0; top:0; height:46%;
+  background:linear-gradient(rgba(255,255,255,.65), rgba(255,255,255,.08)); border-radius:22px 22px 46% 46%}
+#e2010 h2{font-size:2.2rem; text-align:center; margin-top:1rem; text-shadow:0 2px 3px rgba(0,0,0,.7)}
+#e2010 p{font-family:Georgia,serif; font-size:.9rem; text-align:center; color:#cfcabe; margin-top:.5rem; font-style:italic}
+#e2010 .stitch{border-top:2px dashed rgba(255,255,255,.3); margin:1rem 2rem 0; padding-top:.8rem}
+
+/* ── 2016 ── */
+#e2016{background:#6c5ce7; color:#fff; font-family:Inter,sans-serif; text-align:center}
+#e2016 h2{font-weight:300; font-size:clamp(2rem,5.4vw,3.4rem); letter-spacing:-.02em}
+#e2016 p{opacity:.85; max-width:26rem; margin:1rem auto 1.6rem; font-weight:300; line-height:1.7}
+#e2016 .cta{display:inline-block; background:#fff; color:#6c5ce7; border-radius:999px; padding:.9rem 2.2rem; font-weight:700;
+  box-shadow:0 10px 30px rgba(0,0,0,.22); text-decoration:none}
+#e2016 .cards16{display:flex; gap:1rem; margin-top:2.2rem; flex-wrap:wrap; justify-content:center}
+#e2016 .c16{background:rgba(255,255,255,.12); border-radius:14px; padding:1.1rem 1.3rem; width:170px; backdrop-filter:blur(4px)}
+#e2016 .c16 b{display:block; font-size:1.5rem; font-weight:300}
+#e2016 .c16 span{font-size:.72rem; opacity:.8; letter-spacing:.06em; text-transform:uppercase}
+
+/* ── 2026 ── */
+#e2026{background:#07070c; color:#eef; font-family:'Space Grotesk',sans-serif; overflow:hidden}
+#e2026 canvas{position:absolute; inset:0; width:100%; height:100%}
+#e2026 h2{position:relative; font-size:clamp(2.2rem,6.4vw,4.4rem); font-weight:600; letter-spacing:-.02em; text-align:center}
+#e2026 h2 em{font-style:normal; background:linear-gradient(100deg,#8ec5ff,#e0aaff,#ffd6a5); -webkit-background-clip:text; background-clip:text; color:transparent}
+#e2026 p{position:relative; font-size:.8rem; letter-spacing:.2em; text-transform:uppercase; color:#8b90b3; margin-top:1rem; text-align:center}
+#e2026 .foot26{position:absolute; bottom:1.4rem; left:0; right:0; display:flex; justify-content:space-between; padding:0 1.4rem;
+  font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:#565a78}
+#e2026 .foot26 a{color:#8ec5ff; text-decoration:none}
+
+@media (prefers-reduced-motion:reduce){
+  #e1996 .blink,#e1996 .marq span{animation:none}
+}
+</style>
+</head>
+<body>
+
+<div id="topnav"><b>THE LONG SCROLL</b><span><a href="guide/">Guide</a><a href="../">Index</a></span></div>
+<div id="year" aria-hidden="true">1996</div>
+<nav id="hud" aria-label="Era navigation">
+  <a href="#e1996" title="1996"></a><a href="#e2003" title="2003"></a><a href="#e2010" title="2010"></a>
+  <a href="#e2016" title="2016"></a><a href="#e2026" title="2026"></a>
+</nav>
+
+<section id="e1996" data-year="1996">
+  <div class="tile"></div>
+  <h2>~*~ Welcome to my Web Page ~*~</h2>
+  <p><span class="blink">●</span> UNDER CONSTRUCTION <span class="blink">●</span></p>
+  <div class="marq"><span>*** Thanks for visiting !!! Sign my guestbook !!! Best viewed at 800×600 !!! ***</span></div>
+  <p class="counter">visitors: 000042</p>
+  <p><span class="uc">NEW! now with 100% more &lt;marquee&gt;</span></p>
+</section>
+
+<section id="e2003" data-year="2003">
+  <div class="box">
+    <div class="bar">✦ PhotoGloss Studio 2.0 — now with rounded corners!</div>
+    <div class="inner">
+      Welcome to the Web 2.0 beta! We took everything and made it <b>glossy</b>:
+      gradient bars, badge walls, and buttons that look like candy. Please
+      update your bookmarks and tell a friend (via email).
+      <br><span class="btn03">Sign Up — it's free*</span>
+      <div class="badges"><i>W3C VALID</i><i>RSS 2.0</i><i>892 diggs</i></div>
+    </div>
+  </div>
+</section>
+
+<section id="e2010" data-year="2010">
+  <div class="shelf">
+    <div class="appicon">📇</div>
+    <h2>Contacts, but leather.</h2>
+    <p>Skeuomorphism: when your address book missed real books so much it grew stitching.</p>
+    <div class="stitch"></div>
+  </div>
+</section>
+
+<section id="e2016" data-year="2016">
+  <h2>Simple. Purple. Funded.</h2>
+  <p>We removed everything, rounded the rest, and raised a Series A. Flat design forever — or at least until the next section.</p>
+  <a class="cta" href="#e2026">Get Started →</a>
+  <div class="cards16">
+    <div class="c16"><b>10M+</b><span>happy users</span></div>
+    <div class="c16"><b>4.9★</b><span>app store</span></div>
+    <div class="c16"><b>0</b><span>drop shadows</span></div>
+  </div>
+</section>
+
+<section id="e2026" data-year="2026">
+  <canvas id="mesh" aria-hidden="true"></canvas>
+  <h2>And now, <em>everything moves.</em></h2>
+  <p>shaders · scroll choreography · type with a pulse</p>
+  <div class="foot26">
+    <span>site 99 / fable 25 · built by claude (fable 5)</span>
+    <span><a href="guide/">how it was made</a></span>
+  </div>
+</section>
+
+<script>
+/* year HUD + dots */
+const secs = [...document.querySelectorAll('section')];
+const dots = [...document.querySelectorAll('#hud a')];
+const yearEl = document.getElementById('year');
+const io = new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if (e.isIntersecting){
+      yearEl.textContent = e.target.dataset.year;
+      const i = secs.indexOf(e.target);
+      dots.forEach((d,di)=>d.classList.toggle('on', di===i));
+    }
+  });
+},{threshold:.55});
+secs.forEach(s=>io.observe(s));
+
+/* 2026 mesh-gradient blob canvas */
+const cv = document.getElementById('mesh');
+const x = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function rs(){ cv.width = cv.clientWidth; cv.height = cv.clientHeight; }
+addEventListener('resize', rs); rs();
+const BLOBS = [
+  ['142,197,255', .8], ['224,170,255', 1.2], ['255,214,165', .9], ['110,143,255', 1.05],
+];
+(function mesh(now){
+  requestAnimationFrame(mesh);
+  const t = reduce ? 40 : now/1000;
+  x.fillStyle = '#07070c';
+  x.fillRect(0,0,cv.width,cv.height);
+  BLOBS.forEach(([rgb, sp], i)=>{
+    const bx = cv.width*(.5 + .34*Math.sin(t*sp*.5 + i*1.9));
+    const by = cv.height*(.5 + .3*Math.cos(t*sp*.4 + i*2.4));
+    const r = Math.min(cv.width,cv.height)*.42;
+    const g = x.createRadialGradient(bx,by,0,bx,by,r);
+    g.addColorStop(0, `rgba(${rgb},.34)`);
+    g.addColorStop(1, 'transparent');
+    x.fillStyle = g;
+    x.fillRect(0,0,cv.width,cv.height);
+  });
+})(0);
+</script>
+</body>
+</html>

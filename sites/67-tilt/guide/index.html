@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%236ec6ff%22/></svg>">
+<title>How TILT was made — guide</title>
+<meta name="description" content="How the TILT site was designed and built: hand-rolled 3D pointer-tilt project cards with a moving glare layer and shadow-depth response.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#6ec6ff; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:#07090b;color:#dbe4ec;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:1.02rem;line-height:1.7;
+    padding:0 1.5rem;
+  }
+  .mono{font-family:'JetBrains Mono',monospace}
+  .wrap{max-width:700px;margin:0 auto;padding:9vh 0 12vh}
+  .crumb{
+    font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;
+    display:flex;gap:1.4rem;flex-wrap:wrap;margin-bottom:4.5rem;
+  }
+  .crumb a{color:#7d8ba0;text-decoration:none;border-bottom:1px solid #1c242c;padding-bottom:2px}
+  .crumb a:hover{color:var(--accent);border-color:var(--accent)}
+  .kicker{font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin-bottom:1.2rem}
+  h1{font-size:clamp(2.1rem,5.5vw,3.2rem);font-weight:700;line-height:1.1;margin-bottom:.6rem}
+  .sub{color:#8291a3;font-size:1.12rem;margin-bottom:3.6rem}
+  h2{
+    font-size:1.05rem;font-weight:600;letter-spacing:.01em;
+    margin:3.2rem 0 1rem;padding-top:2.6rem;border-top:1px solid #171e26;
+    display:flex;align-items:baseline;gap:.75rem;
+  }
+  h2 .no{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--accent);letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none;margin-bottom:1rem}
+  ul li{padding-left:1.6rem;position:relative;margin-bottom:.85rem}
+  ul li::before{content:'—';position:absolute;left:0;color:var(--accent)}
+  ol{counter-reset:step;list-style:none}
+  ol li{counter-increment:step;padding-left:2.4rem;position:relative;margin-bottom:1rem}
+  ol li::before{
+    content:counter(step,decimal-leading-zero);position:absolute;left:0;top:.15em;
+    font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--accent);letter-spacing:.08em;
+  }
+  code{font-family:'JetBrains Mono',monospace;font-size:.9em;background:#121a21;padding:.1em .4em;border-radius:4px}
+  .meta{
+    font-family:'JetBrains Mono',monospace;font-size:.8rem;line-height:1.9;color:#b9c6d3;
+    background:#0d1319;border:1px solid #171e26;border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem;border-radius:6px;
+  }
+  .foot{
+    margin-top:5rem;padding-top:2.4rem;border-top:1px solid #171e26;
+    font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
+    color:#5b6878;line-height:2.4;
+  }
+  .foot a{color:var(--accent);text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent);color:#04101a}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to TILT</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 67 of 72 · how it was made</div>
+  <h1>TILT</h1>
+  <p class="sub">3D pointer-tilt project cards — perspective rotation, moving glare and shadow depth, no library</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Component libraries like React Bits sell this as a packaged "tilt card." The point of Wave 4 is to prove it isn't a black box: a card that leans toward your cursor is just three numbers — two rotation angles and a shadow offset — recomputed from pointer position on every move, plus a fourth trick (a repositioned radial gradient) to fake a moving light. TILT stages that in a realistic portfolio grid so it's obvious how the same handful of lines would drop into a real project index.</p>
+
+  <h2><span class="no">02</span> How the effect works</h2>
+  <ul>
+    <li><strong>Coordinate mapping:</strong> on <code>pointermove</code>, the card's <code>getBoundingClientRect()</code> gives <code>x = (clientX-left)/width</code> and <code>y = (clientY-top)/height</code>, each normalized 0–1 across the card.</li>
+    <li><strong>Rotation:</strong> <code>rotateX = (0.5-y) * 2 * maxTilt</code>, <code>rotateY = (x-0.5) * 2 * maxTilt</code>. At the card's center (0.5, 0.5) both are 0°; at a corner, both saturate to ± <code>maxTilt</code>. The <code>(0.5-y)</code> sign flip is what makes the top edge tip <em>away</em> from a pointer near the top — the physically correct direction for a surface leaning toward you.</li>
+    <li><strong>Rendering:</strong> a perspective parent (<code>.card</code>, <code>perspective:1100px</code>) wraps <code>.card-inner</code>, whose transform is <code>rotateX(var(--rx)) rotateY(var(--ry)) scale(var(--s))</code> — three CSS custom properties written directly by JS, so the browser's compositor does the actual 3D matrix math every frame, not canvas.</li>
+    <li><strong>Glare:</strong> an absolutely-positioned <code>.glare</code> div holds <code>radial-gradient(circle at var(--mx) var(--my), white 0%, white 16%, transparent 42%)</code> with <code>mix-blend-mode:overlay</code>. <code>--mx/--my</code> are set to the same <code>x/y</code> percentages as the tilt, so the "hot spot" tracks the cursor 1:1 — it isn't a separate light simulation, it's the same input reused.</li>
+    <li><strong>Shadow depth:</strong> tilt magnitude <code>mag = hypot(rx,ry) / (maxTilt·√2)</code> (0 at center, 1 at a corner) drives both blur and vertical offset of the drop shadow, so a card tilted harder casts a bigger, softer, lower shadow — depth cue reinforcing the rotation instead of a flat constant shadow.</li>
+    <li><strong>Instant-follow vs. spring-back:</strong> while the pointer is inside the card, a <code>.tracking</code> class strips the <code>transform</code> transition so rotation follows the cursor with zero lag; on <code>pointerleave</code> the class is removed and a <code>.55s cubic-bezier(.16,1,.3,1)</code> transition eases every value back to 0 — an overshoot-free "settle," not a linear snap.</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Space Grotesk (display) + JetBrains Mono (labels/tags) · near-black #060809 → #0c1014 · ice-blue accent #6ec6ff · card thumbnails are pure CSS (conic/radial/repeating gradients), no images</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>The first headless render only ever captures the rest state, so it couldn't show whether the tilt math was actually correct — a card grid that "looks fine" at rest can still have inverted rotation signs or a glare that never appears. I wrote a small puppeteer script that drives <code>page.mouse.move</code> to a point near a card's top-left corner and reads back the live <code>--rx/--ry/--glare-op</code> custom properties plus a cropped screenshot. That caught a real issue: the glare was mathematically firing (opacity ~0.49, correct <code>--mx/--my</code>) but was visually inert — <code>mix-blend-mode:soft-light</code> with a wide 58%-falloff gradient just washed into the thumbnail's existing gradient instead of reading as a distinct highlight. Fixed by tightening the falloff to a hot 16% core fading out by 42%, and switching to <code>mix-blend-mode:overlay</code> for more contrast — the re-shot hover frame shows a clearly legible bright patch riding the corner nearest the cursor.</p>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <p>To reuse this in another project:</p>
+  <ul>
+    <li><strong>Markup:</strong> wrap each card in two nested elements — an outer with <code>perspective:1100px</code> (this one doesn't rotate) and an inner <code>.card-inner</code> that receives the transform and contains a sibling <code>.glare</code> div covering it via <code>position:absolute;inset:0</code>.</li>
+    <li><strong>Copy the <code>bindTilt(card)</code> function</strong> from <code>index.html</code> verbatim — it's ~25 lines, self-contained, and only assumes the two-element structure above plus the CSS custom properties <code>--rx --ry --mx --my --shadow-y --shadow-blur --glare-op --s</code>.</li>
+    <li><strong>Tunables:</strong> <code>state.maxTilt</code> (degrees, try 8–20), <code>state.glare</code> and <code>state.scale</code> (booleans). No other constants need touching — the shadow and glare formulas derive from <code>maxTilt</code> automatically.</li>
+    <li><strong>Gotchas:</strong> gate the pointer listeners behind <code>matchMedia('(pointer:fine)')</code> — on touch devices a finger drag over a tilting card fights the page's own scroll gesture, so this build simply doesn't bind the effect there rather than fighting <code>touch-action</code>. Also respect <code>prefers-reduced-motion</code> by skipping the binding entirely so cards stay flat and static rather than looping.</li>
+  </ul>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Wrap each card in a perspective parent and an inner transform target, plus an absolutely-positioned glare overlay div</li>
+    <li>On pointermove, normalize cursor position within the card to 0–1 on both axes</li>
+    <li>Map that to <code>rotateX/rotateY</code> (inverted on Y) scaled by a max-tilt constant, and to the glare's gradient position</li>
+    <li>Derive shadow blur/offset from rotation magnitude so depth reinforces the tilt</li>
+    <li>Strip the transform transition while tracking the pointer; restore it on leave for an eased spring-back to flat</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 4), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step, no tilt library ·
+    build → real screenshot critique (including a scripted hover state) → fix → re-shoot ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SORT/ED — the darkroom where pixels obey</title>
+<meta name="description" content="A pixel-sorting darkroom: a procedural photograph is torn into luminance runs and re-sorted before your eyes. Drag the threshold and direction — glitch art with a lab coat on.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d0d11'/%3E%3Crect x='6' y='8' width='3' height='16' fill='%23ff9e3d'/%3E%3Crect x='11' y='5' width='3' height='22' fill='%23ffd23d'/%3E%3Crect x='16' y='10' width='3' height='12' fill='%23ff9e3d'/%3E%3Crect x='21' y='7' width='3' height='18' fill='%23e05263'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0d11; --ink:#efe9e4; --dim:#89827c; --dim2:#4e4a47;
+  --hot:#ff9e3d; --line:rgba(239,233,228,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg); color:var(--ink); font-family:'Syne',sans-serif; min-height:100vh;
+  display:flex; flex-direction:column; overflow-x:hidden}
+::selection{background:var(--hot); color:#241300}
+a:focus-visible,button:focus-visible{outline:2px solid var(--hot); outline-offset:3px}
+
+header{display:flex; justify-content:space-between; align-items:center; padding:1.2rem 1.6rem}
+.mark{font-weight:800; font-size:1rem; letter-spacing:.04em}
+.mark em{font-style:normal; color:var(--hot)}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'DM Mono',monospace; font-size:.62rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--hot)}
+
+.hero{text-align:center; padding:.4rem 1.2rem 1.4rem}
+.hero h1{font-weight:800; font-size:clamp(1.5rem,4.4vw,2.6rem); letter-spacing:-.01em}
+.hero p{font-family:'DM Mono',monospace; font-size:.62rem; letter-spacing:.22em; text-transform:uppercase; color:var(--dim); margin-top:.5rem}
+
+main{flex:1; display:flex; flex-direction:column; align-items:center; gap:1.3rem; padding:0 1.4rem 1.6rem}
+.bench{position:relative; box-shadow:0 26px 70px rgba(0,0,0,.55); border:1px solid var(--line)}
+.bench canvas{display:block; max-width:min(92vw, 880px); height:auto}
+.tagline{position:absolute; left:10px; bottom:8px; font-family:'DM Mono',monospace; font-size:.56rem;
+  letter-spacing:.2em; text-transform:uppercase; color:rgba(239,233,228,.65); mix-blend-mode:difference}
+
+.panel{display:flex; gap:1.6rem 2.2rem; align-items:flex-end; justify-content:center; flex-wrap:wrap}
+.grp{display:flex; flex-direction:column; gap:.5rem; align-items:center}
+.grp label{font-family:'DM Mono',monospace; font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim)}
+.grp label b{color:var(--hot); font-weight:500}
+input[type=range]{-webkit-appearance:none; appearance:none; width:150px; height:2px; background:var(--line); border-radius:2px; cursor:ew-resize}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:var(--hot)}
+input[type=range]::-moz-range-thumb{width:13px; height:13px; border:none; border-radius:50%; background:var(--hot)}
+.seg{display:flex; border:1px solid var(--line); border-radius:999px; overflow:hidden}
+.seg button{
+  font-family:'DM Mono',monospace; font-size:.62rem; letter-spacing:.14em; text-transform:uppercase;
+  background:none; border:none; color:var(--dim); padding:.55rem 1.1rem; cursor:pointer;
+}
+.seg button.on{background:var(--hot); color:#241300}
+.btn{font-family:'DM Mono',monospace; font-size:.62rem; letter-spacing:.16em; text-transform:uppercase;
+  background:none; border:1px solid var(--line); color:var(--ink); border-radius:999px; padding:.55rem 1.15rem; cursor:pointer}
+.btn:hover{border-color:var(--hot); color:var(--hot)}
+
+footer{display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem; padding:1.1rem 1.6rem;
+  font-family:'DM Mono',monospace; font-size:.56rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim2)}
+footer a{color:var(--hot); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">SORT<em>/</em>ED</span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>The darkroom where pixels obey.</h1>
+  <p>luminance-run pixel sorting · live re-develop</p>
+</div>
+
+<main>
+  <div class="bench">
+    <canvas id="cv" width="1100" height="640" aria-label="Pixel-sorted procedural photograph"></canvas>
+    <span class="tagline">EXPOSURE № 86 — SORTED WHERE LUM > THRESHOLD</span>
+  </div>
+  <div class="panel" role="group" aria-label="Darkroom controls">
+    <div class="grp"><label>Threshold <b id="vTh">0.46</b></label><input type="range" id="rTh" min="5" max="95" value="46"></div>
+    <div class="grp"><label>Direction</label>
+      <div class="seg">
+        <button data-dir="h">horizontal</button>
+        <button class="on" data-dir="v">vertical</button>
+      </div>
+    </div>
+    <div class="grp"><label>Order</label>
+      <div class="seg" id="segOrd">
+        <button class="on" data-ord="asc">dark→light</button>
+        <button data-ord="desc">light→dark</button>
+      </div>
+    </div>
+    <button class="btn" id="bNew">new negative</button>
+  </div>
+</main>
+
+<footer>
+  <span>site 86 / fable 25 · built by claude (fable 5)</span>
+  <span><a href="guide/">how it was made</a></span>
+</footer>
+
+<script>
+/* ═════ SORT/ED — pixel sorting on a procedural photo ═════
+   Classic Kim Asendorf-style pixel sorting: within each row (or column),
+   find runs of pixels whose luminance exceeds the threshold, and sort
+   each run by luminance. The "negative" is generated: a dusk skyline
+   with a gradient sky — sorting streaks it into light-fall. */
+
+const cv = document.getElementById('cv');
+const x = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+const CFG = { th:.46, dir:'v', ord:'asc' };
+
+let negative = null;   // ImageData of the unsorted source
+
+function shootNegative(){
+  // dusk gradient sky
+  const seed = Math.random()*1000;
+  const g = x.createLinearGradient(0,0,0,H);
+  const hues = [[258,36,20],[326,52,38],[22,78,54]][ (Math.random()*3)|0 ];
+  g.addColorStop(0, `hsl(${hues[0]},60%,12%)`);
+  g.addColorStop(.55, `hsl(${hues[1]},64%,${hues[2]}%)`);
+  g.addColorStop(1, `hsl(${(hues[1]+38)%360},88%,64%)`);
+  x.fillStyle = g; x.fillRect(0,0,W,H);
+  // sun disc
+  const sx = W*(.25+Math.random()*.5), sy = H*(.42+Math.random()*.2);
+  const sg = x.createRadialGradient(sx,sy,4,sx,sy,120);
+  sg.addColorStop(0,'rgba(255,244,214,1)');
+  sg.addColorStop(.4,'rgba(255,190,120,.8)');
+  sg.addColorStop(1,'transparent');
+  x.fillStyle=sg; x.beginPath(); x.arc(sx,sy,120,0,7); x.fill();
+  // skyline
+  x.fillStyle = '#0a0a10';
+  let bx = 0;
+  while (bx < W){
+    const bw = 34 + ((Math.sin(seed+bx)*.5+.5)*90)|0;
+    const bh = H*.22 + ((Math.sin(seed*2+bx*.7)*.5+.5)*H*.36);
+    x.fillRect(bx, H-bh, bw, bh);
+    // windows
+    x.fillStyle = 'rgba(255,214,140,.85)';
+    for (let wy=H-bh+10; wy<H-14; wy+=18)
+      for (let wx=bx+6; wx<bx+bw-8; wx+=14)
+        if (Math.sin(seed+wx*wy) > .55) x.fillRect(wx, wy, 4, 7);
+    x.fillStyle = '#0a0a10';
+    bx += bw + 6;
+  }
+  negative = x.getImageData(0,0,W,H);
+}
+
+const lum = (d,i)=> (d[i]*.2126 + d[i+1]*.7152 + d[i+2]*.0722)/255;
+
+function develop(){
+  const img = new ImageData(new Uint8ClampedArray(negative.data), W, H);
+  const d = img.data;
+  const th = CFG.th;
+  const asc = CFG.ord==='asc';
+
+  const lineLen = CFG.dir==='h' ? W : H;
+  const lineCount = CFG.dir==='h' ? H : W;
+  const idx = CFG.dir==='h'
+    ? (line,i)=> (line*W + i)*4
+    : (line,i)=> (i*W + line)*4;
+
+  const px = [];
+  for (let line=0; line<lineCount; line++){
+    let i = 0;
+    while (i < lineLen){
+      // find start of a run
+      while (i < lineLen && lum(d, idx(line,i)) < th) i++;
+      let j = i;
+      while (j < lineLen && lum(d, idx(line,j)) >= th) j++;
+      if (j - i > 4){
+        px.length = 0;
+        for (let k=i;k<j;k++){
+          const o = idx(line,k);
+          px.push([lum(d,o), d[o], d[o+1], d[o+2]]);
+        }
+        px.sort((a,b)=> asc ? a[0]-b[0] : b[0]-a[0]);
+        for (let k=i;k<j;k++){
+          const o = idx(line,k);
+          const s = px[k-i];
+          d[o]=s[1]; d[o+1]=s[2]; d[o+2]=s[3];
+        }
+      }
+      i = j+1;
+    }
+  }
+  x.putImageData(img,0,0);
+}
+
+shootNegative();
+develop();
+
+/* controls */
+document.getElementById('rTh').addEventListener('input', e=>{
+  CFG.th = e.target.value/100;
+  document.getElementById('vTh').textContent = CFG.th.toFixed(2);
+  develop();
+});
+document.querySelectorAll('[data-dir]').forEach(b=>b.addEventListener('click', ()=>{
+  CFG.dir = b.dataset.dir;
+  document.querySelectorAll('[data-dir]').forEach(o=>o.classList.toggle('on', o===b));
+  develop();
+}));
+document.querySelectorAll('[data-ord]').forEach(b=>b.addEventListener('click', ()=>{
+  CFG.ord = b.dataset.ord;
+  document.querySelectorAll('[data-ord]').forEach(o=>o.classList.toggle('on', o===b));
+  develop();
+}));
+document.getElementById('bNew').addEventListener('click', ()=>{ shootNegative(); develop(); });
+</script>
+</body>
+</html>

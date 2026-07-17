@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23e0c05a%22/></svg>">
+<title>How REEL was made — guide</title>
+<meta name="description" content="How the REEL site was designed and built: a hand-rolled draggable inertia gallery with momentum physics, infinite wrap and snap-to-item.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #e0c05a; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0908; color:#f2ece0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:1rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-size:.7rem; letter-spacing:.18em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#948c7c; text-decoration:none; border-bottom:1px solid #242019; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-size:.72rem; letter-spacing:.28em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-family:'Bricolage Grotesque',sans-serif; font-size:clamp(2.1rem,5.5vw,3.4rem); font-weight:800; line-height:1.05; margin-bottom:.6rem; }
+  .sub { color:#948c7c; font-size:1.02rem; margin-bottom:3.6rem; }
+  h2 {
+    font-family:'Bricolage Grotesque',sans-serif;
+    font-size:1.15rem; font-weight:600; letter-spacing:.01em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #201c15;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-size:.7rem; color:var(--accent); letter-spacing:.1em; font-family:'IBM Plex Mono',monospace; }
+  p { margin-bottom: 1rem; }
+  ul { list-style:none; margin-bottom:1rem; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-size:.9em;background:#171310;padding:.1em .4em;border-radius:4px;color:#f2ece0}
+  .meta {
+    font-size:.82rem; line-height:1.9; color:#cabca8;
+    background:#131110; border:1px solid #201c15; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #201c15;
+    font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8d8577; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#141008; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to REEL</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 71 of 72 · how it was made</div>
+  <h1>REEL</h1>
+  <p class="sub">A draggable inertia gallery, hand-rolled — no scroll-snap CSS, no carousel library</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Most "draggable carousel" components on the web are actually native horizontal scroll containers with a drag-to-scroll polyfill bolted on — they inherit the browser's scroll physics, which feels flat and stops dead the moment you release. REEL instead owns the whole motion pipeline: position is a single JS number driven every frame by hand, so the momentum, the infinite wrap, and the snap are all one continuous system instead of three separate hacks glued together.</p>
+
+  <h2><span class="no">02</span> How the effect works</h2>
+  <ul>
+    <li><strong>Single source of truth:</strong> one <code>offset</code> number is applied as <code>translateX(offset)</code> on the track every frame. Nothing else moves the track directly — drag, momentum and snap all just mutate <code>offset</code>.</li>
+    <li><strong>Velocity capture:</strong> while dragging, every <code>pointermove</code> pushes a <code>{t, x}</code> sample onto a trailing buffer. On release, velocity is computed only from samples within the last 120ms — <code>v = (x_last − x_first) / (t_last − t_first)</code> in px/ms — so a drag that pauses before release correctly reads as near-zero velocity rather than averaging in stale motion.</li>
+    <li><strong>Momentum integration:</strong> each animation frame, <code>velocity *= frictionSlider^(dt/16.67)</code> — a frame-rate-independent exponential decay — then <code>offset += velocity·dt</code>. The Momentum slider (70–98) maps linearly to a per-frame retained fraction of 0.86–0.995; higher retains more speed per frame, so the reel coasts further before stopping.</li>
+    <li><strong>Infinite wrap:</strong> the track renders two consecutive copies of the 8 tiles. After every offset change, <code>offset</code> is folded back into the range <code>(−singleSetWidth, 0]</code> by adding/subtracting <code>singleSetWidth</code>. Because copy two is pixel-identical to copy one, the fold is invisible — the reel can be thrown in either direction forever.</li>
+    <li><strong>Snap-to-item:</strong> when enabled, once momentum decays below a 0.02px/ms threshold (or immediately on release with zero velocity), <code>offset</code> eases from its current value to <code>Math.round(offset/tileStep)·tileStep</code> over 260ms with an ease-out-cubic curve.</li>
+    <li><strong>Active-tile spotlight:</strong> every frame, the tile whose bounding-box center is nearest the reel's horizontal center gets a <code>.active</code> class (lift + gold glow), and a dot indicator below the reel lights up to match — so the loop's position is legible even though the tile set repeats infinitely.</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Bricolage Grotesque (display, 800/600 weight) + IBM Plex Mono (UI/body) · near-black #0a0908 base · gold accent #e0c05a for interactive chrome · each tile gets its own secondary hue (steel blue, rust, sage, lilac, rose, teal, bronze) so the reel reads as varied "projects," not repeated copies.</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>The first headless render was clean (no console errors, layout intact on both 1440-wide desktop and 390×844 mobile), so the fix this round was a real gap rather than a visual break: there was no way to tell, from a static screenshot or a quick glance, that the reel contains only 8 unique tiles looping infinitely versus an endless unique set — the "active" spotlight glow on the centered tile was too subtle on its own to communicate position. Added a row of 8 position dots beneath the reel that lights up to match whichever tile is centered, computed from the same nearest-to-center check that drives the spotlight. Also caught and removed a redundant double call to the init routine (it ran once synchronously and again on <code>window.load</code>), which reset <code>offset</code> to 0 twice on load — harmless visually but worth cleaning up since a future edit that seeds a non-zero starting offset would have silently lost it.</p>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <p>To reuse this in another project, you need three things in the DOM: a <code>.reel</code> container (<code>overflow:hidden; touch-action:none;</code>, focusable via <code>tabindex="0"</code>) wrapping a <code>.track</code> flex row, containing your items rendered <strong>twice back-to-back</strong> (two identical copies — this is what makes the wrap seamless; without the duplication you'd need to reset scroll position at the boundary, which visibly jumps).</p>
+  <ul>
+    <li><strong>Copy over:</strong> the <code>measure()</code>, <code>normalize()</code>, <code>render()</code>, <code>tick()</code> (the rAF loop), the <code>pointerdown/move/up</code> handlers, and <code>startSnap()</code>. That's the whole engine — everything else (dots, active-glow, panel) is decoration.</li>
+    <li><strong>Constants to tweak:</strong> the friction mapping range (<code>0.86–0.995</code>) in the slider handler, the momentum-stop threshold (<code>0.02</code> px/ms), snap duration (<code>snapDur</code>, 260ms default), and the velocity sample window (<code>120</code>ms) — shorten it for a snappier, more literal "last instant of motion" feel.</li>
+    <li><strong>Gotchas:</strong> the container needs <code>touch-action:none</code> or touch drags will fight the page's native vertical scroll. <code>singleSetWidth</code> and <code>tileStep</code> must be re-measured on resize (fixed-px tiles only need this for viewport-driven layout changes; percentage-width tiles need it always). Always respect <code>prefers-reduced-motion</code> — this build zeroes release velocity and jumps instantly on arrow-key nav instead of easing when it's set.</li>
+  </ul>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Build a flex track containing your item set rendered twice in a row</li>
+    <li>On pointerdown, capture the pointer and record a start offset; on pointermove, apply <code>offset = dragStart + dx</code> each frame, folding it back into range</li>
+    <li>On release, compute velocity from the last ~120ms of samples and hand off to a frame-rate-independent exponential-decay integrator</li>
+    <li>Once velocity decays past a small threshold, optionally ease to the nearest item boundary</li>
+    <li>Mirror the same offset math for arrow-key steps so keyboard users get the identical motion, just without the drag</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 4), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step, no carousel library ·
+    build → real screenshot critique passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

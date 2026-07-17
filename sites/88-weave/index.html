@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOOM ROOM — cloth, computed thread by thread</title>
+<meta name="description" content="A generative loom weaving live: warp threads hang, the shuttle carries weft across, and the draft pattern decides over/under. Edit the tie-up grid and watch new cloth emerge.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f3ead9'/%3E%3Cpath d='M8 6 V26 M14 6 V26 M20 6 V26 M26 6 V26' stroke='%23a34a28' stroke-width='2'/%3E%3Cpath d='M5 12 H27 M5 20 H27' stroke='%2331456b' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cloth:#f3ead9; --ink:#33291c; --dim:#8a7c66; --dim2:#b3a988;
+  --warp:#a34a28; --weft:#31456b; --gold:#c8992e; --line:rgba(51,41,28,.15);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--cloth); color:var(--ink); font-family:'Crimson Pro',serif; min-height:100vh;
+  display:flex; flex-direction:column; overflow-x:hidden}
+::selection{background:var(--warp); color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid var(--warp); outline-offset:3px}
+
+header{display:flex; justify-content:space-between; align-items:center; padding:1.3rem 1.6rem}
+.mark{font-weight:600; font-size:1.05rem; letter-spacing:.08em}
+.mark em{font-style:italic; color:var(--warp)}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--warp)}
+
+.hero{text-align:center; padding:.3rem 1.2rem 1.5rem}
+.hero h1{font-weight:600; font-size:clamp(1.6rem,4.6vw,2.7rem); line-height:1.15}
+.hero h1 em{font-style:italic; color:var(--weft)}
+.hero p{font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.24em; text-transform:uppercase; color:var(--dim); margin-top:.5rem}
+
+main{flex:1; display:flex; gap:2.4rem; align-items:flex-start; justify-content:center; flex-wrap:wrap; padding:0 1.4rem 1.8rem}
+
+.loomWrap{box-shadow:0 22px 60px rgba(51,41,28,.25); border:1px solid var(--line); background:#fff}
+#loom{display:block}
+
+.draft{display:flex; flex-direction:column; gap:1rem; max-width:270px}
+.draft h2{font-weight:600; font-size:1.05rem}
+.draft p{font-size:.95rem; line-height:1.6; color:#5c5142}
+#tieup{display:grid; grid-template-columns:repeat(8, 26px); gap:4px; width:max-content}
+#tieup button{
+  width:26px; height:26px; border:1.5px solid var(--ink); background:#fff; cursor:pointer; border-radius:4px;
+}
+#tieup button.on{background:var(--weft); border-color:var(--weft)}
+.presets{display:flex; gap:.5rem; flex-wrap:wrap}
+.presets button, .rebtn{
+  font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.12em; text-transform:uppercase;
+  border:1.5px solid var(--ink); background:#fff; color:var(--ink); padding:.45rem .8rem; cursor:pointer; border-radius:6px;
+}
+.presets button:hover,.rebtn:hover{background:var(--warp); border-color:var(--warp); color:#fff}
+.note{font-family:'Space Mono',monospace; font-size:.56rem; letter-spacing:.14em; text-transform:uppercase; color:var(--dim)}
+
+footer{display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem; padding:1rem 1.6rem 1.4rem;
+  font-family:'Space Mono',monospace; font-size:.56rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim)}
+footer a{color:var(--warp); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">LOOM <em>ROOM</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>Cloth, computed <em>thread by thread.</em></h1>
+  <p>watch the shuttle · edit the tie-up · new cloth emerges</p>
+</div>
+
+<main>
+  <div class="loomWrap">
+    <canvas id="loom" width="560" height="640" aria-label="A loom weaving cloth row by row"></canvas>
+  </div>
+
+  <div class="draft">
+    <h2>The tie-up</h2>
+    <p>This 8×8 grid is the weave draft: each column is a warp thread's behavior, each row a pick.
+    Filled = warp over weft. Click squares — the loom reweaves from the next row on.</p>
+    <div id="tieup" role="group" aria-label="8 by 8 weave draft grid"></div>
+    <div class="presets">
+      <button data-p="twill">twill</button>
+      <button data-p="herringbone">herringbone</button>
+      <button data-p="basket">basket</button>
+      <button data-p="satin">satin</button>
+    </div>
+    <button class="rebtn" id="reweave">⟲ reweave from the top</button>
+    <span class="note">madder warp · indigo weft · one gold pick every 24</span>
+  </div>
+</main>
+
+<footer>
+  <span>site 88 / fable 25 · built by claude (fable 5)</span>
+  <span><a href="guide/">how it was made</a></span>
+</footer>
+
+<script>
+/* ═════ LOOM ROOM — generative weaving ═════
+   Real draft logic: the tie-up grid decides, for pick row r and warp
+   column c, whether warp passes over weft. The shuttle animates across
+   the current row; finished cloth accumulates below the fell line. */
+
+const cv = document.getElementById('loom');
+const x = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const TH = 8;                  // thread thickness px
+const COLS = Math.floor(W/TH);
+const ROWS = Math.floor((H-90)/TH);
+
+const WARP = '#a34a28', WEFT = '#31456b', GOLD = '#c8992e';
+
+/* draft grid */
+let tie = [];
+const PRESETS = {
+  twill:      (r,c)=> (r+c)%4 < 2,
+  herringbone:(r,c)=> ((r + (c%16<8 ? c : 15-c))%4) < 2,
+  basket:     (r,c)=> (Math.floor(r/2)+Math.floor(c/2))%2===0,
+  satin:      (r,c)=> (r*3+c)%5===0,
+};
+function setPreset(name){
+  tie = [];
+  for (let r=0;r<8;r++){ tie.push([]);
+    for (let c=0;c<8;c++) tie[r].push(PRESETS[name](r,c) ? 1 : 0);
+  }
+  renderTieup();
+}
+const over = (r,c)=> tie[r%8][c%8]===1;
+
+/* tie-up UI */
+const tieEl = document.getElementById('tieup');
+function renderTieup(){
+  tieEl.innerHTML='';
+  for (let r=0;r<8;r++) for (let c=0;c<8;c++){
+    const b = document.createElement('button');
+    if (tie[r][c]) b.classList.add('on');
+    b.setAttribute('aria-label', `row ${r+1} column ${c+1} ${tie[r][c]?'warp over':'weft over'}`);
+    b.addEventListener('click', ()=>{ tie[r][c]^=1; b.classList.toggle('on'); });
+    tieEl.appendChild(b);
+  }
+}
+setPreset('twill');
+
+/* weaving state */
+let row = 0;          // completed rows
+let shuttleX = 0;     // current pick progress in columns
+let goldRow = false;
+
+function drawLoomFrame(){
+  x.fillStyle = '#fff'; x.fillRect(0,0,W,H);
+
+  // hanging warp above the fell
+  const fellY = 70 + row*TH;
+  for (let c=0;c<COLS;c++){
+    x.fillStyle = c%2 ? 'rgba(163,74,40,.85)' : 'rgba(163,74,40,.7)';
+    x.fillRect(c*TH+2, 0, TH-4, Math.min(fellY, H));
+    // undyed warp waiting below the fell
+    x.fillStyle = 'rgba(163,74,40,.16)';
+    x.fillRect(c*TH+2, fellY, TH-4, H-fellY);
+  }
+  // beam
+  x.fillStyle = '#33291c';
+  x.fillRect(0, 0, W, 14);
+
+  // woven cloth: for each completed row draw interlacement
+  for (let r=0;r<row;r++){
+    const y = 70 + r*TH;
+    if (y > H) break;
+    const weftCol = (r>0 && r%24===0) ? GOLD : WEFT;
+    for (let c=0;c<COLS;c++){
+      if (over(r,c)){
+        x.fillStyle = WARP;
+        x.fillRect(c*TH+1, y, TH-2, TH);
+      } else {
+        x.fillStyle = weftCol;
+        x.fillRect(c*TH, y+1, TH, TH-2);
+      }
+    }
+  }
+
+  // active row: weft advancing behind the shuttle
+  if (row < ROWS){
+    const y = 70 + row*TH;
+    const weftCol = (row>0 && row%24===0) ? GOLD : WEFT;
+    for (let c=0;c<Math.floor(shuttleX);c++){
+      if (over(row,c)){
+        x.fillStyle = WARP; x.fillRect(c*TH+1, y, TH-2, TH);
+      } else {
+        x.fillStyle = weftCol; x.fillRect(c*TH, y+1, TH, TH-2);
+      }
+    }
+    // the shuttle
+    const sx = shuttleX*TH;
+    x.fillStyle = '#33291c';
+    x.beginPath();
+    x.ellipse(sx, y+TH/2, 20, 7, 0, 0, 7);
+    x.fill();
+    x.fillStyle = GOLD;
+    x.fillRect(sx-6, y+TH/2-1.5, 12, 3);
+  }
+
+  // fell line shadow
+  x.fillStyle = 'rgba(51,41,28,.18)';
+  x.fillRect(0, fellY-2, W, 2);
+}
+
+function step(){
+  if (row >= ROWS) return;
+  shuttleX += reduce ? COLS : 3.4;
+  if (shuttleX >= COLS){
+    shuttleX = 0;
+    row++;
+  }
+}
+
+(function loop(){
+  requestAnimationFrame(loop);
+  step(); if (!reduce) step();   // 2 sub-steps per frame
+  drawLoomFrame();
+})();
+
+document.querySelectorAll('.presets button').forEach(b=>
+  b.addEventListener('click', ()=>setPreset(b.dataset.p)));
+document.getElementById('reweave').addEventListener('click', ()=>{ row=0; shuttleX=0; });
+</script>
+</body>
+</html>

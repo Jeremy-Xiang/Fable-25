@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISOLINE — a map of a place that is still deciding</title>
+<meta name="description" content="A living topographic map: contour lines drawn in real time from drifting noise terrain via marching squares. Move the survey probe to read elevation; watch the landscape breathe.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f2ede2'/%3E%3Cellipse cx='16' cy='16' rx='10' ry='7' fill='none' stroke='%23695f4e' stroke-width='1.4'/%3E%3Cellipse cx='16' cy='16' rx='6' ry='4' fill='none' stroke='%23695f4e' stroke-width='1.4'/%3E%3Cellipse cx='16' cy='16' rx='2.4' ry='1.6' fill='none' stroke='%23bb4d2c' stroke-width='1.4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital@0;1&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f2ede2; --inkline:#695f4e; --ink:#2e2a22; --dim:#8b8171;
+  --rust:#bb4d2c; --water:#7495a8; --line:rgba(46,42,34,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper); color:var(--ink); font-family:'Libre Caslon Text',serif; height:100vh; overflow:hidden}
+::selection{background:var(--rust); color:#fff}
+a:focus-visible{outline:2px solid var(--rust); outline-offset:3px}
+
+#topo{position:fixed; inset:0; width:100%; height:100%; cursor:crosshair}
+
+header{position:fixed; top:0; left:0; right:0; z-index:5; display:flex; justify-content:space-between;
+  padding:1.3rem 1.6rem; pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-style:italic; font-size:1.05rem}
+.mark b{font-style:normal; color:var(--rust)}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--rust)}
+
+.legend{position:fixed; left:1.6rem; bottom:1.5rem; z-index:5; pointer-events:none; max-width:20rem}
+.legend h1{font-size:clamp(1.3rem,3vw,1.9rem); font-style:italic; line-height:1.3}
+.legend p{font-family:'Space Mono',monospace; font-size:.58rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); margin-top:.7rem; line-height:1.9}
+
+.probe{position:fixed; right:1.6rem; bottom:1.5rem; z-index:5; text-align:right; pointer-events:none;
+  font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); line-height:2}
+.probe b{color:var(--rust); font-weight:700}
+.compass{position:fixed; right:1.7rem; top:4.6rem; z-index:5; font-family:'Space Mono',monospace;
+  font-size:.6rem; color:var(--dim); letter-spacing:.3em; pointer-events:none}
+@media(max-width:640px){.probe{display:none}}
+</style>
+</head>
+<body>
+
+<canvas id="topo" aria-label="Animated topographic map; move the cursor to survey elevation"></canvas>
+
+<header>
+  <span class="mark">ISO<b>LINE</b></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+<span class="compass">N ↑</span>
+
+<div class="legend">
+  <h1>A map of a place<br>that is still deciding.</h1>
+  <p>marching squares · drifting noise terrain<br>10m interval · index every 50m</p>
+</div>
+
+<div class="probe" aria-hidden="true">
+  survey probe<br>
+  elevation <b id="pEle">—</b><br>
+  grid <b id="pGrid">—</b>
+</div>
+
+<script>
+/* ═════ ISOLINE — live topographic map ═════
+   A value-noise heightfield drifts slowly through time; every frame we
+   extract iso-contours with marching squares and stroke them like a
+   survey map: thin lines every 10m, heavier "index" lines every 50m,
+   water fills below sea level, and the cursor reads local elevation. */
+
+const cv = document.getElementById('topo');
+const x = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let W,H;
+addEventListener('resize', resize);
+function resize(){ W=cv.width=innerWidth; H=cv.height=innerHeight; }
+resize();
+
+/* value noise */
+const P = new Uint8Array(512);
+for (let i=0;i<256;i++) P[i]=i;
+for (let i=255;i>0;i--){ const j=(Math.random()*(i+1))|0; [P[i],P[j]]=[P[j],P[i]]; }
+for (let i=0;i<256;i++) P[256+i]=P[i];
+const fade = t=>t*t*(3-2*t);
+function vnoise(xx,yy){
+  const X=Math.floor(xx)&255, Y=Math.floor(yy)&255;
+  const fx=xx-Math.floor(xx), fy=yy-Math.floor(yy);
+  const a=P[P[X]+Y]/255, b=P[P[X+1]+Y]/255, c=P[P[X]+Y+1]/255, d=P[P[X+1]+Y+1]/255;
+  return a+(b-a)*fade(fx) + ((c-a)+(d-c)*fade(fx)-((b-a)*fade(fx)))*fade(fy);
+}
+function height(nx, ny, t){
+  // fBm, drifting through the 3rd "dimension" by offsetting coords with t
+  let v=0, amp=.58, f=1.6;
+  for (let o=0;o<4;o++){
+    v += vnoise(nx*f + t*.35*o, ny*f - t*.22) * amp;
+    amp*=.5; f*=2.1;
+  }
+  return v; // ~0..1
+}
+
+/* grid resolution for marching squares */
+const CELL = 14;
+let cols, rows, field;
+function alloc(){
+  cols = Math.ceil(W/CELL)+1;
+  rows = Math.ceil(H/CELL)+1;
+  field = new Float32Array(cols*rows);
+}
+alloc();
+addEventListener('resize', alloc);
+
+const LEVELS = 14;          // contour levels
+const SEA = .38;
+
+function drawFrame(t){
+  // sample the field
+  for (let j=0;j<rows;j++)
+    for (let i=0;i<cols;i++)
+      field[j*cols+i] = height(i*CELL/620, j*CELL/620, t);
+
+  x.fillStyle = '#f2ede2';
+  x.fillRect(0,0,W,H);
+
+  // water: cartographic stipple — soft dots read as sea without pixel edges
+  x.fillStyle = 'rgba(116,149,168,.38)';
+  for (let j=0;j<rows-1;j++){
+    for (let i=0;i<cols-1;i++){
+      const v = field[j*cols+i];
+      if (v < SEA){
+        const depth = (SEA - v)/SEA;
+        x.beginPath();
+        x.arc(i*CELL + CELL/2 + ((i*7+j*13)%5)-2, j*CELL + CELL/2 + ((i*11+j*5)%5)-2,
+              1.1 + depth*2.6, 0, 7);
+        x.fill();
+      }
+    }
+  }
+
+  // contours via marching squares
+  for (let l=0;l<LEVELS;l++){
+    const iso = .2 + l*(0.62/LEVELS);
+    const index = (l%5===0);
+    x.strokeStyle = index ? 'rgba(105,95,78,.85)' : 'rgba(105,95,78,.42)';
+    x.lineWidth = index ? 1.5 : .75;
+    x.beginPath();
+    for (let j=0;j<rows-1;j++){
+      for (let i=0;i<cols-1;i++){
+        const a=field[j*cols+i],     b=field[j*cols+i+1],
+              c=field[(j+1)*cols+i+1], d=field[(j+1)*cols+i];
+        let code = (a>iso?8:0)|(b>iso?4:0)|(c>iso?2:0)|(d>iso?1:0);
+        if (code===0||code===15) continue;
+        const X0=i*CELL, Y0=j*CELL;
+        const lerp=(p,q)=> (iso-p)/(q-p);
+        // edge points: top, right, bottom, left
+        const T=[X0+CELL*lerp(a,b), Y0];
+        const R=[X0+CELL, Y0+CELL*lerp(b,c)];
+        const B=[X0+CELL*lerp(d,c), Y0+CELL];
+        const L=[X0, Y0+CELL*lerp(a,d)];
+        const seg=(p,q)=>{ x.moveTo(p[0],p[1]); x.lineTo(q[0],q[1]); };
+        switch(code){
+          case 1: case 14: seg(L,B); break;
+          case 2: case 13: seg(B,R); break;
+          case 3: case 12: seg(L,R); break;
+          case 4: case 11: seg(T,R); break;
+          case 5: seg(L,T); seg(B,R); break;
+          case 6: case 9:  seg(T,B); break;
+          case 7: case 8:  seg(L,T); break;
+          case 10: seg(T,R); seg(L,B); break;
+        }
+      }
+    }
+    x.stroke();
+  }
+
+  // peak markers: local maxima on a sparse lattice
+  x.fillStyle = 'rgba(187,77,44,.9)';
+  x.font = '10px "Space Mono", monospace';
+  for (let j=4;j<rows-4;j+=9){
+    for (let i=4;i<cols-4;i+=9){
+      const v = field[j*cols+i];
+      if (v > .8){
+        const px=i*CELL, py=j*CELL;
+        x.beginPath(); x.moveTo(px,py-4); x.lineTo(px+4,py+3); x.lineTo(px-4,py+3); x.closePath(); x.fill();
+        x.fillText('▲ '+Math.round(v*1000)+'m', px+7, py+3);
+      }
+    }
+  }
+}
+
+/* probe */
+let mx=-1, my=-1;
+const pEle=document.getElementById('pEle'), pGrid=document.getElementById('pGrid');
+addEventListener('pointermove', e=>{ mx=e.clientX; my=e.clientY; });
+
+let t = Math.random()*40;
+(function loop(){
+  requestAnimationFrame(loop);
+  if (!reduce) t += .0011;
+  else if (t !== 12) t = 12; else return;
+  drawFrame(t);
+  if (mx>=0){
+    const e = height(mx/620, my/620, t);
+    pEle.textContent = Math.round(e*1000) + ' m' + (e < SEA ? ' (below sea)' : '');
+    pGrid.textContent = String.fromCharCode(65+((mx/W*12)|0)) + '·' + (1+((my/H*12)|0));
+    // crosshair ring
+    x.strokeStyle='rgba(187,77,44,.9)'; x.lineWidth=1.4;
+    x.beginPath(); x.arc(mx,my,14,0,7); x.stroke();
+    x.beginPath(); x.moveTo(mx-22,my); x.lineTo(mx+22,my); x.moveTo(mx,my-22); x.lineTo(mx,my+22); x.stroke();
+  }
+})();
+</script>
+</body>
+</html>

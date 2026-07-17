@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MURMURATION — a flock that thinks as one</title>
+<meta name="description" content="MURMURATION is a live canvas boid simulation, thousands of starlings wheeling over a dusk sky, fleeing your cursor like a hawk.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500;1,600&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --dusk-top:#1c2140;
+    --dusk-mid:#6a3f6b;
+    --dusk-low:#e8823a;
+    --ink:#fdf3e7;
+    --dim:rgba(253,243,231,.7);
+    --bird:#141018;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--dusk-top);color:var(--ink);
+    font-family:'Outfit',sans-serif;overflow-x:hidden;
+  }
+  ::selection{background:var(--dusk-low);color:#1c2140}
+  .serif{font-family:'Playfair Display',serif}
+
+  #bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center 60%}
+  #birds{position:fixed;inset:0;z-index:1}
+  .scrim{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:linear-gradient(180deg,rgba(20,16,24,.15) 0%,rgba(20,16,24,0) 30%,rgba(20,16,24,.55) 100%)}
+
+  main{position:relative;z-index:2}
+  nav.top{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;
+    align-items:center;padding:1.5rem 2.2rem}
+  .mark{font-family:'Playfair Display',serif;font-style:italic;font-weight:600;font-size:1.2rem}
+  .links{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase}
+  .links a{color:var(--ink);text-decoration:none;opacity:.75;margin-left:1.6rem;transition:opacity .25s}
+  .links a:hover{opacity:1}
+
+  .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:flex-end;
+    padding:0 6vw 12vh;pointer-events:none}
+  .hero>*{pointer-events:auto}
+  .hero h1{font-family:'Playfair Display',serif;font-style:italic;font-weight:600;
+    font-size:clamp(2.4rem,7.4vw,5.6rem);line-height:1.05;max-width:15ch;
+    text-shadow:0 4px 30px rgba(20,16,24,.5)}
+  .hero p{margin-top:1.6rem;font-size:1.05rem;line-height:1.7;color:var(--dim);max-width:44ch}
+  .hint{margin-top:2.2rem;font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;opacity:.65}
+
+  .panel{min-height:70vh;display:flex;align-items:center;padding:10vh 6vw;background:rgba(20,16,24,.34);
+    backdrop-filter:blur(2px)}
+  .panel .inner{max-width:620px}
+  .panel .no{font-size:.68rem;letter-spacing:.28em;text-transform:uppercase;color:var(--dusk-low);
+    display:block;margin-bottom:1.1rem}
+  .panel h2{font-family:'Playfair Display',serif;font-style:italic;font-weight:600;
+    font-size:clamp(1.8rem,3.8vw,2.8rem);margin-bottom:1.1rem;line-height:1.15}
+  .panel p{color:var(--dim);line-height:1.85;font-size:1rem}
+
+  .console{position:fixed;bottom:1.6rem;right:1.6rem;z-index:20;background:rgba(20,16,24,.6);
+    backdrop-filter:blur(10px);border:1px solid rgba(253,243,231,.18);border-radius:14px;
+    padding:1rem 1.2rem;font-size:.72rem;display:flex;flex-direction:column;gap:.7rem;min-width:200px}
+  .console .row{display:flex;justify-content:space-between;align-items:center;gap:1rem}
+  .console label{letter-spacing:.06em;opacity:.85}
+  .console input[type=range]{width:100px;accent-color:var(--dusk-low)}
+  .console button{font-family:'Outfit',sans-serif;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;
+    background:none;border:1px solid rgba(253,243,231,.3);color:var(--ink);padding:.4rem .8rem;
+    border-radius:99px;cursor:pointer;transition:.2s}
+  .console button:hover,.console button:focus-visible{border-color:var(--ink)}
+  .console button.off{opacity:.5}
+
+  footer{position:relative;z-index:2;padding:8vh 6vw 6vh;background:rgba(20,16,24,.5);
+    display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.4rem;font-size:.72rem;
+    letter-spacing:.08em;text-transform:uppercase}
+  footer a{color:var(--dusk-low);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  @media(max-width:760px){
+    .console{left:1rem;right:1rem;min-width:auto}
+    nav.top{padding:1.2rem 1.4rem}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .hint{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="bg" style="background-image:url('assets/hero.jpg')" role="img" aria-label="Dusk sky over hills with a starling murmuration"></div>
+<canvas id="birds" aria-hidden="true"></canvas>
+<div class="scrim" aria-hidden="true"></div>
+
+<main>
+  <nav class="top">
+    <span class="mark">Murmuration</span>
+    <span class="links"><a href="guide/">Guide</a><a href="../">Index</a></span>
+  </nav>
+
+  <section class="hero">
+    <h1>A thousand birds,<br>one decision.</h1>
+    <p>No leader, no plan — just three rules repeated a thousand times a second: stay close, match your neighbors, don't collide. Move your cursor into the flock. It scatters like there's a hawk in it, because as far as the simulation is concerned, there is.</p>
+    <span class="hint">move your cursor into the sky · tab to the console below to adjust the flock</span>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="no">01 — The rules</span>
+      <h2>Cohesion, alignment, separation.</h2>
+      <p>Each of the birds on this page is a boid: a point with a velocity, blind to the whole flock and aware only of its nearest neighbors. It steers gently toward their average position, matches their average heading, and swerves to avoid crowding them. That's the entire brain. The shape you see emerging is nobody's decision.</p>
+    </div>
+  </section>
+
+  <section class="panel" style="justify-content:flex-end;text-align:right">
+    <div class="inner">
+      <span class="no">02 — The predator</span>
+      <h2>Fear travels through a flock like a wave.</h2>
+      <p>Your cursor carries a radius of avoidance. Birds inside it peel away hard; the birds next to them, sensing the sudden change in their neighbors' heading, peel away a beat later. The ripple you see moving through the flock away from your pointer isn't animated — it's the same three rules, just reacting to a threat none of them can actually see.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="no">03 — The sky</span>
+      <h2>One generated frame, kept honest.</h2>
+      <p>The dusk gradient and the distant tree line are a single Higgsfield still, chosen deliberately abstract so it reads as atmosphere rather than a competing flock. Every bird you actually watch move is canvas-drawn and live.</p>
+    </div>
+  </section>
+
+  <div class="console" role="group" aria-label="Flock controls">
+    <div class="row"><label for="count">Flock size</label><input type="range" id="count" min="200" max="2200" step="100" value="1200"></div>
+    <div class="row"><label for="fear">Predator radius</label><input type="range" id="fear" min="0" max="220" step="10" value="130"></div>
+    <div class="row"><button id="toggleMotion" type="button">Pause flock</button></div>
+  </div>
+
+  <footer>
+    <span>MURMURATION — canvas boid simulation, dusk sky by Higgsfield<br>Wing II · Site 37 of 50 · designed &amp; built by Claude</span>
+    <span><a href="guide/">How it was made →</a><br><a href="../">All sites</a></span>
+  </footer>
+</main>
+
+<script>
+const reducedQuery = matchMedia('(prefers-reduced-motion: reduce)');
+let reduced = reducedQuery.matches;
+
+const cv = document.getElementById('birds'), ctx = cv.getContext('2d');
+let W,H,DPR;
+function resize(){
+  DPR = Math.min(devicePixelRatio,2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W*DPR; cv.height = H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener('resize', resize); resize();
+
+/* pointer as predator */
+let pointer = {x:-9999,y:-9999,active:false};
+addEventListener('pointermove', e=>{ pointer.x=e.clientX; pointer.y=e.clientY; pointer.active=true; });
+addEventListener('pointerleave', ()=>{ pointer.active=false; });
+
+/* spatial grid for neighbor lookups */
+const CELL = 70;
+function cellKey(x,y){ return ((x/CELL)|0)+','+((y/CELL)|0); }
+
+class Boid{
+  constructor(){ this.reset(true); }
+  reset(anywhere){
+    this.x = anywhere ? Math.random()*W : (Math.random()<.5?-20:W+20);
+    this.y = Math.random()*H*.9;
+    const a = Math.random()*Math.PI*2;
+    this.vx = Math.cos(a)*1.2; this.vy = Math.sin(a)*1.2;
+  }
+}
+
+let boids = [];
+let FEAR_R = 130;
+function buildFlock(n){
+  boids = new Array(n).fill(0).map(()=>new Boid());
+}
+buildFlock(1200);
+
+function step(){
+  const grid = new Map();
+  for(const b of boids){
+    const k = cellKey(b.x,b.y);
+    if(!grid.has(k)) grid.set(k,[]);
+    grid.get(k).push(b);
+  }
+  const maxSpeed = 2.6, maxForce = 0.05;
+  for(const b of boids){
+    let sepX=0,sepY=0,aliX=0,aliY=0,cohX=0,cohY=0,n=0;
+    const cx=(b.x/CELL)|0, cy=(b.y/CELL)|0;
+    for(let gx=cx-1;gx<=cx+1;gx++)for(let gy=cy-1;gy<=cy+1;gy++){
+      const arr = grid.get(gx+','+gy);
+      if(!arr) continue;
+      for(const o of arr){
+        if(o===b) continue;
+        const dx=b.x-o.x, dy=b.y-o.y, d2=dx*dx+dy*dy;
+        if(d2<2500 && d2>0.01){
+          n++;
+          aliX+=o.vx; aliY+=o.vy;
+          cohX+=o.x; cohY+=o.y;
+          if(d2<600){ sepX+=dx/d2; sepY+=dy/d2; }
+        }
+      }
+    }
+    let ax=0,ay=0;
+    if(n>0){
+      aliX/=n; aliY/=n;
+      ax += (aliX-b.vx)*0.05;
+      ay += (aliY-b.vy)*0.05;
+      cohX/=n; cohY/=n;
+      ax += (cohX-b.x)*0.0006;
+      ay += (cohY-b.y)*0.0006;
+      ax += sepX*0.6; ay += sepY*0.6;
+    }
+    /* predator avoidance */
+    if(pointer.active && FEAR_R>0){
+      const dx=b.x-pointer.x, dy=b.y-pointer.y, d2=dx*dx+dy*dy, r2=FEAR_R*FEAR_R;
+      if(d2<r2 && d2>1){
+        const d=Math.sqrt(d2), f=(1-d/FEAR_R)*0.9;
+        ax += (dx/d)*f; ay += (dy/d)*f;
+      }
+    }
+    ax = Math.max(-maxForce*10,Math.min(maxForce*10,ax));
+    ay = Math.max(-maxForce*10,Math.min(maxForce*10,ay));
+    b.vx += ax; b.vy += ay;
+    const sp = Math.hypot(b.vx,b.vy);
+    if(sp>maxSpeed){ b.vx=b.vx/sp*maxSpeed; b.vy=b.vy/sp*maxSpeed; }
+    else if(sp<0.8){ b.vx=b.vx/sp*0.8; b.vy=b.vy/sp*0.8; }
+    b.x += b.vx; b.y += b.vy;
+    if(b.x<-40) b.x=W+40; if(b.x>W+40) b.x=-40;
+    if(b.y<-40) b.y=H*.95; if(b.y>H*.95) b.y=-40 + Math.random()*40;
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = 'rgba(20,16,24,.92)';
+  for(const b of boids){
+    const ang = Math.atan2(b.vy,b.vx);
+    ctx.save();
+    ctx.translate(b.x,b.y);
+    ctx.rotate(ang);
+    ctx.beginPath();
+    ctx.moveTo(4,0);
+    ctx.lineTo(-3,-2.4);
+    ctx.lineTo(-1.5,0);
+    ctx.lineTo(-3,2.4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+let paused = reduced;
+function loop(){
+  if(!paused) step();
+  draw();
+  requestAnimationFrame(loop);
+}
+/* draw at least one static frame even when reduced-motion pauses simulation */
+loop();
+
+/* console controls */
+const countEl = document.getElementById('count');
+countEl.addEventListener('input', e=>{ buildFlock(+e.target.value); });
+const fearEl = document.getElementById('fear');
+FEAR_R = +fearEl.value;
+fearEl.addEventListener('input', e=>{ FEAR_R = +e.target.value; });
+const toggleBtn = document.getElementById('toggleMotion');
+function syncToggle(){
+  toggleBtn.textContent = paused ? 'Resume flock' : 'Pause flock';
+  toggleBtn.classList.toggle('off', paused);
+  toggleBtn.setAttribute('aria-pressed', String(paused));
+}
+toggleBtn.addEventListener('click', ()=>{ paused = !paused; syncToggle(); });
+syncToggle();
+
+reducedQuery.addEventListener('change', e=>{
+  reduced = e.matches;
+  if(reduced){ paused = true; syncToggle(); }
+});
+
+/* scroll reveal for panels */
+const io = new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){ e.target.style.opacity=1; e.target.style.transform='none'; }
+}), {threshold:.2});
+document.querySelectorAll('.panel .inner').forEach(el=>{
+  el.style.opacity=0; el.style.transform='translateY(30px)';
+  el.style.transition='opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)';
+  io.observe(el);
+});
+</script>
+</body>
+</html>

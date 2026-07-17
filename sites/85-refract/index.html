@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LENSA — type, read through glass</title>
+<meta name="description" content="Glass lenses drift over a wall of type, refracting and magnifying it in WebGL — grab one and drag it around. The distortion is honest: real UV displacement, chromatic edges, specular bloom.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101418'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23bfe3ff' stroke-width='2'/%3E%3Cpath d='M11 12 q3 -3 6 -1' stroke='%23fff' stroke-width='1.6' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,700;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#101418; --ink:#e7ecf2; --dim:#7c8894; --dim2:#48525c; --ice:#bfe3ff; --line:rgba(231,236,242,.1); }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg); color:var(--ink); font-family:'Newsreader',serif; height:100vh; overflow:hidden}
+::selection{background:var(--ice); color:#0a2233}
+a:focus-visible{outline:2px solid var(--ice); outline-offset:3px}
+
+#gl{position:fixed; inset:0; width:100%; height:100%; cursor:grab}
+#gl.hold{cursor:grabbing}
+
+header{position:fixed; top:0; left:0; right:0; z-index:5; display:flex; justify-content:space-between;
+  padding:1.3rem 1.6rem; pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-weight:700; font-size:1.05rem; letter-spacing:.05em}
+.mark i{color:var(--ice); font-style:italic; font-weight:400}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'JetBrains Mono',monospace; font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--ice)}
+
+.plate{position:fixed; left:1.6rem; bottom:1.4rem; z-index:5; pointer-events:none}
+.plate p{font-family:'JetBrains Mono',monospace; font-size:.58rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim2); line-height:1.9}
+.plate p b{color:var(--dim); font-weight:400}
+</style>
+</head>
+<body>
+
+<canvas id="gl" aria-label="Wall of type with draggable glass lenses refracting it"></canvas>
+
+<header>
+  <span class="mark">LEN<i>SA</i></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="plate" aria-hidden="true">
+  <p>three lenses · uv displacement refraction<br>
+  <b>drag a lens</b> · chromatic edges · specular sweep</p>
+</div>
+
+<script>
+/* ═════ LENSA — glass lenses over a type wall ═════
+   The page text is painted once to an offscreen canvas → WebGL texture.
+   Each lens displaces UVs radially (magnify inside, compress at the rim),
+   splits RGB slightly at the rim, and adds a moving specular streak. */
+
+const cv = document.getElementById('gl');
+const gl = cv.getContext('webgl');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* — type wall texture — */
+const TW = 2048, THh = 1280;
+const tex = document.createElement('canvas');
+tex.width = TW; tex.height = THh;
+const tx = tex.getContext('2d');
+function paintWall(){
+  tx.fillStyle = '#101418'; tx.fillRect(0,0,TW,THh);
+  tx.fillStyle = '#e7ecf2';
+  tx.textBaseline = 'top';
+  const LINES = [
+    ['We shape clear glass', 700, false],
+    ['and the glass returns', 400, true],
+    ['a bent world —', 700, false],
+    ['every letter honest,', 400, true],
+    ['every path of light', 400, false],
+    ['sworn to refraction.', 700, true],
+  ];
+  let y = 90;
+  for (const [line, w, it] of LINES){
+    tx.font = `${it?'italic ':''}${w} 150px Newsreader, serif`;
+    tx.fillStyle = w===700 ? '#e7ecf2' : '#7c8894';
+    tx.fillText(line, 90, y);
+    y += 182;
+  }
+  tx.font = '500 34px "JetBrains Mono", monospace';
+  tx.fillStyle = '#48525c';
+  tx.fillText('LENSA OPTICAL FOUNDRY — EST. 2026 — SPECIMEN NO. 85', 620, THh-70);
+}
+
+const VS=`attribute vec2 p; varying vec2 uv; void main(){ uv=vec2(p.x*.5+.5, .5-p.y*.5); gl_Position=vec4(p,0.,1.); }`;
+const FS=`precision highp float;
+varying vec2 uv;
+uniform sampler2D wall;
+uniform vec2 res;
+uniform float t;
+uniform vec3 lensA, lensB, lensC;   // x, y (px), radius (px)
+
+vec3 sampleLens(vec3 L, vec2 fragPx, inout float inGlass){
+  vec2 d = fragPx - L.xy;
+  float r = length(d) / L.z;
+  if (r >= 1.) return vec3(-1.);
+  inGlass = 1.;
+  // refraction: magnify center, compress rim (lens equation-ish)
+  float k = 1. - .42*sqrt(1. - r*r);       // displacement factor
+  vec2 srcPx = L.xy + d * k;
+  vec2 srcUV = srcPx / res;
+  // chromatic split near rim
+  float ab = smoothstep(.55, 1., r) * .006;
+  vec2 dir = normalize(d + .0001);
+  float cr = texture2D(wall, srcUV + dir*ab).r;
+  float cg = texture2D(wall, srcUV).g;
+  float cb = texture2D(wall, srcUV - dir*ab).b;
+  vec3 col = vec3(cr, cg, cb);
+  // rim shading + moving specular streak
+  col *= 1. - smoothstep(.82, 1., r)*.45;
+  float spec = pow(max(0., 1.-abs(dot(dir, vec2(cos(t*.5), sin(t*.5))))), 8.);
+  col += spec * smoothstep(.5,.95,r) * .5 * vec3(.75,.89,1.);
+  col += smoothstep(.96,1.,r) * vec3(.75,.89,1.) * .8;   // bright rim ring
+  return col;
+}
+
+void main(){
+  vec2 fragPx = uv * res;
+  vec3 col = texture2D(wall, uv).rgb;
+  float g;
+  vec3 c;
+  g=0.; c = sampleLens(lensA, fragPx, g); if (g>0.) col = c;
+  g=0.; c = sampleLens(lensB, fragPx, g); if (g>0.) col = c;
+  g=0.; c = sampleLens(lensC, fragPx, g); if (g>0.) col = c;
+  gl_FragColor = vec4(col, 1.);
+}`;
+
+function sh(t_,s){const o=gl.createShader(t_);gl.shaderSource(o,s);gl.compileShader(o);
+  if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(o));return o;}
+const pr=gl.createProgram();
+gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));
+gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));
+gl.linkProgram(pr); gl.useProgram(pr);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const al=gl.getAttribLocation(pr,'p');
+gl.enableVertexAttribArray(al); gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+
+const uRes=gl.getUniformLocation(pr,'res'), uT=gl.getUniformLocation(pr,'t');
+const uL=[gl.getUniformLocation(pr,'lensA'),gl.getUniformLocation(pr,'lensB'),gl.getUniformLocation(pr,'lensC')];
+
+const glTex = gl.createTexture();
+function uploadWall(){
+  paintWall();
+  gl.bindTexture(gl.TEXTURE_2D, glTex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,tex);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+}
+
+/* lenses: drift on gentle orbits unless grabbed */
+const lenses = [
+  { x:.3, y:.36, r:150, ox:.3, oy:.36, ph:0,   spd:.31, held:false },
+  { x:.62, y:.55, r:110, ox:.62, oy:.55, ph:2.1, spd:.23, held:false },
+  { x:.45, y:.75, r:80,  ox:.45, oy:.75, ph:4.2, spd:.41, held:false },
+];
+
+function resize(){
+  cv.width=innerWidth; cv.height=innerHeight;
+  gl.viewport(0,0,cv.width,cv.height);
+  gl.uniform2f(uRes,cv.width,cv.height);
+}
+addEventListener('resize',resize); resize();
+uploadWall();
+
+/* dragging */
+let heldLens = null;
+cv.addEventListener('pointerdown', e=>{
+  for (const L of lenses){
+    const dx=e.clientX-L.x*innerWidth, dy=e.clientY-L.y*innerHeight;
+    if (dx*dx+dy*dy < L.r*L.r){ heldLens=L; L.held=true; cv.classList.add('hold');
+      try{cv.setPointerCapture(e.pointerId)}catch{} break; }
+  }
+});
+addEventListener('pointermove', e=>{
+  if (!heldLens) return;
+  heldLens.x = e.clientX/innerWidth;
+  heldLens.y = e.clientY/innerHeight;
+  heldLens.ox = heldLens.x; heldLens.oy = heldLens.y;
+});
+addEventListener('pointerup', ()=>{
+  if (heldLens){ heldLens.held=false; heldLens=null; cv.classList.remove('hold'); }
+});
+
+const t0=performance.now();
+(function loop(){
+  requestAnimationFrame(loop);
+  const t=(performance.now()-t0)/1000;
+  lenses.forEach((L,i)=>{
+    if (!L.held && !reduce){
+      L.x = L.ox + Math.cos(t*L.spd + L.ph)*.045;
+      L.y = L.oy + Math.sin(t*L.spd*1.3 + L.ph)*.05;
+    }
+    gl.uniform3f(uL[i], L.x*cv.width, L.y*cv.height, L.r);
+  });
+  gl.uniform1f(uT, reduce ? 2 : t);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+})();
+
+/* repaint wall once fonts arrive so the texture uses real Newsreader */
+if (document.fonts) document.fonts.ready.then(uploadWall);
+</script>
+</body>
+</html>

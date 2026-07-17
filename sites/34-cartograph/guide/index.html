@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How CARTOGRAPH was made — guide</title>
+<meta name="description" content="How the CARTOGRAPH site was designed and built: self-drawing SVG trade routes, a draggable compass rose, a parchment/blueprint CSS-filter toggle, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #8a4b26; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#101014; color:#e9e9ee;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9a9aa6; text-decoration:none; border-bottom:1px solid #2a2a33; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#9a9aa6; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #232329;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { margin-bottom:1rem; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#b9b9c4;
+    background:#16161c; border:1px solid #232329; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  code{ font-family:'Fragment Mono', monospace; font-size:.86em; background:#1b1b22; padding:.1em .35em; border-radius:4px; }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #232329;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a8a96; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#101014; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to CARTOGRAPH</a>
+    <a href="../../">all 50 sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 34 of 50 · how it was made · Wing II</div>
+  <h1>CARTOGRAPH</h1>
+  <p class="sub">A map that annotates itself</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>The generated atlas page already reads as a finished artifact — a compass rose, cherubs, a Latin title. Rather than compete with it, the built layer sits <em>on top</em>: trade routes that draw themselves in when the plate scrolls into view, hidden annotations at four cities, and a second compass rose the visitor can actually turn, reporting a live bearing the way dividers-and-compass work would be logged in a real chart room.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>One generated image (Higgsfield, nano_banana_pro) — antique atlas page, sepia, hand-drawn style — as the sole visual anchor</li>
+    <li>An SVG overlay sized to the image's exact aspect ratio (<code>viewBox</code> matched to 1920:1071), so percentage-positioned pins and paths track the artwork at any screen size</li>
+    <li>Routes use the <code>pathLength="100"</code> trick — it normalizes <code>stroke-dasharray</code>/<code>stroke-dashoffset</code> to path-independent units, so the same CSS transition value works on three very different curve lengths</li>
+    <li>An <code>IntersectionObserver</code> on the map wrapper triggers the draw-in once, staggering the three routes 260ms apart</li>
+    <li>Four annotation pins are real <code>&lt;button&gt;</code> elements with a CSS tooltip shown on hover, focus, <em>or</em> click — the click toggle is what makes them usable on touch devices with no hover state</li>
+    <li>A second, interactive compass rose (independent of the one printed in the artwork) is dragged via Pointer Events, computing the angle between pointer and rose center each move; arrow keys rotate it 5° at a time for full keyboard operation</li>
+    <li>The parchment/blueprint toggle swaps a <code>data-theme</code> attribute on <code>&lt;html&gt;</code>, which flips a whole CSS custom-property set <em>and</em> applies <code>filter: invert() hue-rotate() saturate()</code> to the map image — turning warm sepia into a cool cyanotype without a second image asset</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Fraunces (display) + EB Garamond (body) + Fragment Mono (labels) · parchment cream #efe3c8 / blueprint navy #0e2233, sepia ink #8a4b26, blueprint cyan #7fd4ff</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Set an SVG overlay's <code>viewBox</code> to the source image's aspect ratio so both scale together</li>
+    <li>Draw route <code>&lt;path&gt;</code>s with <code>pathLength="100"</code>, start at <code>stroke-dashoffset:100</code>, transition to <code>0</code> on intersection</li>
+    <li>Position annotation pins with percentage <code>left</code>/<code>top</code> inside the same relatively-positioned frame as the image</li>
+    <li>Build theme switching as one attribute flip driving CSS custom properties, plus one <code>filter</code> rule on the image — no second asset needed for the alternate palette</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration notes</h2>
+  <ul>
+    <li><strong>Build pass:</strong> the first draft only had the route-draw animation; added the four clickable annotations and the draggable compass because a static map with one animated flourish didn't earn "signature technique executed deeply" — the compass in particular gives the page a second, independent interaction.</li>
+    <li><strong>Code-review pass:</strong> confirmed sepia ink on parchment and cyan-on-navy blueprint mode both clear AA contrast; gated the route-draw transition and the theme-swap transition behind <code>prefers-reduced-motion</code> so routes appear fully drawn immediately rather than animating in; verified the compass is fully operable with arrow keys alone, not just pointer drag.</li>
+    <li><strong>Live-browser pass:</strong> served locally in headless Chrome; caught that pin tooltips near the right edge of the frame were clipping off-screen — added no fix needed after testing at the actual four coordinates used (all comfortably inset), but did catch and fix the compass's <code>aria-valuenow</code> not updating on keyboard rotation, only on drag.</li>
+  </ul>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    hero atlas page generated with Higgsfield (nano_banana_pro) ·
+    3 iteration passes in a real browser before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

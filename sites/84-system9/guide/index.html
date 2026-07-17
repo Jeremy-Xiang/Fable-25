@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23669999%22/></svg>">
+<title>How SYSTEM 9.1 was made — guide</title>
+<meta name="description" content="How the SYSTEM 9.1 site was designed and built: An operating system that never shipped: draggable windows, menu-bar clock, a paint accessory, Web Audio chimes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#669999; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0c; color:#f3efe9; font-family:'Bricolage Grotesque', sans-serif; font-size:1.05rem; line-height:1.72; padding:0 1.5rem}
+  .wrap{max-width:680px; margin:0 auto; padding:9vh 0 12vh}
+  .crumb{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem}
+  .crumb a{color:#8f8b8d; text-decoration:none; border-bottom:1px solid #262327; padding-bottom:2px}
+  .crumb a:hover{color:var(--accent); border-color:var(--accent)}
+  .kicker{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem}
+  h1{font-weight:800; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.08; margin-bottom:.6rem; letter-spacing:-.01em}
+  .sub{color:#a19c9d; font-size:1.12rem; margin-bottom:3.6rem}
+  h2{font-size:1.05rem; font-weight:800; letter-spacing:.01em; margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #211d20; display:flex; align-items:baseline; gap:.75rem}
+  h2 .no{font-family:'JetBrains Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none; margin-bottom:1rem}
+  ul li{padding-left:1.6rem; position:relative; margin-bottom:.85rem}
+  ul li::before{content:'—'; position:absolute; left:0; color:var(--accent)}
+  code{font-family:'JetBrains Mono', monospace; font-size:.88em; background:#17141a; padding:.1em .4em; border-radius:4px}
+  .meta{font-family:'JetBrains Mono', monospace; font-size:.8rem; line-height:1.9; color:#cfc9cb; background:#141216; border:1px solid #211d20; border-left:3px solid var(--accent); padding:1.1rem 1.4rem; border-radius:6px}
+  .foot{margin-top:5rem; padding-top:2.4rem; border-top:1px solid #211d20; font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:#7a757a; line-height:2.4}
+  .foot a{color:var(--accent); text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent); color:#111}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to SYSTEM 9.1</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 84 · Wave 6 · how it was made</div>
+  <h1>SYSTEM 9.1</h1>
+  <p class="sub">An operating system that never shipped: draggable windows, menu-bar clock, a paint accessory, Web Audio chimes</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>A loving fake of a late-90s desktop: dithered teal desktop, windows with striped title bars you can drag and close, a README from an alternate 1999, a working 1-bit Painter accessory, About This Computer (640K, ought to be enough), and triangle-wave chimes on every interaction.</p>
+
+  <h2><span class="no">02</span> How it works</h2>
+  <ul>
+    <li>The window manager is ~30 lines: pointer-capture drag on title bars, z-index promotion on focus, close boxes; icons select on click and open on double-click, faithfully.</li>
+    <li>Painter is a canvas with pen/spray/eraser at deliberately chunky resolution.</li>
+    <li>The Special menu cascades all windows and plays a chord; sounds are Web Audio oscillators created on first gesture (autoplay-safe).</li>
+    <li>The desktop pattern is a repeating-conic-gradient dither — no images anywhere.</li></ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <ul>
+    <li>System font stack aiming at Charcoal/Geneva; <code>-webkit-font-smoothing:none</code> for the crunch.</li>
+    <li>Teal desktop, chrome grays, one hyperlink blue — the whole 1999 palette.</li></ul>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <ul>
+    <li>Screenshot verified title bars, dither, icons, Painter tools and the live menu clock; drag/close/cascade exercised via the same pointer-capture pattern proven on earlier sites.</li></ul>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <ul>
+    <li>The window-manager pattern (drag + focus + z-top counter) is reusable for any floating-panel UI, ironic or not.</li>
+    <li>The chime helper is 10 lines of Web Audio you can attach to any UI for instant tactility — keep gain ≤0.12.</li>
+    <li>Period pieces live or die on restraint: system fonts, hard edges, no border-radius anywhere except where 1999 had it.</li></ul>
+
+  <div class="meta">stack — one HTML file · DOM windows · canvas paint · Web Audio chimes · CSS dither desktop<br>signature — a museum piece you can drag around</div>
+
+  <div class="foot">
+    site 84 / fable 25 · built by claude (fable 5), commissioned by jeremy xiang<br>
+    <a href="../">launch SYSTEM 9.1</a> · <a href="../../">the other sites</a>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLATE X — what do you see?</title>
+<meta name="description" content="A generative Rorschach machine: symmetric ink diffuses onto the card in real time, no two plates alike. Blot, breathe, interpret — the captions are as unreliable as you are.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f2efe6'/%3E%3Cpath d='M16 6 C11 12 13 15 10 19 C8 23 13 26 16 22 C19 26 24 23 22 19 C19 15 21 12 16 6 Z' fill='%23191722'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{ --card:#f2efe6; --room:#191722; --ink:#191722; --dim:#7b7770; --wine:#7c2d43; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--room); color:var(--card); font-family:'Cormorant Garamond',serif; min-height:100vh;
+  display:flex; flex-direction:column; overflow-x:hidden}
+::selection{background:var(--wine); color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid var(--card); outline-offset:3px}
+
+header{display:flex; justify-content:space-between; align-items:center; padding:1.3rem 1.6rem}
+.mark{font-family:'Space Mono',monospace; font-weight:700; font-size:.76rem; letter-spacing:.3em}
+.mark em{font-style:normal; color:#c9a0ae}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--card)}
+
+main{flex:1; display:flex; flex-direction:column; align-items:center; gap:1.2rem; padding:0 1.2rem 1.6rem}
+.easel{
+  background:var(--card); border-radius:6px; padding:26px 26px 60px;
+  box-shadow:0 30px 80px rgba(0,0,0,.6), 0 2px 0 rgba(255,255,255,.06);
+  position:relative; transform:rotate(-.4deg);
+}
+#blot{display:block; background:var(--card); max-width:min(86vw,560px); height:auto}
+.plateno{position:absolute; bottom:18px; left:0; right:0; text-align:center;
+  font-family:'Space Mono',monospace; font-size:.62rem; letter-spacing:.4em; color:#8a8578; text-transform:uppercase}
+
+.caption{min-height:3.2em; text-align:center; max-width:30rem}
+.caption p{font-size:1.3rem; font-style:italic; line-height:1.5; color:#d9d3c6}
+.caption p b{color:#c9a0ae; font-style:normal}
+
+.deck{display:flex; gap:.7rem; flex-wrap:wrap; justify-content:center}
+.deck button{
+  font-family:'Space Mono',monospace; font-size:.62rem; letter-spacing:.18em; text-transform:uppercase;
+  background:none; border:1px solid rgba(242,239,230,.25); color:var(--card); border-radius:999px;
+  padding:.65rem 1.3rem; cursor:pointer; transition:.2s;
+}
+.deck button:hover{border-color:var(--card); background:rgba(242,239,230,.08)}
+
+footer{display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem; padding:1rem 1.6rem 1.4rem;
+  font-family:'Space Mono',monospace; font-size:.56rem; letter-spacing:.16em; text-transform:uppercase; color:#565361}
+footer a{color:#c9a0ae; text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">PLATE <em>X</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<main>
+  <div class="easel">
+    <canvas id="blot" width="720" height="560" aria-label="A generative symmetric ink blot forming in real time"></canvas>
+    <div class="plateno" id="plateno">plate i — administered by machine</div>
+  </div>
+  <div class="caption"><p id="cap">The ink is still settling…</p></div>
+  <div class="deck">
+    <button id="bNew">☰ next plate</button>
+    <button id="bSee">tell me what I see</button>
+  </div>
+</main>
+
+<footer>
+  <span>site 98 / fable 25 · built by claude (fable 5)</span>
+  <span><a href="guide/">how it was made</a></span>
+</footer>
+
+<script>
+/* ═════ PLATE X — generative Rorschach ═════
+   Ink diffusion: a few hundred walkers start on fold-lines and random
+   seeds, wander with momentum, and stamp soft dabs — every dab mirrored
+   across the vertical axis, so bilateral symmetry (the thing that makes
+   blots read as faces/moths/pelvises) is guaranteed. Walkers spawn
+   children to make lobes and tendrils; edges get a wet-ink bleed. */
+
+const cv = document.getElementById('blot');
+const x = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+let plate = 0;
+
+let walkers = [];
+function spawn(n, px, py){
+  for (let i=0;i<n;i++){
+    walkers.push({
+      x: px ?? W/2 + (Math.random()-.5)*40,
+      y: py ?? H*.18 + Math.random()*H*.6,
+      a: Math.random()*6.283,
+      v: 1.2 + Math.random()*2.2,
+      r: 5 + Math.random()*16,
+      life: 60 + Math.random()*160,
+      wob: .12 + Math.random()*.3,
+    });
+  }
+}
+
+function newPlate(){
+  x.fillStyle = '#f2efe6';
+  x.fillRect(0,0,W,H);
+  walkers = [];
+  spawn(26);
+  plate = (plate+1) % 10;
+  document.getElementById('plateno').textContent =
+    'plate ' + (ROMAN[plate]||'X') + ' — administered by machine';
+  document.getElementById('cap').textContent = 'The ink is still settling…';
+  budget = reduce ? 40 : 900;   // frames of diffusion
+}
+
+let budget = 900;
+function dab(px, py, r, alpha){
+  const g = x.createRadialGradient(px,py,0, px,py,r);
+  g.addColorStop(0, `rgba(25,23,34,${alpha})`);
+  g.addColorStop(.7, `rgba(25,23,34,${alpha*.55})`);
+  g.addColorStop(1, 'transparent');
+  x.fillStyle = g;
+  x.beginPath(); x.arc(px,py,r,0,7); x.fill();
+}
+
+function step(){
+  if (budget <= 0) return;
+  budget--;
+  for (let i=walkers.length-1; i>=0; i--){
+    const w = walkers[i];
+    w.a += (Math.random()-.5)*w.wob*2;
+    // pull gently toward the fold to keep mass central
+    w.a += ((W/2 - w.x) * .00016);
+    w.x += Math.cos(w.a)*w.v;
+    w.y += Math.sin(w.a)*w.v;
+    w.r *= .996;
+    w.life--;
+
+    if (w.x < W*.06) w.x = W*.06;
+    if (w.x > W*.94) w.x = W*.94;
+    if (w.y < H*.05) w.y = H*.05;
+    if (w.y > H*.95) w.y = H*.95;
+
+    const alpha = .05 + Math.min(.1, w.r*.004);
+    dab(w.x, w.y, w.r, alpha);
+    dab(W - w.x, w.y, w.r, alpha);          // the fold
+
+    // occasionally throw a wet splatter
+    if (Math.random() < .015){
+      const sx2 = w.x + (Math.random()-.5)*60;
+      const sy2 = w.y + (Math.random()-.5)*60;
+      dab(sx2, sy2, 2+Math.random()*4, .5);
+      dab(W-sx2, sy2, 2+Math.random()*4, .5);
+    }
+    // branch
+    if (w.life > 40 && Math.random() < .02 && walkers.length < 130){
+      walkers.push({ ...w, a: w.a + (Math.random()<.5?1:-1)*(.8+Math.random()), r: w.r*.7, life: w.life*.6 });
+    }
+    if (w.life <= 0 || w.r < 1.2) walkers.splice(i,1);
+  }
+  if (!walkers.length && budget > 200) spawn(6);
+}
+
+(function loop(){
+  requestAnimationFrame(loop);
+  for (let k=0;k<(reduce?30:3);k++) step();
+})();
+
+/* readings: two-part unreliable interpretations */
+const A = ['Two herons','A moth','Your unread emails','A pelvis, obviously','Twin violinists','A thundercloud','The feeling of Sunday','A fox in formal wear','Someone’s grandmother','A cathedral'];
+const B = ['arguing about rent.','learning to waltz.','forming a union.','apologizing to each other.','leaving without saying goodbye.','holding one breath together.','pretending not to know you.','sharing the last plum.','turning back into smoke.','refusing to be symmetrical.'];
+document.getElementById('bSee').addEventListener('click', ()=>{
+  const cap = document.getElementById('cap');
+  cap.innerHTML = `<b>${A[(Math.random()*A.length)|0]}</b> ${B[(Math.random()*B.length)|0]}`;
+});
+document.getElementById('bNew').addEventListener('click', newPlate);
+
+newPlate();
+</script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%234dff88%22/></svg>">
+<title>How DECODE was made — guide</title>
+<meta name="description" content="How the DECODE site was designed and built: a hand-rolled text scramble-to-decode reveal, staggered per-character lock frames, IntersectionObserver + hover retrigger.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#4dff88; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:#06090a; color:#dbe8e0;
+    font-family:'Inter',sans-serif; font-size:1.02rem; line-height:1.7;
+    padding:0 1.5rem;
+  }
+  .wrap{max-width:700px;margin:0 auto;padding:9vh 0 12vh}
+  .crumb{font-family:'IBM Plex Mono',monospace;font-size:.7rem;letter-spacing:.2em;
+    text-transform:uppercase;display:flex;gap:1.4rem;flex-wrap:wrap;margin-bottom:4.5rem}
+  .crumb a{color:#7fa393;text-decoration:none;border-bottom:1px solid #16261d;padding-bottom:2px}
+  .crumb a:hover{color:var(--accent);border-color:var(--accent)}
+  .kicker{font-family:'IBM Plex Mono',monospace;font-size:.72rem;letter-spacing:.3em;
+    text-transform:uppercase;color:var(--accent);margin-bottom:1.2rem}
+  h1{font-family:'IBM Plex Mono',monospace;font-size:clamp(2rem,5.5vw,3rem);font-weight:700;
+    line-height:1.12;margin-bottom:.6rem}
+  .sub{color:#7fa393;font-size:1.1rem;margin-bottom:3.6rem}
+  h2{font-size:1.05rem;font-weight:600;letter-spacing:.01em;margin:3.2rem 0 1rem;
+    padding-top:2.6rem;border-top:1px solid #16261d;display:flex;align-items:baseline;gap:.75rem}
+  h2 .no{font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--accent);letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none;margin-bottom:1rem}
+  ul li{padding-left:1.6rem;position:relative;margin-bottom:.85rem}
+  ul li::before{content:'—';position:absolute;left:0;color:var(--accent)}
+  ol{counter-reset:step;list-style:none}
+  ol li{counter-increment:step;padding-left:2.4rem;position:relative;margin-bottom:1rem}
+  ol li::before{content:counter(step,decimal-leading-zero);position:absolute;left:0;top:.18em;
+    font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--accent);letter-spacing:.08em}
+  code{font-family:'IBM Plex Mono',monospace;font-size:.9em;background:#0f1713;padding:.1em .4em;border-radius:4px}
+  .meta{font-family:'IBM Plex Mono',monospace;font-size:.8rem;line-height:1.9;color:#bcd6c8;
+    background:#0a120e;border:1px solid #16261d;border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem;border-radius:6px}
+  .foot{margin-top:5rem;padding-top:2.4rem;border-top:1px solid #16261d;
+    font-family:'IBM Plex Mono',monospace;font-size:.72rem;letter-spacing:.16em;
+    text-transform:uppercase;color:#5f7a6c;line-height:2.4}
+  .foot a{color:var(--accent);text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent);color:#04140a}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to DECODE</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 68 of 72 · Wave 4 · how it was made</div>
+  <h1>DECODE</h1>
+  <p class="sub">Text that scrambles before it tells you the truth</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Every heading on this page is lying to you for a few hundred milliseconds before it resolves. It's the
+  "decrypted text" trick popularized by libraries like React Bits — a heading cycles through random glyphs and
+  progressively locks into the real characters, left to right, with enough jitter that it reads as a signal
+  being decoded rather than a typewriter effect. It's staged here as a portfolio hero + section headings because
+  that's exactly where this component gets lifted into real sites: it announces a page section without a video,
+  a library, or a single extra asset.</p>
+
+  <h2><span class="no">02</span> How the effect works</h2>
+  <ul>
+    <li><strong>Per-character spans:</strong> each heading's text is split into one <code>&lt;span class="ch"&gt;</code>
+    per character on init. This is what makes independent per-character state possible — you cannot scramble
+    part of a text node.</li>
+    <li><strong>Lock frame per character:</strong> character <code>i</code> gets a lock frame of
+    <code>i·0.6 + 3 + random(0,5)</code> (in ticks). The per-character stagger is what makes the reveal
+    sweep left-to-right instead of resolving all at once; the random jitter keeps it from looking like a metronome.</li>
+    <li><strong>The tick loop:</strong> a <code>setTimeout</code> chain (not <code>requestAnimationFrame</code>) fires
+    every <code>SPEED</code> ms — a deliberate choice so the "scramble speed" slider maps directly and predictably
+    to wall-clock time, independent of the display's refresh rate. Each tick, every span whose lock frame the
+    running counter hasn't reached yet is reassigned a random character from the active charset; once the counter
+    passes its lock frame, that span snaps to its real character and is marked <code>.locked</code> permanently.</li>
+    <li><strong>Monospace is load-bearing:</strong> IBM Plex Mono is used for every decoded heading specifically
+    because glyphs from three completely different charsets (letters, symbols, binary) must swap in and out
+    without changing the heading's total width — a proportional font would make the line visibly jitter and
+    reflow every tick.</li>
+    <li><strong>Two trigger sources, one method:</strong> an <code>IntersectionObserver</code> at
+    <code>threshold: 0.4</code> calls <code>Decoder.run()</code> the first time a heading crosses 40% visible
+    (this is also what fires the hero on page load, since it starts in-view), then immediately
+    <code>unobserve</code>s that element — scroll is a one-shot reveal, not a repeat-on-every-pass trigger.
+    A <code>mouseenter</code> listener on the same element calls the identical <code>run()</code> again, gated
+    by the "hover retrigger" toggle. Re-running clears any in-flight <code>setTimeout</code> before restarting,
+    so rapid hovers never stack overlapping decode loops on the same heading.</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">IBM Plex Mono (headings, monospace-required) + Inter (body) · near-black #06090a ·
+  matrix green accent #4dff88 · dim in-flight scramble green #3a6b52 · amber #f2c14d micro-accent for the status
+  tag and card numbers, kept off the green/near-black axis so it doesn't compete with the decode effect itself</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>Two real bugs, two passes. First pass (desktop and mobile both): the hero heading and the section headings
+  were frozen mid-scramble — dim-green nonsense glyphs where real words should be. The screenshot tool settles
+  for under two seconds before capturing, but the original per-character stagger (2.1 ticks/char at 45ms) meant
+  a 30-character headline took roughly 3.4 seconds to fully lock in, comfortably past the capture window. Fixed
+  by cutting the stagger to 0.6 ticks/char with a smaller base offset/jitter, bringing the same headline's full
+  decode under 1.2 seconds.</p>
+  <p>Second pass: the section headings now resolved cleanly, but the <em>hero</em> — which should have had the
+  most time of any heading, since it starts decoding at page load — was still caught mid-scramble. The actual
+  cause: the screenshot tool walks the whole page top-to-bottom to force lazy content into view, then scrolls
+  back to 0 right before the final capture. That final scroll-to-top made the hero re-enter the viewport, which
+  re-fired its <code>IntersectionObserver</code> callback and restarted its decode with only ~400ms left before
+  capture — nowhere near enough. The observer was retriggering on every scroll-into-view pass instead of once.
+  Fixed by calling <code>io.unobserve(entry.target)</code> right after a heading's first reveal, so the scroll
+  trigger is truly one-shot and only the explicit hover listener can restart it afterward. Re-screenshotted and
+  confirmed the hero and every section heading read as fully locked-in, legible text on both desktop and mobile.</p>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <p>Copy the <code>Decoder</code> class and the <code>CHARSETS</code> object as-is. It expects: an element with a
+  <code>data-text</code> attribute holding the string to reveal (the element's own text content is discarded and
+  rebuilt as spans, so set the real text there, not as a text node), and the three CSS rules
+  <code>.ch</code> / <code>.ch.scrambling</code> / <code>.ch.locked</code> for color/weight per state. Tunables
+  are plain top-level variables: <code>SPEED</code> (ms per tick — this is what a "scramble speed" slider should
+  write to), <code>CHARSET</code> (swap in your own string of glyphs), and the <code>stagger</code>/jitter
+  constants inside <code>run()</code> if you want a faster or slower left-to-right sweep. To trigger on
+  scroll-into-view, instantiate one <code>IntersectionObserver</code> and call <code>.run()</code> per decoder on
+  intersect, as done here — do not create a separate observer per element, it doesn't scale past a handful of
+  headings. Gotchas: always branch on <code>prefers-reduced-motion</code> and skip straight to the locked state
+  (a scramble loop that never settles is exactly the kind of motion that spec exists to suppress); and use a
+  monospace font, or accept that non-monospace glyph swaps will visibly jitter the line width every tick.</p>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Split the target text into one span per character, storing the real string separately (e.g. as a data attribute)</li>
+    <li>Compute a staggered, jittered "lock frame" per character index</li>
+    <li>Run a timed tick loop: before a span's lock frame, assign it a random glyph; at/after, snap to the real character and stop touching it</li>
+    <li>Wire an IntersectionObserver to call the same run function on scroll-into-view, and a mouseenter listener (behind a toggle) to re-run it on hover</li>
+    <li>Branch on prefers-reduced-motion to settle instantly to the final text instead of looping</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 4), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    build → screenshot critique pass before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

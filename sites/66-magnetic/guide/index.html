@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23ff5c6a%22/></svg>">
+<title>How MAGNETIC was made — guide</title>
+<meta name="description" content="How the MAGNETIC site was designed and built: a hand-rolled spring-physics magnetic pull effect for buttons and an icon dock.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#ff5c6a; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:#0a0a0c; color:#f3efe9;
+    font-family:'Bricolage Grotesque', sans-serif;
+    font-size:1.05rem; line-height:1.72;
+    padding:0 1.5rem;
+  }
+  .wrap{max-width:680px; margin:0 auto; padding:9vh 0 12vh}
+  .crumb{
+    font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.2em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a{color:#8f8b8d; text-decoration:none; border-bottom:1px solid #262327; padding-bottom:2px}
+  .crumb a:hover{color:var(--accent); border-color:var(--accent)}
+  .kicker{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem}
+  h1{font-weight:800; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.08; margin-bottom:.6rem; letter-spacing:-.01em}
+  .sub{color:#a19c9d; font-size:1.12rem; margin-bottom:3.6rem}
+  h2{
+    font-size:1.05rem; font-weight:800; letter-spacing:.01em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #211d20;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no{font-family:'JetBrains Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none; margin-bottom:1rem}
+  ul li{padding-left:1.6rem; position:relative; margin-bottom:.85rem}
+  ul li::before{content:'—'; position:absolute; left:0; color:var(--accent)}
+  ol{counter-reset:step; list-style:none}
+  ol li{counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem}
+  ol li::before{
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'JetBrains Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-family:'JetBrains Mono', monospace; font-size:.88em; background:#17141a; padding:.1em .4em; border-radius:4px}
+  .meta{
+    font-family:'JetBrains Mono', monospace; font-size:.8rem; line-height:1.9; color:#cfc9cb;
+    background:#141216; border:1px solid #211d20; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot{
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #211d20;
+    font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.16em;
+    text-transform:uppercase; color:#7a757a; line-height:2.4;
+  }
+  .foot a{color:var(--accent); text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent); color:#1a0506}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to MAGNETIC</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 66 of 72 · Wave 4 · how it was made</div>
+  <h1>MAGNETIC</h1>
+  <p class="sub">Spring-physics magnetic buttons &amp; icon dock — hand-rolled, no library</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Magnetic buttons are one of the most-copied "premium site" tells — a CTA that leans toward your cursor before you've even clicked. Most implementations found in the wild fake the return with a CSS <code>transition: transform 0.3s ease-out</code>, which looks fine on the pull but dead on release: it eases to zero and stops, no life in it. MAGNETIC instead drives the offset with an actual spring-damper each frame, so the release has a small elastic overshoot — the button visibly settles rather than just arriving.</p>
+
+  <h2><span class="no">02</span> How the effect works</h2>
+  <ul>
+    <li><strong>Distance test:</strong> every <code>[data-mag]</code> element re-reads its own <code>getBoundingClientRect()</code> each frame, subtracts its current offset to recover its resting center, then measures <code>dist</code> from that center to the pointer.</li>
+    <li><strong>Falloff:</strong> inside the pull radius <code>R</code>, <code>fall = 1 − dist/R</code> (linear falloff to zero at the edge); the pull target is <code>(pointer − center) × strength × fall</code>.</li>
+    <li><strong>Spring integration:</strong> each axis runs a semi-implicit Euler spring: <code>acc = k·(target − current) − damp·velocity</code>, then <code>velocity += acc·dt; current += velocity·dt</code>, with <code>k</code> the stiffness slider and <code>damp = 2·√k·0.42</code> — a damping ratio under 1 on purpose, so the return visibly overshoots and rings once before settling instead of arriving flat.</li>
+    <li><strong>Dock magnification:</strong> icons spring a second value, <code>scale</code>, toward <code>1 + 0.55·fall²</code> inside <code>R</code>, and toward a softer <code>1 + 0.18·fall2</code> out to <code>1.7×R</code> for neighbors. Because every icon runs the identical per-element distance calculation against the same pointer, the macOS-dock-style neighbor lift falls out for free — nothing hard-codes "look left/right at your siblings."</li>
+    <li><strong>Rendering:</strong> one <code>style.transform</code> write per element per frame — <code>translate(dx,dy)</code> for buttons, <code>translate(dx, dy − (scale−1)·26) scale(scale)</code> for dock icons (the extra vertical term keeps the icon's growth reading as "lifting up," like a real dock, instead of growing from its own bottom edge).</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Bricolage Grotesque (800 display weight) + JetBrains Mono (labels, footer, code) · near-black #0a0a0c→#121014 · accent hot coral #ff5c6a · dock icon secondaries: gold #f2c14e, ice blue #6ec6ff, violet #b06bff, green #4dff9a</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>The first headless render looked clean — good contrast, no clipped text, mobile held up — but it exposed a real functional gap rather than a visual one: the entire effect is driven by <code>pointermove</code>, so the very first render (and every static screenshot, forever) shows nothing but six inert buttons sitting at rest. A first-time visitor who lands and doesn't immediately wiggle their mouse would have no idea anything on the page reacts to them at all. Fix: an <code>introSweep()</code> that, once on load (skipped under <code>prefers-reduced-motion</code> and on touch devices), synthetically walks the same <code>pointer.x/y</code> state used by real events through each button and dock icon's center 300ms apart, then sets <code>pointer.active = false</code> and steps aside — real <code>pointermove</code> takes over instantly the moment a visitor actually moves their mouse. The re-screenshot after this fix shows the dock's last icon visibly enlarged and lifted mid-sweep, proof the effect now demonstrates itself without needing a real cursor.</p>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <ul>
+    <li><strong>Copy:</strong> the <code>items</code> array builder, <code>springStep()</code>, and the <code>loop()</code> function — that's the whole engine, framework-free.</li>
+    <li><strong>DOM contract:</strong> tag any element <code>data-mag</code>; add <code>data-dock</code> too if you also want the scale/lift behavior (macOS-dock magnification). No wrapper markup required — it reads the element's own rect.</li>
+    <li><strong>Tunables:</strong> the three constants <code>RADIUS</code>, <code>STRENGTH</code>, <code>STIFF</code>, plus <code>DAMP_RATIO</code> (keep it under ~0.6 for a visible elastic snap; push toward 1 for a stiffer, more "professional" feel with less bounce).</li>
+    <li><strong>Gotchas:</strong> gate the pointer listeners and rAF loop behind <code>matchMedia('(hover: hover) and (pointer: fine)')</code> — on touch there's no hover state to pull toward, so skip the JS entirely and let elements act as plain tappable buttons. Also respect <code>prefers-reduced-motion</code> the same way. Because the loop reads <code>getBoundingClientRect()</code> live every frame, it stays correct through resizes and scrolling with zero extra listeners — don't cache centers once at load, they'll drift stale.</li>
+  </ul>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Mark each magnetic element <code>data-mag</code>, and <code>data-dock</code> for scale/lift behavior</li>
+    <li>Each frame, per element: measure its resting center from <code>getBoundingClientRect()</code> minus its current offset</li>
+    <li>Compute pointer distance from that center; inside radius <code>R</code>, target = offset × strength × linear falloff</li>
+    <li>Integrate <code>dx</code>, <code>dy</code> (and <code>scale</code> for dock items) toward that target with an under-damped spring, not a CSS transition</li>
+    <li>Write a single <code>transform</code> per element; gate the whole loop behind a fine-pointer + no-reduced-motion check</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 4), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step, no UI library ·
+    build → real screenshot critique pass before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

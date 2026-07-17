@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATELIER OBSIDIAN — a studio landing in the awards style</title>
+<meta name="description" content="The award-site studio landing, hand-rolled: preloader counter, self-drawing monogram, thin line grid, editorial type, and a draggable works reel. No GSAP, no framework.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23050505'/%3E%3Cpath d='M16 7 L25 24 H7 Z' fill='none' stroke='%23e8e6e1' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Zen+Kaku+Gothic+New:wght@300;400&family=Spline+Sans+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050505; --ink:#e8e6e1; --dim:#8a877f; --dim2:#4c4a45;
+  --line:rgba(232,230,225,.09); --accent:#d8ff3e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:'Instrument Sans',system-ui,sans-serif;
+  overflow-x:hidden; min-height:100vh;
+}
+::selection{background:var(--accent); color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:3px}
+
+/* ── thin line grid + diagonals ───────────────────────── */
+.gridlines{position:fixed; inset:0; z-index:0; pointer-events:none}
+.gridlines .v{position:absolute; top:0; bottom:0; width:1px; background:var(--line)}
+.gridlines .d{position:absolute; width:1px; height:160vmax; background:var(--line);
+  left:50%; top:50%; transform-origin:50% 0}
+
+/* ── preloader ────────────────────────────────────────── */
+#loader{
+  position:fixed; inset:0; z-index:100; background:var(--bg);
+  display:flex; align-items:flex-end; justify-content:space-between;
+  padding:2rem 2.4rem; transition:opacity .6s ease, visibility .6s;
+}
+#loader.done{opacity:0; visibility:hidden}
+#loader .pct{font-family:'Spline Sans Mono',monospace; font-weight:300;
+  font-size:clamp(3rem,10vw,7rem); line-height:1; font-variant-numeric:tabular-nums}
+#loader .word{font-family:'Spline Sans Mono',monospace; font-size:.62rem;
+  letter-spacing:.34em; text-transform:uppercase; color:var(--dim); padding-bottom:1rem}
+
+/* ── header ───────────────────────────────────────────── */
+header{position:relative; z-index:5; display:flex; justify-content:space-between;
+  align-items:center; padding:1.6rem 2.4rem}
+.wordmark{font-family:'Spline Sans Mono',monospace; font-size:.72rem; letter-spacing:.3em}
+nav{display:flex; gap:2rem}
+nav a{font-family:'Spline Sans Mono',monospace; font-size:.6rem; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--dim); text-decoration:none; transition:color .2s}
+nav a:hover{color:var(--accent)}
+
+/* ── hero ─────────────────────────────────────────────── */
+.hero{position:relative; z-index:2; min-height:78vh; display:flex; flex-direction:column;
+  justify-content:center; align-items:center; text-align:center; padding:2rem 1.4rem}
+.mono-wrap{width:min(190px,36vw); margin-bottom:2.6rem}
+.mono-wrap svg{width:100%; display:block; overflow:visible}
+.mono-wrap path, .mono-wrap line{stroke:var(--ink); stroke-width:1.4; fill:none;
+  stroke-dasharray:var(--len); stroke-dashoffset:var(--len)}
+body.loaded .mono-wrap path, body.loaded .mono-wrap line{
+  animation:drawIn 1.4s cubic-bezier(.7,0,.2,1) forwards}
+body.loaded .mono-wrap .p2{animation-delay:.35s}
+body.loaded .mono-wrap .p3{animation-delay:.6s}
+@keyframes drawIn{to{stroke-dashoffset:0}}
+
+h1{font-size:clamp(2.6rem,8.4vw,7.2rem); font-weight:500; letter-spacing:-.03em; line-height:.98}
+h1 .rowmask{display:block; overflow:hidden}
+h1 .row{display:block; transform:translateY(110%)}
+body.loaded h1 .row{transition:transform 1s cubic-bezier(.2,.9,.2,1); transform:none}
+body.loaded h1 .rowmask:nth-child(2) .row{transition-delay:.12s}
+h1 em{font-style:italic; font-weight:400; color:var(--dim)}
+.jp{font-family:'Zen Kaku Gothic New',sans-serif; font-weight:300; color:var(--dim2);
+  font-size:.78rem; letter-spacing:.5em; margin-top:1.8rem}
+.hero .meta{position:absolute; bottom:2rem; left:2.4rem; right:2.4rem; display:flex;
+  justify-content:space-between; font-family:'Spline Sans Mono',monospace;
+  font-size:.58rem; letter-spacing:.22em; text-transform:uppercase; color:var(--dim2)}
+
+/* ── works reel ───────────────────────────────────────── */
+.works{position:relative; z-index:2; padding:9vh 0 11vh; border-top:1px solid var(--line)}
+.works-head{display:flex; justify-content:space-between; align-items:baseline;
+  padding:0 2.4rem 2.2rem; flex-wrap:wrap; gap:.8rem}
+.works-head h2{font-size:clamp(1.4rem,3.4vw,2.2rem); font-weight:500; letter-spacing:-.02em}
+.works-head .hint{font-family:'Spline Sans Mono',monospace; font-size:.6rem;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--dim2)}
+#reel{display:flex; gap:1.4rem; padding:0 2.4rem; cursor:grab; user-select:none;
+  will-change:transform; width:max-content}
+#reel.dragging{cursor:grabbing}
+.work{width:min(420px,74vw); flex:none}
+.work .art{aspect-ratio:4/3; border:1px solid var(--line); overflow:hidden; position:relative}
+.work canvas{width:100%; height:100%; display:block; transition:scale .6s cubic-bezier(.2,.9,.2,1)}
+.work:hover canvas{scale:1.045}
+.work .cap{display:flex; justify-content:space-between; align-items:baseline; padding-top:.9rem}
+.work .cap b{font-weight:500; font-size:.95rem; letter-spacing:.01em}
+.work .cap span{font-family:'Spline Sans Mono',monospace; font-size:.56rem;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--dim2)}
+.work .no{position:absolute; top:.8rem; left:.9rem; font-family:'Spline Sans Mono',monospace;
+  font-size:.58rem; letter-spacing:.2em; color:var(--dim); mix-blend-mode:difference}
+
+/* ── manifesto strip ──────────────────────────────────── */
+.strip{position:relative; z-index:2; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+  overflow:hidden; padding:1.1rem 0; white-space:nowrap}
+.strip .track{display:inline-block; animation:marq 26s linear infinite;
+  font-family:'Spline Sans Mono',monospace; font-size:.66rem; letter-spacing:.3em;
+  text-transform:uppercase; color:var(--dim)}
+.strip .track em{font-style:normal; color:var(--accent)}
+@keyframes marq{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.strip .track{animation:none}}
+
+/* ── contact ──────────────────────────────────────────── */
+.contact{position:relative; z-index:2; text-align:center; padding:13vh 1.4rem 12vh}
+.contact .k{font-family:'Spline Sans Mono',monospace; font-size:.6rem; letter-spacing:.3em;
+  text-transform:uppercase; color:var(--dim2); margin-bottom:1.4rem}
+.contact a.big{
+  font-size:clamp(1.9rem,6.4vw,4.6rem); font-weight:500; letter-spacing:-.02em;
+  color:var(--ink); text-decoration:none; position:relative; display:inline-block;
+}
+.contact a.big::after{content:''; position:absolute; left:0; right:100%; bottom:-6px;
+  height:1px; background:var(--accent); transition:right .5s cubic-bezier(.2,.9,.2,1)}
+.contact a.big:hover::after{right:0}
+.contact a.big:hover{color:var(--accent)}
+
+footer{position:relative; z-index:2; display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem;
+  padding:1.4rem 2.4rem 1.8rem; border-top:1px solid var(--line);
+  font-family:'Spline Sans Mono',monospace; font-size:.56rem; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--dim2)}
+footer a{color:var(--dim)} footer a:hover{color:var(--accent)}
+
+@media(max-width:640px){
+  header,#loader,.works-head,.hero .meta{padding-left:1.2rem;padding-right:1.2rem}
+  header{flex-wrap:wrap; gap:.7rem .9rem}
+  nav{gap:1.1rem; flex-wrap:wrap}
+  #reel{padding:0 1.2rem}
+  footer{padding:1.2rem}
+}
+@media (prefers-reduced-motion:reduce){
+  #loader{display:none}
+  body h1 .row{transform:none}
+  .mono-wrap path,.mono-wrap line{stroke-dashoffset:0 !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+
+<div class="gridlines" id="gridlines" aria-hidden="true"></div>
+
+<div id="loader" aria-hidden="true">
+  <span class="pct" id="pct">000</span>
+  <span class="word">atelier obsidian — loading the void</span>
+</div>
+
+<header>
+  <span class="wordmark">ATELIER&nbsp;OBSIDIAN</span>
+  <nav><a href="#works">Works</a><a href="#contact">Contact</a><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<section class="hero">
+  <div class="mono-wrap" aria-hidden="true">
+    <svg viewBox="0 0 100 90">
+      <path class="p1" d="M50 6 L94 84 L6 84 Z" style="--len:280"/>
+      <line class="p2" x1="28" y1="45" x2="72" y2="45" style="--len:44"/>
+      <line class="p3" x1="50" y1="6" x2="50" y2="84" style="--len:78"/>
+    </svg>
+  </div>
+  <h1>
+    <span class="rowmask"><span class="row">We design what</span></span>
+    <span class="rowmask"><span class="row"><em>darkness</em> looks like.</span></span>
+  </h1>
+  <p class="jp">静寂のなかのデザイン</p>
+  <div class="meta"><span>est. 2026 · nowhere &amp; everywhere</span><span>scroll ↓</span></div>
+</section>
+
+<section class="works" id="works">
+  <div class="works-head">
+    <h2>Selected works</h2>
+    <span class="hint">drag the reel →</span>
+  </div>
+  <div id="reelWrap" style="overflow:hidden">
+    <div id="reel" role="list"></div>
+  </div>
+</section>
+
+<div class="strip" aria-hidden="true">
+  <span class="track" id="marqTrack"></span>
+</div>
+
+<section class="contact" id="contact">
+  <div class="k">begin a commission</div>
+  <a class="big" href="mailto:studio@example.com">studio@obsidian.example</a>
+</section>
+
+<footer>
+  <span>site 74 / fable 25 · built by claude (fable 5)</span>
+  <span><a href="guide/">how it was made</a></span>
+</footer>
+
+<script>
+/* ── thin line grid ──────────────────────────────────── */
+(function grid(){
+  const g = document.getElementById('gridlines');
+  const COLS = 6;
+  for (let i=1;i<COLS;i++){
+    const v = document.createElement('div');
+    v.className='v'; v.style.left = (i/COLS*100)+'%';
+    g.appendChild(v);
+  }
+  [-32, 24].forEach(a=>{
+    const d = document.createElement('div');
+    d.className='d'; d.style.transform = `rotate(${a}deg) translateY(-50%)`;
+    g.appendChild(d);
+  });
+})();
+
+/* ── preloader: counts on real font/paint readiness, min dwell for drama ── */
+(function loader(){
+  const el = document.getElementById('pct');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce){ document.body.classList.add('loaded'); return; }
+  let shown = 0;
+  const t0 = performance.now();
+  let readyAt = Infinity;
+  Promise.all([document.fonts ? document.fonts.ready : Promise.resolve()])
+    .then(()=>{ readyAt = performance.now(); });
+  (function tick(){
+    const t = performance.now() - t0;
+    // ease toward 100; hold ~88 until assets are genuinely ready
+    const ceiling = performance.now() > readyAt ? 100 : 88;
+    shown = Math.min(ceiling, shown + Math.max(.6, (ceiling-shown)*.06));
+    el.textContent = String(Math.floor(shown)).padStart(3,'0');
+    if (shown >= 100 && t > 1100){
+      document.getElementById('loader').classList.add('done');
+      document.body.classList.add('loaded');
+      return;
+    }
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* ── procedural work art (no image assets) ───────────── */
+const WORKS = [
+  ['Vantablack Records','identity · 2026', (x,w,h,t)=>{      // concentric ripples
+    x.strokeStyle='rgba(232,230,225,.5)';
+    for(let r=8;r<w;r+=14){ x.beginPath(); x.arc(w*.62,h*.42,r+Math.sin(t/900+r)*3,0,7); x.stroke(); }
+  }],
+  ['House of Ash','packaging · 2026', (x,w,h,t)=>{           // drifting grain columns
+    for(let i=0;i<w;i+=6){
+      const n = Math.sin(i*.08+t/700)*.5+.5;
+      x.fillStyle=`rgba(232,230,225,${.06+n*.3})`;
+      x.fillRect(i, h*.2+Math.sin(i*.03+t/1100)*h*.12, 2, h*.6);
+    }
+  }],
+  ['Nocturne Hotel','web · 2025', (x,w,h,t)=>{               // wireframe moon
+    x.strokeStyle='rgba(216,255,62,.75)';
+    const cx=w/2, cy=h/2, R=Math.min(w,h)*.32;
+    x.beginPath(); x.arc(cx,cy,R,0,7); x.stroke();
+    x.strokeStyle='rgba(232,230,225,.35)';
+    for(let i=-3;i<=3;i++){
+      const k=i/3.4, rx=R*Math.sqrt(Math.max(0,1-k*k));
+      x.beginPath(); x.ellipse(cx,cy+k*R*Math.sin(t/1600)*.2, rx, R*.16, 0, 0, 7); x.stroke();
+    }
+  }],
+  ['Silo Editions','type · 2025', (x,w,h,t)=>{               // sliding bars
+    for(let i=0;i<7;i++){
+      const y=h*(i+1)/8, len=w*(.25+.5*(Math.sin(t/1000+i)+1)/2);
+      x.fillStyle= i===3 ? 'rgba(216,255,62,.85)' : 'rgba(232,230,225,.5)';
+      x.fillRect((w-len)/2, y, len, 2);
+    }
+  }],
+  ['Mireille','fragrance · 2024', (x,w,h,t)=>{               // smoke bezier
+    x.strokeStyle='rgba(232,230,225,.4)';
+    for(let s=0;s<5;s++){
+      x.beginPath(); x.moveTo(w*.5, h*.9);
+      x.bezierCurveTo(w*(.3+.1*Math.sin(t/800+s)), h*.6, w*(.7+.08*Math.cos(t/700+s)), h*.4, w*(.5+s*.04-.08), h*.08);
+      x.stroke();
+    }
+  }],
+];
+
+const reel = document.getElementById('reel');
+const artists = [];
+WORKS.forEach(([name, meta, draw], i)=>{
+  const d = document.createElement('div');
+  d.className='work'; d.setAttribute('role','listitem');
+  d.innerHTML = `<div class="art"><span class="no">0${i+1}</span><canvas></canvas></div>
+    <div class="cap"><b>${name}</b><span>${meta}</span></div>`;
+  reel.appendChild(d);
+  const cv = d.querySelector('canvas');
+  cv.width = 560; cv.height = 420;
+  artists.push({cv, draw});
+});
+(function paint(){
+  const t = performance.now();
+  for(const {cv,draw} of artists){
+    const x = cv.getContext('2d');
+    x.clearRect(0,0,cv.width,cv.height);
+    x.fillStyle='#0a0a09'; x.fillRect(0,0,cv.width,cv.height);
+    x.lineWidth=1.2;
+    draw(x, cv.width, cv.height, t);
+  }
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) requestAnimationFrame(paint);
+})();
+
+/* ── inertia drag reel ───────────────────────────────── */
+(function drag(){
+  let x=0, vx=0, down=false, lastX=0, raf=0;
+  const wrap = document.getElementById('reelWrap');
+  const max = () => Math.max(0, reel.scrollWidth - wrap.clientWidth + 38);
+  function loop(){
+    if(!down){ vx *= .94; x += vx; if (Math.abs(vx) < .05 && !down){ vx=0 } }
+    x = Math.max(-max(), Math.min(0, x));
+    reel.style.transform = `translateX(${x.toFixed(1)}px)`;
+    if (down || Math.abs(vx) > .04) raf = requestAnimationFrame(loop);
+    else raf = 0;
+  }
+  const wake = ()=>{ if(!raf) raf = requestAnimationFrame(loop); };
+  wrap.addEventListener('pointerdown', e=>{
+    down=true; lastX=e.clientX; reel.classList.add('dragging');
+    wake();
+    try{ wrap.setPointerCapture(e.pointerId); }catch{ /* synthesized pointers */ }
+  });
+  wrap.addEventListener('pointermove', e=>{
+    if(!down) return;
+    const dx = e.clientX - lastX; lastX = e.clientX;
+    x += dx; vx = dx;
+  });
+  const up = ()=>{ down=false; reel.classList.remove('dragging'); wake(); };
+  wrap.addEventListener('pointerup', up);
+  wrap.addEventListener('pointercancel', up);
+  /* wheel horizontally too */
+  wrap.addEventListener('wheel', e=>{
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) { x -= e.deltaX; e.preventDefault(); wake(); }
+  }, {passive:false});
+})();
+
+/* ── marquee strip content ───────────────────────────── */
+(function marq(){
+  const bit = 'identity — packaging — web — type — motion — <em>クラフト</em> — ';
+  document.getElementById('marqTrack').innerHTML = bit.repeat(6) + bit.repeat(6);
+})();
+</script>
+</body>
+</html>

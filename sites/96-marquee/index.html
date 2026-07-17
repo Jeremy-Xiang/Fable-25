@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOUD — a wall of type that never stops moving</title>
+<meta name="description" content="The fashion-week marquee wall: eight rows of giant type scrolling at different speeds and directions. Hover a row to slow and flip it; scroll velocity feeds every belt.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23ede40e'/%3E%3Ctext x='16' y='23' font-size='17' font-weight='900' text-anchor='middle' fill='%23141312' font-family='sans-serif'%3E!!%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+:root{ --acid:#ede40e; --ink:#141312; --paper:#f4f2ea; --red:#e33c22; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--ink); color:var(--paper); font-family:'Inter',sans-serif; overflow-x:hidden}
+::selection{background:var(--acid); color:var(--ink)}
+a:focus-visible{outline:3px solid var(--acid); outline-offset:3px}
+
+header{position:fixed; top:0; left:0; right:0; z-index:20; display:flex; justify-content:space-between;
+  align-items:center; padding:1rem 1.4rem; mix-blend-mode:difference}
+.mark{font-family:'Archivo Black',sans-serif; font-size:1.1rem; letter-spacing:.02em; color:var(--paper)}
+nav{display:flex; gap:1.4rem}
+nav a{font-size:.66rem; letter-spacing:.18em; text-transform:uppercase; color:var(--paper); text-decoration:none; opacity:.75}
+nav a:hover{opacity:1}
+
+.wall{padding:8vh 0 4vh; display:flex; flex-direction:column}
+.belt{
+  overflow:hidden; white-space:nowrap; border-top:2px solid var(--paper);
+  cursor:pointer; position:relative;
+}
+.belt:last-child{border-bottom:2px solid var(--paper)}
+.belt .track{display:inline-block; will-change:transform; padding:.35rem 0}
+.belt span{
+  font-family:'Archivo Black',sans-serif; font-size:clamp(2.2rem,7.2vw,5.4rem);
+  text-transform:uppercase; letter-spacing:-.01em; line-height:1;
+  padding-right:3.2rem; display:inline-block;
+}
+.belt em{font-style:normal; -webkit-text-stroke:2px var(--paper); color:transparent}
+.belt.acid{background:var(--acid)}
+.belt.acid span{color:var(--ink)}
+.belt.acid em{-webkit-text-stroke:2px var(--ink); color:transparent}
+.belt.redrow{background:var(--red)}
+.belt:hover .track span{color:var(--acid)}
+.belt.acid:hover .track span{color:var(--paper)}
+
+.legend{max-width:44rem; margin:0 auto; text-align:center; padding:6vh 1.4rem 4vh}
+.legend p{font-size:.94rem; line-height:1.8; color:#a5a29a}
+.legend p b{color:var(--paper); font-weight:400; font-style:italic; font-family:'Inter',sans-serif}
+
+footer{display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem; padding:0 1.4rem 1.6rem;
+  font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:#6d6a62}
+footer a{color:var(--acid); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">LOUD*</span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="wall" id="wall" aria-label="Eight marquee rows of scrolling type; hover a row to flip its direction"></div>
+
+<div class="legend">
+  <p>The marquee wall is fashion's favorite way to shout. Eight belts, eight speeds,
+  alternating directions; <b>hover a row</b> to grab it — it slows under your pointer and
+  reverses on click. Fling the page and every belt drinks your <b>scroll velocity.</b>
+  No keyframes: one rAF loop owns every row.</p>
+</div>
+
+<footer>
+  <span>site 96 / fable 25 · built by claude (fable 5)</span>
+  <span><a href="guide/">how it was made</a></span>
+</footer>
+
+<script>
+/* ═════ LOUD — the marquee wall ═════ */
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const ROWS = [
+  { text:'LOUDER THAN NECESSARY — ', cls:'',       speed: 1.1 },
+  { text:'MOTION IS A LANGUAGE ✺ ',  cls:'acid',   speed:-1.5 },
+  { text:'<em>NEVER</em> STANDS STILL — ', cls:'', speed: .7 },
+  { text:'TYPE AT FULL VOLUME !! ',  cls:'redrow', speed:-1.0 },
+  { text:'READ IT BEFORE IT LEAVES — ', cls:'',    speed: 1.7 },
+  { text:'<em>HOVER</em> TO HOLD ME ✺ ', cls:'acid', speed:-.8 },
+  { text:'EIGHT BELTS NO WAITING — ', cls:'',      speed: 1.3 },
+  { text:'GOODBYE ALREADY !! ',      cls:'redrow', speed:-1.9 },
+];
+
+const wall = document.getElementById('wall');
+const belts = ROWS.map((r,i)=>{
+  const belt = document.createElement('div');
+  belt.className = 'belt ' + r.cls;
+  const track = document.createElement('div');
+  track.className = 'track';
+  track.innerHTML = ('<span>'+r.text+'</span>').repeat(8);
+  belt.appendChild(track);
+  wall.appendChild(belt);
+  const b = { el:belt, track, x:0, speed:r.speed, dir:1, hover:false, w:0 };
+  belt.addEventListener('pointerenter', ()=>b.hover=true);
+  belt.addEventListener('pointerleave', ()=>b.hover=false);
+  belt.addEventListener('click', ()=>b.dir*=-1);
+  return b;
+});
+
+function measure(){ belts.forEach(b=>{ b.w = b.track.scrollWidth/2; }); }
+addEventListener('resize', measure);
+// measure after fonts land so widths are true
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(measure);
+measure();
+
+let lastY = scrollY, boost = 0;
+addEventListener('scroll', ()=>{}, {passive:true});
+
+function loop(){
+  requestAnimationFrame(loop);
+  const dy = Math.abs(scrollY - lastY); lastY = scrollY;
+  boost += (Math.min(3, dy/14) - boost)*.08;
+
+  for (const b of belts){
+    if (!b.w) continue;
+    const hoverMul = b.hover ? .12 : 1;
+    const v = reduce ? 0 : (b.speed * b.dir * hoverMul * (1 + boost));
+    b.x -= v;
+    // wrap
+    if (b.x <= -b.w) b.x += b.w;
+    if (b.x > 0) b.x -= b.w;
+    b.track.style.transform = `translateX(${b.x.toFixed(1)}px)`;
+  }
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

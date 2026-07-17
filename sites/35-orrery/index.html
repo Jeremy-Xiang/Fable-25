@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORRERY — a clockwork solar system you can turn</title>
+<meta name="description" content="ORRERY is a real-time Three.js armillary sphere: brass worlds on tilted, gear-marked rings, procedural hammered-metal materials, candlelit, draggable camera.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant:ital,wght@0,300;0,500;1,300&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0d0805;
+    --brass:#c08a3e;
+    --bronze:#8c5a2b;
+    --candle:#ffb25e;
+    --ink:#f1e4cf;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--void);color:var(--ink);font-family:'Cormorant',Georgia,serif;
+    overflow:hidden;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--brass);color:var(--void)}
+  a{color:inherit}
+
+  #scene{position:fixed;inset:0;z-index:0;touch-action:none}
+  .vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 48%,transparent 40%,rgba(13,8,5,.85) 100%)}
+
+  main{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;pointer-events:none}
+  header{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 2.2rem;pointer-events:auto}
+  .brand{font-family:'Cinzel',serif;font-weight:600;font-size:1.1rem;letter-spacing:.08em}
+  .brand em{font-style:normal;color:var(--brass)}
+  nav{font-family:'Fragment Mono',monospace;font-size:.64rem;letter-spacing:.18em;text-transform:uppercase;display:flex;gap:1.5rem}
+  nav a{text-decoration:none;color:var(--ink);opacity:.75}
+  nav a:hover{opacity:1;color:var(--brass)}
+
+  .intro{padding:1vh 2.2rem 0;max-width:38ch;pointer-events:none}
+  .kicker{font-family:'Fragment Mono',monospace;font-size:.64rem;letter-spacing:.32em;text-transform:uppercase;color:var(--candle);margin-bottom:.9rem}
+  h1{font-family:'Cinzel',serif;font-weight:600;font-size:clamp(1.6rem,4vw,2.5rem);line-height:1.18}
+  h1 em{font-style:normal;color:var(--brass)}
+  .intro p{margin-top:.8rem;font-size:1rem;line-height:1.7;opacity:.82;font-weight:300}
+
+  .worlds{margin-top:auto;padding:0 2.2rem 1.6rem;display:flex;gap:.6rem;flex-wrap:wrap;pointer-events:auto}
+  .world-btn{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.05em;
+    background:rgba(20,13,8,.55);backdrop-filter:blur(8px);border:1px solid rgba(192,138,62,.4);
+    color:var(--ink);padding:.5rem 1rem;border-radius:99px;cursor:pointer;transition:.2s}
+  .world-btn:hover,.world-btn:focus-visible{border-color:var(--brass);color:var(--brass)}
+  .world-btn.on{background:var(--brass);color:var(--void);border-color:var(--brass);font-weight:600}
+
+  .hint{padding:0 2.2rem 1.6rem;font-family:'Fragment Mono',monospace;font-size:.58rem;
+    letter-spacing:.14em;text-transform:uppercase;opacity:.5;pointer-events:none}
+
+  /* ————— fallback (no WebGL) ————— */
+  #fallback{display:none;position:fixed;inset:0;z-index:1;place-items:center}
+  html.no-3d #fallback{display:grid}
+  html.no-3d #scene{display:none}
+  .fb-stage{position:relative;width:min(70vw,420px);aspect-ratio:1}
+  .fb-ring{position:absolute;inset:0;border:1px solid rgba(192,138,62,.4);border-radius:50%;animation:spin linear infinite}
+  .fb-ring .dot{position:absolute;top:-4px;left:50%;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:var(--brass);box-shadow:0 0 8px var(--candle)}
+  .fb-ring.r1{inset:14%;animation-duration:9s}
+  .fb-ring.r2{inset:6%;animation-duration:16s;animation-direction:reverse}
+  .fb-ring.r3{inset:0;animation-duration:24s}
+  .fb-sun{position:absolute;inset:42%;border-radius:50%;background:radial-gradient(circle,var(--candle),var(--brass) 70%);
+    box-shadow:0 0 40px var(--candle)}
+  .fb-note{position:absolute;bottom:-3.4rem;left:50%;transform:translateX(-50%);white-space:nowrap;
+    font-family:'Fragment Mono',monospace;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;opacity:.55}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){ .fb-ring{animation:none} }
+
+  @media(max-width:760px){
+    header{padding:1.2rem 1.3rem}
+    .intro{padding:0 1.3rem}
+    .worlds{padding:0 1.3rem 1.2rem}
+    .hint{padding:0 1.3rem 1.2rem}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+
+<div id="fallback">
+  <div class="fb-stage">
+    <div class="fb-sun"></div>
+    <div class="fb-ring r1"><span class="dot"></span></div>
+    <div class="fb-ring r2"><span class="dot"></span></div>
+    <div class="fb-ring r3"><span class="dot"></span></div>
+    <span class="fb-note">3D unavailable here — simplified view</span>
+  </div>
+</div>
+
+<main>
+  <header>
+    <span class="brand">ORR<em>ERY</em></span>
+    <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+  </header>
+
+  <div class="intro">
+    <span class="kicker">Real-time WebGL · Site 35</span>
+    <h1>Five worlds, <em>hammered brass,</em> candlelit.</h1>
+    <p>No photograph here — every surface is procedural: brass and bronze materials painted in canvas, orbits as engraved rings, a single flickering flame for light. Drag to look around. Click a world to visit it.</p>
+  </div>
+
+  <div class="worlds" role="group" aria-label="Focus a world">
+    <button class="world-btn" data-i="-1" id="wAll">Wide view</button>
+    <button class="world-btn" data-i="0">Ferrum</button>
+    <button class="world-btn" data-i="1">Cuprum</button>
+    <button class="world-btn" data-i="2">Aurum</button>
+    <button class="world-btn" data-i="3">Argentum</button>
+    <button class="world-btn" data-i="4">Stannum</button>
+  </div>
+  <p class="hint">drag to orbit · scroll or pinch to zoom · click a world above to focus it</p>
+</main>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+function hasWebGL(){
+  try{
+    const c = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+  }catch(e){ return false; }
+}
+
+function fallbackMode(err){
+  document.documentElement.classList.add('no-3d');
+  if(err) console.error('ORRERY: falling back to CSS view —', err);
+}
+
+async function init(){
+  if(!hasWebGL()){ fallbackMode(); return; }
+
+  let THREE, OrbitControls;
+  try{
+    THREE = await import('three');
+    ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js'));
+  }catch(err){ fallbackMode(err); return; }
+
+  try{
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canvas = document.getElementById('scene');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0d0805);
+    scene.fog = new THREE.FogExp2(0x0d0805, 0.028);
+
+    const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 100);
+    camera.position.set(0, 6.5, 15);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.minDistance = 4;
+    controls.maxDistance = 34;
+    controls.target.set(0, 0, 0);
+
+    /* ---- procedural brass texture ---- */
+    function brassCanvas(hue){
+      const s = 256;
+      const cv = document.createElement('canvas'); cv.width = cv.height = s;
+      const c = cv.getContext('2d');
+      c.fillStyle = `hsl(${hue},38%,42%)`;
+      c.fillRect(0,0,s,s);
+      for(let i=0;i<900;i++){
+        const r = Math.random()*1.6+0.3;
+        const l = 30 + Math.random()*35;
+        c.fillStyle = `hsla(${hue+(Math.random()*14-7)},32%,${l}%,${0.18+Math.random()*0.3})`;
+        c.beginPath();
+        c.arc(Math.random()*s, Math.random()*s, r, 0, Math.PI*2);
+        c.fill();
+      }
+      for(let i=0;i<40;i++){
+        c.strokeStyle = `hsla(${hue},20%,${20+Math.random()*20}%,.25)`;
+        c.lineWidth = 0.6 + Math.random()*1.2;
+        c.beginPath();
+        const y = Math.random()*s;
+        c.moveTo(0,y); c.lineTo(s, y + (Math.random()*10-5));
+        c.stroke();
+      }
+      return cv;
+    }
+    function brassTexture(hue){
+      const tex = new THREE.CanvasTexture(brassCanvas(hue));
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(2,2);
+      return tex;
+    }
+
+    /* ---- lighting: single candle + soft fill ---- */
+    const candle = new THREE.PointLight(0xffb25e, 60, 40, 2);
+    candle.position.set(0,0,0);
+    scene.add(candle);
+    scene.add(new THREE.AmbientLight(0x30201a, 1.1));
+    const rim = new THREE.DirectionalLight(0x6a5140, 0.5);
+    rim.position.set(-6,4,-4);
+    scene.add(rim);
+
+    /* ---- sun ---- */
+    const sunTex = brassTexture(38);
+    const sun = new THREE.Mesh(
+      new THREE.SphereGeometry(1.05, 48, 48),
+      new THREE.MeshStandardMaterial({
+        map: sunTex, emissive: 0xffb25e, emissiveIntensity: 0.9,
+        metalness: 0.6, roughness: 0.35
+      })
+    );
+    scene.add(sun);
+    const sunGlow = new THREE.Mesh(
+      new THREE.SphereGeometry(1.5, 32, 32),
+      new THREE.MeshBasicMaterial({ color:0xffb25e, transparent:true, opacity:0.12 })
+    );
+    scene.add(sunGlow);
+
+    /* ---- worlds ---- */
+    const WORLD_DEFS = [
+      { name:'Ferrum',   hue:22,  size:0.34, orbit:2.6,  tilt: 6,  speed:0.62, rings:false },
+      { name:'Cuprum',   hue:16,  size:0.46, orbit:3.9,  tilt:-9,  speed:0.46, rings:false },
+      { name:'Aurum',    hue:45,  size:0.58, orbit:5.5,  tilt: 13, speed:0.33, rings:true  },
+      { name:'Argentum', hue:200, size:0.4,  orbit:7.2,  tilt:-16, speed:0.25, rings:false },
+      { name:'Stannum',  hue:265, size:0.5,  orbit:9.0,  tilt: 8,  speed:0.18, rings:false }
+    ];
+
+    const pivots = [], meshes = [];
+    const gearMat = new THREE.MeshStandardMaterial({ color:0x8c5a2b, metalness:0.9, roughness:0.4 });
+
+    WORLD_DEFS.forEach((w, idx)=>{
+      const tiltGroup = new THREE.Group();
+      tiltGroup.rotation.x = THREE.MathUtils.degToRad(w.tilt) + 0.35;
+      scene.add(tiltGroup);
+
+      /* orbit ring, engraved */
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(w.orbit, 0.012, 8, 160),
+        new THREE.MeshStandardMaterial({ color:0x6b4326, metalness:0.85, roughness:0.5 })
+      );
+      tiltGroup.add(ring);
+
+      /* gear ticks around the ring */
+      const tickGeo = new THREE.BoxGeometry(0.04, 0.09, 0.02);
+      const ticks = new THREE.InstancedMesh(tickGeo, gearMat, 48);
+      const dummy = new THREE.Object3D();
+      for(let i=0;i<48;i++){
+        const a = (i/48) * Math.PI*2;
+        dummy.position.set(Math.cos(a)*w.orbit, 0, Math.sin(a)*w.orbit);
+        dummy.rotation.y = -a;
+        dummy.updateMatrix();
+        ticks.setMatrixAt(i, dummy.matrix);
+      }
+      tiltGroup.add(ticks);
+
+      const pivot = new THREE.Object3D();
+      pivot.rotation.y = Math.random()*Math.PI*2;
+      tiltGroup.add(pivot);
+
+      const planet = new THREE.Mesh(
+        new THREE.SphereGeometry(w.size, 32, 32),
+        new THREE.MeshStandardMaterial({ map: brassTexture(w.hue), metalness:0.85, roughness:0.32 })
+      );
+      planet.position.set(w.orbit, 0, 0);
+      pivot.add(planet);
+
+      if(w.rings){
+        const halo = new THREE.Mesh(
+          new THREE.TorusGeometry(w.size*1.7, w.size*0.09, 12, 60),
+          new THREE.MeshStandardMaterial({ color:0xc08a3e, metalness:0.9, roughness:0.3 })
+        );
+        halo.rotation.x = Math.PI/2.4;
+        planet.add(halo);
+      }
+
+      pivots.push({ pivot, speed: w.speed });
+      meshes.push(planet);
+    });
+
+    /* ---- focus / camera fly ---- */
+    let focusTarget = new THREE.Vector3(0,0,0);
+    let focusDistance = 15;
+    let camGoal = null;
+
+    function focusWorld(i){
+      document.querySelectorAll('.world-btn').forEach(b=>b.classList.remove('on'));
+      const btn = document.querySelector(`.world-btn[data-i="${i}"]`);
+      if(btn) btn.classList.add('on');
+      if(i < 0){
+        focusDistance = 15;
+        camGoal = null;
+      }else{
+        focusDistance = WORLD_DEFS[i].size * 7 + 1.5;
+      }
+      window.__focusIndex = i;
+    }
+    window.__focusIndex = -1;
+    document.querySelectorAll('.world-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> focusWorld(+btn.dataset.i));
+    });
+    document.getElementById('wAll').classList.add('on');
+
+    /* ---- resize ---- */
+    function resize(){
+      renderer.setSize(innerWidth, innerHeight, false);
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+    }
+    addEventListener('resize', resize); resize();
+
+    /* ---- animate ---- */
+    const clock = new THREE.Clock();
+    let flick = 60;
+
+    function tick(){
+      try{
+        const dt = reduced ? 0 : Math.min(clock.getDelta(), 0.05);
+
+        pivots.forEach(p=> p.pivot.rotation.y += dt * p.speed);
+        sun.rotation.y += dt * 0.05;
+
+        if(!reduced){
+          flick += (Math.random()-0.5) * 8;
+          flick = THREE.MathUtils.clamp(flick, 46, 74);
+          candle.intensity += (flick - candle.intensity) * 0.15;
+        }
+
+        const fi = window.__focusIndex;
+        if(fi >= 0 && meshes[fi]){
+          const p = new THREE.Vector3();
+          meshes[fi].getWorldPosition(p);
+          controls.target.lerp(p, 0.06);
+        }else{
+          controls.target.lerp(new THREE.Vector3(0,0,0), 0.06);
+        }
+        const curDist = camera.position.distanceTo(controls.target);
+        if(Math.abs(curDist - focusDistance) > 0.05){
+          const dir = camera.position.clone().sub(controls.target).normalize();
+          const newDist = curDist + (focusDistance - curDist) * 0.05;
+          camera.position.copy(controls.target).add(dir.multiplyScalar(newDist));
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+        requestAnimationFrame(tick);
+      }catch(err){
+        fallbackMode(err);
+        /* loop stops here — no further requestAnimationFrame scheduled */
+      }
+    }
+    tick();
+
+  }catch(err){
+    fallbackMode(err);
+  }
+}
+
+window.addEventListener('unhandledrejection', e=> fallbackMode(e.reason));
+window.addEventListener('error', e=> fallbackMode(e.error||e.message));
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How SALVO was made — guide</title>
+<meta name="description" content="How the SALVO site was designed and built: GPU-instanced ember bursts, techniques, palette, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #ff7a3d; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0607; color:#efe6e2;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#a89a94; text-decoration:none; border-bottom:1px solid #2e2320; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#a89a94; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #2a201d;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#c9bbb4;
+    background:#17100e; border:1px solid #2a201d; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  code{ font-family:'Fragment Mono',monospace; font-size:.92em; color:var(--accent); }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #2a201d;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#9a8d87; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0a0607; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to SALVO</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 53 of 62 · how it was made</div>
+  <h1>SALVO</h1>
+  <p class="sub">Thousands of embers, one click</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Click anywhere and a burst of hundreds of embers fires from that point — real velocity, gravity, drag, and a warm-to-cool color drift as each particle ages from newborn ember orange to spent violet. The craft flex is scale: a pool of 5,200 GPU instances, recycled continuously, holding 60fps.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>One <code>THREE.InstancedMesh</code> with a fixed pool of 5,200 quads — no per-particle draw calls, no geometry allocation after startup</li>
+    <li>A custom <code>ShaderMaterial</code> billboards every instance toward the camera by discarding the instance matrix's rotation and re-deriving scale and translation directly in the vertex shader, so particles always face the viewer regardless of camera angle</li>
+    <li>Per-instance color and alpha ride on <code>InstancedBufferAttribute</code>s updated once per frame from a typed <code>Float32Array</code> — cheap CPU writes, all blending happens on the GPU via additive blending</li>
+    <li>Physics is plain Euler integration per particle: gravity accel on <code>vy</code>, drag on <code>vx</code>/<code>vz</code>, position += velocity·dt — a ring-buffer allocator recycles the oldest slot in the pool so a rapid click-storm never allocates</li>
+    <li>Hue interpolates per-particle from a randomized ember hue (~14–44°) to a randomized violet/cool hue (~250–290°) over its lifetime, giving each burst natural variation instead of one flat gradient</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Archivo Black + Fragment Mono · near-black #060305, ember orange #ff7a3d, violet #8b5cf6</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>The first headless render showed a genuinely empty hero — before any click, the stage was just black with title text, reading as inert rather than an instrument waiting to be played. Added three staggered auto-ignitions on load (skipped entirely under <code>prefers-reduced-motion</code>) so the very first frame already shows the collection's namesake effect in motion, then settles.</p>
+
+  <h2><span class="no">05</span> The complexity upgrade</h2>
+  <p>Beyond the base "click, particles fly" mechanic: a live particle counter in the HUD makes the instancing flex legible rather than just implied, fog (<code>FogExp2</code>) softens distant embers for real depth instead of a flat particle field, and the fragment shader gives each ember a hot inner core plus a softer glow falloff rather than a flat-alpha dot — the difference between "sprite" and "spark."</p>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Create one <code>InstancedMesh(geometry, shaderMaterial, MAX)</code> and add per-instance color/alpha buffer attributes</li>
+    <li>In the vertex shader, reconstruct scale and translation from <code>instanceMatrix</code> and offset by local position in view space for a camera-facing billboard</li>
+    <li>Keep a fixed particle pool; recycle via a ring-buffer cursor rather than push/splice</li>
+    <li>Each frame: integrate gravity + drag, write updated matrices and buffer attributes, flag <code>needsUpdate</code>, render once</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude, Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    build pass, code-review pass, real headless-screenshot critique pass ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

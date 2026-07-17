@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYSTEM 9.1 — an operating system that never shipped</title>
+<meta name="description" content="A loving fake of a late-90s desktop OS: draggable windows, a working menu bar clock, a paint accessory, system sounds via Web Audio, and a README from an alternate timeline.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23669999'/%3E%3Crect x='6' y='7' width='20' height='16' fill='%23e8e8e8' stroke='%23111' stroke-width='1.4'/%3E%3Crect x='6' y='7' width='20' height='4' fill='%23bbb' stroke='%23111' stroke-width='1.4'/%3E%3C/svg%3E">
+<style>
+:root{
+  --desk:#669999; --chrome:#e8e8e8; --chrome2:#cfcfcf; --ink:#111;
+  --hl:#3355aa; --shadow:rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0; -webkit-font-smoothing:none}
+body{
+  background:
+    repeating-conic-gradient(var(--desk) 0% 25%, #5f9191 0% 50%) 0 0/6px 6px,
+    var(--desk);
+  font-family:'Charcoal','Chicago','Geneva','Verdana',system-ui,sans-serif;
+  height:100vh; overflow:hidden; user-select:none; color:var(--ink);
+  font-size:13px;
+}
+::selection{background:var(--hl); color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid var(--hl); outline-offset:2px}
+
+/* menu bar */
+#menubar{
+  position:fixed; top:0; left:0; right:0; height:26px; z-index:100;
+  background:var(--chrome); border-bottom:1.5px solid var(--ink);
+  display:flex; align-items:center; gap:0; padding:0 10px; font-weight:700;
+}
+#menubar .item{padding:3px 10px; cursor:default}
+#menubar .item:hover{background:var(--hl); color:#fff}
+#menubar .logo{font-weight:400}
+#menubar .spacer{flex:1}
+#clock{font-weight:400; padding:3px 6px}
+
+/* desktop icons */
+.dicon{position:absolute; width:86px; text-align:center; cursor:default; z-index:1}
+.dicon .px{width:44px; height:44px; margin:0 auto 4px; image-rendering:pixelated}
+.dicon span{background:var(--chrome); padding:1px 4px; border:1px solid var(--ink); font-size:11px}
+.dicon.sel span{background:var(--hl); color:#fff}
+
+/* windows */
+.win{
+  position:absolute; background:var(--chrome); border:1.5px solid var(--ink);
+  box-shadow:2px 2px 0 var(--shadow); min-width:230px; z-index:10;
+  display:flex; flex-direction:column;
+}
+.win.active{z-index:20}
+.tbar{
+  height:22px; display:flex; align-items:center; gap:6px; padding:0 6px;
+  border-bottom:1.5px solid var(--ink); cursor:grab; background:
+    repeating-linear-gradient(0deg, var(--chrome) 0 2px, var(--chrome2) 2px 4px);
+}
+.win.active .tbar{background:repeating-linear-gradient(0deg, #fff 0 2px, #bbb 2px 4px)}
+.tbar:active{cursor:grabbing}
+.tbar .close{width:12px; height:12px; border:1.5px solid var(--ink); background:var(--chrome); cursor:pointer; flex:none}
+.tbar .close:hover{background:var(--ink)}
+.tbar b{flex:1; text-align:center; font-size:12px; font-weight:700; background:var(--chrome); padding:0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.wbody{padding:10px; font-size:12px; line-height:1.55; background:#fff; border-top:1px solid #fff}
+
+#readme .wbody{width:300px; height:210px; overflow:auto}
+#readme h1{font-size:13px; margin-bottom:6px}
+#readme p{margin-bottom:8px}
+#readme .sig{font-style:italic; color:#444}
+
+#paint .wbody{padding:6px}
+#paintCv{border:1px solid var(--ink); cursor:crosshair; display:block; background:#fff; image-rendering:pixelated}
+#paint .tools{display:flex; gap:4px; margin-top:6px}
+#paint .tools button{
+  font:inherit; font-size:11px; border:1.5px solid var(--ink); background:var(--chrome);
+  padding:2px 8px; cursor:pointer;
+}
+#paint .tools button.on{background:var(--ink); color:#fff}
+
+#about .wbody{width:270px; text-align:center; padding:16px 12px}
+#about .cpu{font-size:11px; color:#444; margin-top:8px; line-height:1.7}
+#about .bar{height:10px; border:1.5px solid var(--ink); margin-top:10px; position:relative; background:#fff}
+#about .bar i{position:absolute; inset:0; width:34%; background:var(--hl)}
+
+footer{position:fixed; right:10px; bottom:8px; z-index:50; font-size:10px; color:#e9f5f2;
+  text-shadow:1px 1px 0 rgba(0,0,0,.4)}
+footer a{color:#fff}
+</style>
+</head>
+<body>
+
+<div id="menubar">
+  <span class="item logo">❖</span>
+  <span class="item" id="mFile">File</span>
+  <span class="item" id="mSpecial">Special</span>
+  <span class="item"><a href="guide/" style="color:inherit;text-decoration:none">Guide</a></span>
+  <span class="item"><a href="../" style="color:inherit;text-decoration:none">Index</a></span>
+  <span class="spacer"></span>
+  <span id="clock">--:--</span>
+</div>
+
+<!-- desktop icons -->
+<div class="dicon" style="right:24px; top:52px" data-open="readme">
+  <svg class="px" viewBox="0 0 16 16"><rect x="3" y="1" width="10" height="14" fill="#fff" stroke="#111" stroke-width="1"/><path d="M5 4h6M5 6h6M5 8h6M5 10h4" stroke="#111" stroke-width="1"/></svg>
+  <span>README</span>
+</div>
+<div class="dicon" style="right:24px; top:150px" data-open="paint">
+  <svg class="px" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" fill="#fff" stroke="#111" stroke-width="1"/><path d="M4 11 L8 5 L10 9 L12 7" stroke="#3355aa" stroke-width="1.4" fill="none"/></svg>
+  <span>Painter</span>
+</div>
+<div class="dicon" style="right:24px; top:248px" data-open="about">
+  <svg class="px" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="9" fill="#e8e8e8" stroke="#111" stroke-width="1"/><rect x="6" y="12" width="4" height="2" fill="#111"/><circle cx="8" cy="7.5" r="2.4" fill="none" stroke="#111" stroke-width="1"/></svg>
+  <span>About</span>
+</div>
+
+<!-- windows -->
+<div class="win" id="readme" style="left:6vw; top:9vh">
+  <div class="tbar"><span class="close" data-close></span><b>README — System 9.1</b></div>
+  <div class="wbody">
+    <h1>Welcome to System 9.1</h1>
+    <p>This operating system does not exist. It shipped in an alternate 1999
+    where beige never went out of fashion and every sound was a chime.</p>
+    <p>Things that work: dragging windows, closing windows, the menu clock,
+    the Painter accessory, and the Special menu (try it).</p>
+    <p>Things that do not work: everything else, faithfully.</p>
+    <p class="sig">— The System 9.1 Team (one language model)</p>
+  </div>
+</div>
+
+<div class="win" id="paint" style="left:38vw; top:16vh">
+  <div class="tbar"><span class="close" data-close></span><b>Painter</b></div>
+  <div class="wbody">
+    <canvas id="paintCv" width="260" height="170" aria-label="A tiny 1-bit paint program"></canvas>
+    <div class="tools">
+      <button class="on" data-tool="pen">Pen</button>
+      <button data-tool="spray">Spray</button>
+      <button data-tool="eraser">Eraser</button>
+      <button id="pClear">Clear</button>
+    </div>
+  </div>
+</div>
+
+<div class="win" id="about" style="left:22vw; top:52vh">
+  <div class="tbar"><span class="close" data-close></span><b>About This Computer</b></div>
+  <div class="wbody">
+    <b>System 9.1 “Tangerine Dream”</b>
+    <div class="cpu">
+      Processor: Imagination @ 33 MHz<br>
+      Memory: 640K (ought to be enough)<br>
+      Uptime: <span id="uptime">0s</span>
+    </div>
+    <div class="bar"><i></i></div>
+  </div>
+</div>
+
+<footer>site 84 / fable 25 · built by claude (fable 5) · <a href="guide/">how it was made</a></footer>
+
+<script>
+/* ═════ SYSTEM 9.1 — a desktop that never shipped ═════ */
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* window manager: drag via title bar, focus on pointerdown, close boxes */
+let zTop = 20;
+document.querySelectorAll('.win').forEach(win=>{
+  const bar = win.querySelector('.tbar');
+  let sx=0, sy=0, ox=0, oy=0, down=false;
+  win.addEventListener('pointerdown', ()=>{
+    document.querySelectorAll('.win').forEach(w=>w.classList.remove('active'));
+    win.classList.add('active');
+    win.style.zIndex = ++zTop;
+  });
+  bar.addEventListener('pointerdown', e=>{
+    if (e.target.hasAttribute('data-close')) return;
+    down=true; sx=e.clientX; sy=e.clientY;
+    const r=win.getBoundingClientRect(); ox=r.left; oy=r.top;
+    try{ bar.setPointerCapture(e.pointerId) }catch{}
+  });
+  bar.addEventListener('pointermove', e=>{
+    if(!down) return;
+    win.style.left = Math.max(0, Math.min(innerWidth-80, ox + e.clientX-sx)) + 'px';
+    win.style.top  = Math.max(26, Math.min(innerHeight-40, oy + e.clientY-sy)) + 'px';
+  });
+  bar.addEventListener('pointerup', ()=>{ down=false });
+  win.querySelector('[data-close]').addEventListener('click', ()=>{
+    win.style.display='none'; chime(330, .06);
+  });
+});
+
+/* desktop icons: click selects, double-click opens */
+document.querySelectorAll('.dicon').forEach(ic=>{
+  ic.addEventListener('click', ()=>{
+    document.querySelectorAll('.dicon').forEach(d=>d.classList.remove('sel'));
+    ic.classList.add('sel');
+  });
+  ic.addEventListener('dblclick', ()=>{
+    const w = document.getElementById(ic.dataset.open);
+    w.style.display='flex'; w.style.zIndex = ++zTop;
+    document.querySelectorAll('.win').forEach(x=>x.classList.remove('active'));
+    w.classList.add('active');
+    chime(660, .07);
+  });
+});
+
+/* menu clock + uptime */
+const clock=document.getElementById('clock'), up=document.getElementById('uptime');
+const boot = Date.now();
+(function tick(){
+  const d=new Date();
+  clock.textContent = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+  const s=((Date.now()-boot)/1000)|0;
+  up.textContent = s>=60 ? ((s/60)|0)+'m '+(s%60)+'s' : s+'s';
+  setTimeout(tick, 1000);
+})();
+
+/* Special menu: cascade the windows + chord */
+document.getElementById('mSpecial').addEventListener('click', ()=>{
+  let i=0;
+  document.querySelectorAll('.win').forEach(w=>{
+    w.style.display='flex';
+    w.style.left = (8 + i*5) + 'vw';
+    w.style.top  = (10 + i*9) + 'vh';
+    w.style.zIndex = ++zTop;
+    i++;
+  });
+  chord();
+});
+document.getElementById('mFile').addEventListener('click', ()=>chime(440,.05));
+
+/* system sounds: tiny Web Audio chimes (created on first gesture) */
+let ac=null;
+function ctx(){ if(!ac) ac = new (window.AudioContext||window.webkitAudioContext)(); return ac; }
+function chime(freq, dur){
+  try{
+    const a=ctx(), o=a.createOscillator(), g=a.createGain();
+    o.type='triangle'; o.frequency.value=freq;
+    g.gain.setValueAtTime(.12, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001, a.currentTime+dur*3);
+    o.connect(g).connect(a.destination);
+    o.start(); o.stop(a.currentTime+dur*3);
+  }catch{}
+}
+function chord(){ [523,659,784].forEach((f,i)=>setTimeout(()=>chime(f,.1), i*70)); }
+
+/* Painter accessory */
+const pc = document.getElementById('paintCv');
+const px = pc.getContext('2d');
+px.fillStyle='#fff'; px.fillRect(0,0,pc.width,pc.height);
+let tool='pen', painting=false;
+pc.addEventListener('pointerdown', e=>{ painting=true; try{pc.setPointerCapture(e.pointerId)}catch{} daub(e); });
+pc.addEventListener('pointermove', e=>{ if(painting) daub(e); });
+pc.addEventListener('pointerup', ()=>painting=false);
+function daub(e){
+  const r=pc.getBoundingClientRect();
+  const cx=(e.clientX-r.left)*(pc.width/r.width), cy=(e.clientY-r.top)*(pc.height/r.height);
+  px.fillStyle = tool==='eraser' ? '#fff' : '#111';
+  if (tool==='spray'){
+    for(let i=0;i<14;i++){
+      const a=Math.random()*7, d=Math.random()*9;
+      px.fillRect(cx+Math.cos(a)*d, cy+Math.sin(a)*d, 1.5, 1.5);
+    }
+  } else {
+    const s = tool==='eraser' ? 10 : 3;
+    px.fillRect(cx-s/2, cy-s/2, s, s);
+  }
+}
+document.querySelectorAll('#paint .tools button[data-tool]').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    tool=b.dataset.tool;
+    document.querySelectorAll('#paint .tools button[data-tool]').forEach(o=>o.classList.remove('on'));
+    b.classList.add('on');
+  });
+});
+document.getElementById('pClear').addEventListener('click', ()=>{
+  px.fillStyle='#fff'; px.fillRect(0,0,pc.width,pc.height);
+});
+</script>
+</body>
+</html>

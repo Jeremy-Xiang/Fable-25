@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORBITAL — A Scroll Through the Solar System</title>
+<meta name="description" content="ORBITAL is a scrollytelling voyage from the Sun to Neptune, set like a mid-century printed atlas. Your scrollbar is the spacecraft.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;1,6..72,300&family=Azeret+Mono:wght@300;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f6f0e2;
+    --ink:#22261f;
+    --ochre:#d98e32;
+    --rust:#b7502e;
+    --sage:#7a8b6f;
+    --sky:#5b7d98;
+    --line:rgba(34,38,31,.28);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--paper);color:var(--ink);
+    font-family:'Newsreader',serif;overflow-x:hidden;
+  }
+  ::selection{background:var(--ochre);color:var(--paper)}
+  /* печатная бумага: subtle print grain */
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:40;opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  .mono{font-family:'Azeret Mono',monospace}
+
+  /* fixed instrument panel */
+  #ticker{
+    position:fixed;top:1.4rem;right:1.6rem;z-index:30;text-align:right;
+    font-family:'Azeret Mono',monospace;font-size:.66rem;letter-spacing:.14em;
+    border:1px solid var(--ink);background:var(--paper);padding:.9rem 1.1rem;
+    box-shadow:4px 4px 0 rgba(34,38,31,.14);min-width:180px;
+    transition:opacity .7s ease,transform .7s ease;
+  }
+  #ticker.landed{opacity:0;transform:translateY(8px);pointer-events:none}
+  #ticker .au{font-size:1.5rem;letter-spacing:0;font-weight:500;display:block;margin:.3rem 0}
+  #ticker .bar{height:3px;background:rgba(34,38,31,.15);margin-top:.5rem;position:relative}
+  #ticker .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--rust);width:0%}
+
+  nav{position:fixed;top:1.4rem;left:1.6rem;z-index:30;font-family:'Azeret Mono',monospace;
+    font-size:.66rem;letter-spacing:.2em;text-transform:uppercase}
+  nav a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--ink);margin-right:1.4rem;padding-bottom:2px}
+  nav a:hover{color:var(--rust);border-color:var(--rust)}
+
+  header{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;padding:2rem}
+  header .sun{
+    width:min(46vw,340px);aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle at 38% 34%,#f2b04a,var(--ochre) 55%,var(--rust) 100%);
+    box-shadow:0 0 0 14px rgba(217,142,50,.14),0 0 0 34px rgba(217,142,50,.07),0 0 90px rgba(217,142,50,.5);
+    margin-bottom:4rem;position:relative;animation:breathe 7s ease-in-out infinite;
+  }
+  @keyframes breathe{50%{transform:scale(1.03);box-shadow:0 0 0 20px rgba(217,142,50,.16),0 0 0 46px rgba(217,142,50,.08),0 0 110px rgba(217,142,50,.55)}}
+  header h1{font-size:clamp(2.8rem,8vw,6.4rem);font-weight:300;line-height:1.02;letter-spacing:-.015em;max-width:16ch}
+  header h1 em{font-style:italic;color:var(--rust)}
+  header p{margin-top:1.8rem;font-family:'Azeret Mono',monospace;font-size:.7rem;letter-spacing:.3em;text-transform:uppercase;opacity:.65}
+  .down{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);font-family:'Azeret Mono',monospace;font-size:.6rem;letter-spacing:.3em;text-transform:uppercase;opacity:.55;animation:bob 2s ease-in-out infinite}
+  @keyframes bob{50%{transform:translate(-50%,8px)}}
+
+  .leg{max-width:1200px;margin:0 auto;padding:16vh 5vw;display:grid;
+    grid-template-columns:minmax(0,5fr) minmax(0,4fr);gap:6vw;align-items:center;min-height:88vh}
+  .leg:nth-child(even){grid-template-columns:minmax(0,4fr) minmax(0,5fr)}
+  .leg:nth-child(even) .planetbox{order:2}
+  .leg:nth-child(even) .copy{order:1}
+
+  .planetbox{display:flex;align-items:center;justify-content:center;position:relative}
+  .planet{border-radius:50%;position:relative;flex-shrink:0;
+    transition:transform 1s cubic-bezier(.2,.7,.2,1)}
+  .leg.vis .planet{transform:none}
+  .planet::after{content:"";position:absolute;inset:0;border-radius:50%;
+    background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.32),transparent 42%),
+               radial-gradient(circle at 72% 78%,rgba(0,0,0,.22),transparent 46%)}
+  .orbitring{position:absolute;border:1px dashed var(--line);border-radius:50%;animation:spin 40s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .orbitring .moon{position:absolute;top:-4px;left:50%;width:9px;height:9px;border-radius:50%;background:var(--ink)}
+
+  .copy .no{font-family:'Azeret Mono',monospace;font-size:.66rem;letter-spacing:.3em;color:var(--rust);text-transform:uppercase;display:block;margin-bottom:1.2rem}
+  .copy h2{font-size:clamp(2.2rem,5.2vw,4.2rem);font-weight:300;line-height:1;letter-spacing:-.01em;margin-bottom:1.6rem}
+  .copy h2 em{font-style:italic}
+  .copy p{font-size:1.02rem;line-height:1.85;max-width:44ch;opacity:.88}
+  .facts{margin-top:2rem;border-top:1px solid var(--line);font-family:'Azeret Mono',monospace;font-size:.68rem;letter-spacing:.08em}
+  .facts div{display:flex;justify-content:space-between;padding:.55rem 0;border-bottom:1px solid var(--line)}
+  .facts b{font-weight:500}
+
+  .leg .copy,.leg .planetbox{opacity:0;transform:translateY(50px);transition:opacity .9s ease,transform .9s cubic-bezier(.2,.7,.2,1)}
+  .leg.vis .copy,.leg.vis .planetbox{opacity:1;transform:none}
+
+  .interlude{padding:22vh 5vw;text-align:center;position:relative;overflow:hidden}
+  .interlude p{font-size:clamp(1.5rem,3.4vw,2.7rem);font-weight:300;font-style:italic;max-width:30ch;margin:0 auto;line-height:1.5}
+  .interlude .rule{width:60px;height:1px;background:var(--ink);margin:2.5rem auto 0}
+
+  footer{border-top:1px solid var(--line);padding:8vh 5vw;text-align:center;font-family:'Azeret Mono',monospace;font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;line-height:2.6}
+  footer a{color:var(--rust)}
+
+  @media (max-width:820px){
+    .leg,.leg:nth-child(even){grid-template-columns:1fr;gap:3rem;min-height:auto;padding:12vh 7vw}
+    .leg:nth-child(even) .planetbox{order:0}
+    .leg:nth-child(even) .copy{order:1}
+    #ticker{top:auto;bottom:1rem;right:1rem;padding:.6rem .8rem;min-width:150px}
+    nav{font-size:.6rem}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="guide/">Guide</a><a href="../">Index</a>
+</nav>
+
+<div id="ticker">
+  DIST. FROM SUN
+  <span class="au" id="au">0.000 AU</span>
+  VELOCITY: 1 SCROLL/S
+  <div class="bar"><i id="prog"></i></div>
+</div>
+
+<header>
+  <div class="sun"></div>
+  <h1>The scrollbar is <em>a spacecraft.</em></h1>
+  <p>Sun → Neptune · 30.07 AU · one thumb-flick at a time</p>
+  <div class="down">▼ Depart</div>
+</header>
+
+<section class="leg" data-au="0.39">
+  <div class="planetbox">
+    <div class="planet" style="width:110px;height:110px;background:#9d938a"></div>
+  </div>
+  <div class="copy">
+    <span class="no">Leg 01 — 0.39 AU</span>
+    <h2>Mercury, <em>the scorched courier</em></h2>
+    <p>A planet that gave up on atmosphere and doubled down on speed. It circles the Sun in 88 days and its afternoons reach 430°C — the solar system's most committed intern.</p>
+    <div class="facts">
+      <div><span>Year length</span><b>88 days</b></div>
+      <div><span>Moons</span><b>0 (unbothered)</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="leg" data-au="0.72">
+  <div class="planetbox">
+    <div class="planet" style="width:170px;height:170px;background:var(--ochre)"></div>
+  </div>
+  <div class="copy">
+    <span class="no">Leg 02 — 0.72 AU</span>
+    <h2>Venus, <em>the beautiful mistake</em></h2>
+    <p>Earth's twin, if your twin ran a 465°C greenhouse and rained sulfuric acid. Venus rotates backwards, slowly, as if reconsidering everything.</p>
+    <div class="facts">
+      <div><span>Day length</span><b>243 Earth days</b></div>
+      <div><span>Surface pressure</span><b>92× Earth</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="leg" data-au="1.00">
+  <div class="planetbox">
+    <div class="orbitring" style="width:250px;height:250px"><div class="moon"></div></div>
+    <div class="planet" style="width:180px;height:180px;background:var(--sky)"></div>
+  </div>
+  <div class="copy">
+    <span class="no">Leg 03 — 1.00 AU</span>
+    <h2>Earth, <em>the control group</em></h2>
+    <p>The only known planet with libraries, thunderstorms, and websites about other planets. Its single moon is drawn to scale in patience, not distance.</p>
+    <div class="facts">
+      <div><span>Inhabitants</span><b>~8.1 billion</b></div>
+      <div><span>Websites about space</span><b>this one included</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="leg" data-au="1.52">
+  <div class="planetbox">
+    <div class="planet" style="width:130px;height:130px;background:var(--rust)"></div>
+  </div>
+  <div class="copy">
+    <span class="no">Leg 04 — 1.52 AU</span>
+    <h2>Mars, <em>the fixer-upper</em></h2>
+    <p>Rusty, dusty, and relentlessly marketed. Mars owns the tallest volcano in the solar system and the dream budget of every space agency on the previous planet.</p>
+    <div class="facts">
+      <div><span>Olympus Mons</span><b>21.9 km high</b></div>
+      <div><span>Rovers (working &amp; retired)</span><b>6</b></div>
+    </div>
+  </div>
+</section>
+
+<div class="interlude">
+  <p>Here the atlas goes quiet for 550 million kilometers. The asteroid belt: gravel that never agreed to become a planet.</p>
+  <div class="rule"></div>
+</div>
+
+<section class="leg" data-au="5.20">
+  <div class="planetbox">
+    <div class="planet" style="width:300px;height:300px;background:repeating-linear-gradient(8deg,#c8a878 0 22px,#b7906a 22px 40px,#d9c39a 40px 58px,var(--rust) 58px 64px,#c8a878 64px 86px)"></div>
+  </div>
+  <div class="copy">
+    <span class="no">Leg 05 — 5.20 AU</span>
+    <h2>Jupiter, <em>the bouncer</em></h2>
+    <p>Two and a half times the mass of every other planet combined, quietly deflecting comets so the inner worlds can keep their atmospheres on. The Great Red Spot is a storm older than the telescope that found it.</p>
+    <div class="facts">
+      <div><span>Moons</span><b>95 and counting</b></div>
+      <div><span>Day length</span><b>9.9 hours</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="leg" data-au="9.58">
+  <div class="planetbox" style="min-height:300px">
+    <div class="planet" style="width:220px;height:220px;background:#d9c39a"></div>
+    <div style="position:absolute;width:400px;height:90px;border-radius:50%;border:14px solid rgba(122,139,111,.55);border-top-color:transparent;transform:rotate(-16deg)"></div>
+  </div>
+  <div class="copy">
+    <span class="no">Leg 06 — 9.58 AU</span>
+    <h2>Saturn, <em>the show-off</em></h2>
+    <p>Any planet can have rings. Saturn's are just better: 280,000 km wide and, in places, only ten meters thick — the flattest structure ever grown by gravity.</p>
+    <div class="facts">
+      <div><span>Ring thickness</span><b>~10 m (locally)</b></div>
+      <div><span>Density</span><b>floats in a big enough bath</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="leg" data-au="19.2">
+  <div class="planetbox">
+    <div class="planet" style="width:170px;height:170px;background:#a8c5c0;transform:rotate(90deg)"></div>
+  </div>
+  <div class="copy">
+    <span class="no">Leg 07 — 19.2 AU</span>
+    <h2>Uranus, <em>the sideways one</em></h2>
+    <p>Knocked over in some ancient collision, Uranus rolls around its orbit like a dropped marble. Its seasons last 21 years each. It has heard every joke.</p>
+    <div class="facts">
+      <div><span>Axial tilt</span><b>97.8°</b></div>
+      <div><span>Discovered</span><b>1781, by accident</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="leg" data-au="30.07">
+  <div class="planetbox">
+    <div class="planet" style="width:165px;height:165px;background:#3d5a80"></div>
+  </div>
+  <div class="copy">
+    <span class="no">Leg 08 — 30.07 AU · terminus</span>
+    <h2>Neptune, <em>the last blue thought</em></h2>
+    <p>Found with mathematics before telescopes: astronomers noticed Uranus wobbling and solved for the culprit. Winds here reach 2,100 km/h — the fastest weather in the solar system, and nobody there to complain about it.</p>
+    <div class="facts">
+      <div><span>Predicted, then seen</span><b>1846</b></div>
+      <div><span>One year</span><b>164.8 Earth years</b></div>
+    </div>
+  </div>
+</section>
+
+<div class="interlude">
+  <p>You have traveled 4.5 billion kilometers using only your thumb. The atlas thanks you and returns you to page one.</p>
+  <div class="rule"></div>
+</div>
+
+<footer>
+  ORBITAL — A PRINTED-ATLAS SCROLL STORY<br>
+  DESIGNED &amp; BUILT BY CLAUDE (FABLE 5) ·
+  <a href="guide/">HOW IT WAS MADE</a> · <a href="../">ALL 25 SITES</a>
+</footer>
+
+<script>
+const legs=[...document.querySelectorAll('.leg')];
+const auEl=document.getElementById('au'),prog=document.getElementById('prog');
+
+/* piecewise AU interpolation across leg positions */
+function auAt(){
+  const y=scrollY+innerHeight*.5;
+  let prev={pos:0,au:0};
+  for(const l of legs){
+    const pos=l.offsetTop+l.offsetHeight*.5;
+    const au=parseFloat(l.dataset.au);
+    if(y<pos){
+      const t=Math.max(0,Math.min(1,(y-prev.pos)/(pos-prev.pos)));
+      return prev.au+(au-prev.au)*t;
+    }
+    prev={pos,au};
+  }
+  return prev.au;
+}
+function tick(){
+  const au=auAt();
+  auEl.textContent=au.toFixed(3)+' AU';
+  prog.style.width=(au/30.07*100)+'%';
+  /* engines off once we arrive — also keeps the HUD off the footer */
+  const max=document.body.scrollHeight-innerHeight;
+  document.getElementById('ticker').classList.toggle('landed',scrollY>max-120);
+}
+addEventListener('scroll',tick,{passive:true});
+addEventListener('resize',tick);tick();
+
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting)e.target.classList.add('vis');
+}),{threshold:.3});
+legs.forEach(l=>io.observe(l));
+</script>
+</body>
+</html>

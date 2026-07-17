@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FACET — one gem, cut by math</title>
+<meta name="description" content="FACET is a pure Three.js showcase: a low-poly gem with a refractive env-mapped material, a sweeping colored spotlight, and pointer-driven rotation. No images, all procedural.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;900&family=Red+Hat+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --black:#050406;
+    --ink:#f3edf7;
+    --dim:rgba(243,237,247,.62);
+    --amethyst:#b57bff;
+    --emerald:#2ee6a6;
+    --ruby:#ff3d68;
+    --sapphire:#4a8dff;
+    --topaz:#ffbe4a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--black);color:var(--ink);
+    font-family:'Red Hat Mono',monospace;overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--amethyst);color:#050406}
+  .disp{font-family:'Big Shoulders Display',sans-serif;text-transform:uppercase}
+
+  #scene{position:fixed;inset:0;z-index:0}
+  #cssFallback{position:fixed;inset:0;z-index:0;display:none;align-items:center;justify-content:center}
+  #cssFallback .gem{width:min(46vw,340px);aspect-ratio:.86;
+    background:conic-gradient(from 210deg,var(--amethyst),var(--sapphire),var(--emerald),var(--topaz),var(--ruby),var(--amethyst));
+    clip-path:polygon(50% 0%,85% 22%,100% 55%,72% 100%,28% 100%,0% 55%,15% 22%);
+    filter:saturate(1.3) brightness(.85);animation:gemspin 14s linear infinite}
+  @keyframes gemspin{to{filter:hue-rotate(360deg) saturate(1.3) brightness(.85)}}
+  .vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 50%,transparent 42%,rgba(5,4,6,.92) 100%)}
+
+  main{position:relative;z-index:2;pointer-events:none}
+  main>*{pointer-events:auto}
+  nav.top{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;
+    align-items:center;padding:1.6rem 2.2rem;pointer-events:auto}
+  .mark{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:1.3rem;letter-spacing:.02em;
+    text-transform:uppercase}
+  .mark i{font-style:normal;color:var(--amethyst)}
+  .links{font-size:.68rem;letter-spacing:.14em;text-transform:uppercase}
+  .links a{color:var(--ink);text-decoration:none;opacity:.72;margin-left:1.6rem;transition:opacity .25s,color .25s}
+  .links a:hover{opacity:1;color:var(--amethyst)}
+
+  .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    text-align:center;padding:0 6vw}
+  .hero .kicker{font-size:.68rem;letter-spacing:.34em;text-transform:uppercase;color:var(--amethyst);
+    margin-bottom:1.8rem}
+  .hero h1{font-family:'Big Shoulders Display',sans-serif;font-weight:900;text-transform:uppercase;
+    font-size:clamp(3rem,11vw,8.5rem);line-height:.92;letter-spacing:.005em}
+  .hero p{margin-top:1.8rem;font-size:.95rem;line-height:1.7;color:var(--dim);max-width:44ch}
+  .hint{margin-top:2.6rem;font-size:.64rem;letter-spacing:.24em;text-transform:uppercase;opacity:.55}
+
+  .panel{min-height:76vh;display:flex;align-items:center;padding:0 6vw}
+  .panel.right{justify-content:flex-end;text-align:right}
+  .card{max-width:460px;opacity:0;transform:translateY(36px);transition:opacity 1s ease,transform 1s cubic-bezier(.2,.7,.2,1)}
+  .card.in{opacity:1;transform:none}
+  .card .no{font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;margin-bottom:1.1rem;display:block}
+  .card:nth-of-type(1) .no,.panel:nth-of-type(1) .no{color:var(--emerald)}
+  .card h2{font-family:'Big Shoulders Display',sans-serif;font-weight:700;text-transform:uppercase;
+    font-size:clamp(1.8rem,4vw,3rem);line-height:1;margin-bottom:1.1rem}
+  .card p{color:var(--dim);line-height:1.8;font-size:.94rem}
+
+  .facetnav{position:fixed;bottom:1.6rem;left:50%;transform:translateX(-50%);z-index:20;
+    display:flex;gap:.5rem}
+  .facetnav i{width:8px;height:8px;border-radius:2px;background:rgba(243,237,247,.25);display:block;
+    transform:rotate(45deg);transition:background .3s}
+  .facetnav i.on{background:var(--amethyst)}
+
+  footer{position:relative;z-index:2;padding:9vh 6vw 6vh;border-top:1px solid rgba(243,237,247,.12);
+    display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.4rem;font-size:.68rem;
+    letter-spacing:.08em;text-transform:uppercase;pointer-events:auto}
+  footer a{color:var(--amethyst);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  .wglnote{position:fixed;bottom:1rem;right:1rem;z-index:30;font-size:.62rem;color:var(--dim);
+    background:rgba(5,4,6,.7);padding:.5rem .8rem;border-radius:6px;border:1px solid rgba(243,237,247,.15);
+    max-width:230px;display:none}
+
+  @media(max-width:760px){
+    nav.top{padding:1.2rem 1.4rem}
+    .panel.right{text-align:left;justify-content:flex-start}
+  }
+  @media (prefers-reduced-motion: reduce){
+    #cssFallback .gem{animation:none}
+    .hint{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene" aria-hidden="true"></canvas>
+<div id="cssFallback" aria-hidden="true"><div class="gem"></div></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<main>
+  <nav class="top">
+    <span class="mark">FA<i>C</i>ET</span>
+    <span class="links"><a href="guide/">Guide</a><a href="../">Index</a></span>
+  </nav>
+
+  <section class="hero">
+    <span class="kicker disp">Real-time 3D · no images</span>
+    <h1 class="disp">Cut by<br>math.</h1>
+    <p>A low-poly gem, refractive material, and a spotlight that sweeps through five jewel tones — every facet, every reflection, every color here is generated at render time. Drag to rotate. Nothing you're seeing was photographed.</p>
+    <span class="hint">drag to rotate · scroll for the cut notes</span>
+  </section>
+
+  <section class="panel">
+    <div class="card">
+      <span class="no">01 — The cut</span>
+      <h2 class="disp">Low-poly on purpose.</h2>
+      <p>The gem is an icosahedron with zero subdivision, flat-shaded so every triangle stays a distinct facet instead of smoothing into a sphere. Fewer faces, sharper light — the opposite instinct from most 3D work, and the right one for a gemstone.</p>
+    </div>
+  </section>
+
+  <section class="panel right">
+    <div class="card">
+      <span class="no">02 — The refraction</span>
+      <h2 class="disp">Light bends,<br>on a budget.</h2>
+      <p>A physical material with transmission and a tuned index of refraction fakes the way light passes through and bounces inside real glass — sampling a procedural environment map instead of the room around it, since there is no room, only a shader.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="card">
+      <span class="no">03 — The sweep</span>
+      <h2 class="disp">One spotlight,<br>five moods.</h2>
+      <p>A single spotlight orbits the gem on a slow ellipse, cycling through amethyst, sapphire, emerald, topaz, and ruby. Watch one facet at a time — it changes color five times a lap without a single texture ever changing.</p>
+    </div>
+  </section>
+
+  <div class="facetnav" id="facetnav" aria-hidden="true">
+    <i class="on"></i><i></i><i></i><i></i><i></i>
+  </div>
+
+  <footer>
+    <span>FACET — Three.js low-poly gem, refractive material, procedural spotlight sweep<br>Wing II · Site 38 of 50 · designed &amp; built by Claude</span>
+    <span><a href="guide/">How it was made →</a><br><a href="../">All sites</a></span>
+  </footer>
+</main>
+
+<div class="wglnote" id="wglnote">WebGL isn't available here — showing a CSS approximation of the gem instead.</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let webglOK = true;
+try{
+  const t = document.createElement('canvas');
+  webglOK = !!(window.WebGLRenderingContext && (t.getContext('webgl') || t.getContext('experimental-webgl')));
+}catch(e){ webglOK = false; }
+
+function showFallback(){
+  document.getElementById('scene').style.display='none';
+  document.getElementById('cssFallback').style.display='flex';
+  document.getElementById('wglnote').style.display='block';
+  document.getElementById('facetnav').style.display='none';
+}
+
+if(!webglOK){
+  showFallback();
+}else{
+
+const canvas = document.getElementById('scene');
+let renderer;
+try{
+  renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+}catch(e){ showFallback(); throw e; }
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050406);
+scene.fog = new THREE.FogExp2(0x050406, 0.05);
+
+const camera = new THREE.PerspectiveCamera(40,1,0.1,100);
+camera.position.set(0,0.2,7);
+
+/* procedural jewel-tone environment sphere for refraction/reflection sampling */
+const envScene = new THREE.Scene();
+const envMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide,
+  vertexShader:`varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader:`
+    varying vec3 vP;
+    void main(){
+      vec3 d = normalize(vP);
+      float a = atan(d.z, d.x);
+      float bands = sin(a*3.0 + d.y*2.0) * 0.5 + 0.5;
+      vec3 c1 = vec3(0.71,0.48,1.0);
+      vec3 c2 = vec3(0.29,0.55,1.0);
+      vec3 c3 = vec3(0.18,0.9,0.65);
+      vec3 c4 = vec3(1.0,0.74,0.29);
+      vec3 c5 = vec3(1.0,0.24,0.41);
+      float t = fract(a/6.2831 + d.y*0.15);
+      vec3 col = t<0.2 ? mix(c1,c2,t/0.2) : t<0.4 ? mix(c2,c3,(t-0.2)/0.2) :
+                 t<0.6 ? mix(c3,c4,(t-0.4)/0.2) : t<0.8 ? mix(c4,c5,(t-0.6)/0.2) : mix(c5,c1,(t-0.8)/0.2);
+      col *= 0.35 + bands*0.15;
+      gl_FragColor = vec4(col,1.0);
+    }`
+});
+envScene.add(new THREE.Mesh(new THREE.SphereGeometry(40,32,32), envMat));
+const cubeRT = new THREE.WebGLCubeRenderTarget(256);
+const cubeCam = new THREE.CubeCamera(0.1,100,cubeRT);
+cubeCam.update(renderer, envScene);
+
+/* the gem: zero-subdivision icosahedron, flat shaded, refractive material */
+const gemGeo = new THREE.IcosahedronGeometry(1.9, 0);
+const gemMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff,
+  metalness: 0,
+  roughness: 0.04,
+  transmission: 0.92,
+  thickness: 1.8,
+  ior: 2.4,
+  envMap: cubeRT.texture,
+  envMapIntensity: 1.6,
+  clearcoat: 1,
+  clearcoatRoughness: 0.05,
+  flatShading: true
+});
+const gem = new THREE.Mesh(gemGeo, gemMat);
+scene.add(gem);
+
+/* dark pedestal disc for grounding */
+const pedestal = new THREE.Mesh(
+  new THREE.CircleGeometry(3.2, 48),
+  new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:.6})
+);
+pedestal.rotation.x = -Math.PI/2;
+pedestal.position.y = -2.3;
+scene.add(pedestal);
+
+scene.add(new THREE.AmbientLight(0x2a2030, 1.0));
+const key = new THREE.DirectionalLight(0xffffff, 0.6);
+key.position.set(3,4,4);
+scene.add(key);
+
+/* sweeping colored spotlight — the "dramatic spotlight sweep" from the brief */
+const JEWELS = [0xb57bff, 0x4a8dff, 0x2ee6a6, 0xffbe4a, 0xff3d68];
+const spot = new THREE.SpotLight(JEWELS[0], 18, 30, Math.PI/7, 0.4, 1.2);
+spot.position.set(4,3,4);
+scene.add(spot);
+scene.add(spot.target);
+
+const dots = document.querySelectorAll('#facetnav i');
+
+/* interaction: drag to rotate, gentle autorotation otherwise */
+let dragging = false, lastX=0, lastY=0;
+let rotY = 0, rotX = 0.15, velY = reduced ? 0 : 0.12;
+canvas.style.touchAction = 'none';
+canvas.addEventListener('pointerdown', e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup', ()=>{ dragging=false; });
+canvas.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  const dx = e.clientX-lastX, dy = e.clientY-lastY;
+  lastX=e.clientX; lastY=e.clientY;
+  rotY += dx*0.007;
+  rotX = Math.max(-0.9, Math.min(0.9, rotX + dy*0.006));
+  velY = dx*0.0015;
+});
+
+function resize(){
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+const clock = new THREE.Clock();
+let lastDotIdx = -1;
+
+renderer.setAnimationLoop(()=>{
+  const dt = reduced ? 0 : Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  if(!dragging && !reduced){
+    rotY += velY * dt * 4;
+    velY *= 0.985;
+    if(Math.abs(velY) < 0.03) velY = 0.03;
+  }
+  gem.rotation.y = rotY;
+  gem.rotation.x = rotX;
+
+  if(!reduced){
+    const orbitT = t * 0.35;
+    spot.position.set(Math.cos(orbitT)*5, 2.6 + Math.sin(orbitT*0.7)*1.2, Math.sin(orbitT)*5);
+    const idx = Math.floor((orbitT/(Math.PI*2)*JEWELS.length)) % JEWELS.length;
+    if(idx !== lastDotIdx){
+      lastDotIdx = idx;
+      dots.forEach((d,i)=>d.classList.toggle('on', i===idx));
+    }
+    spot.color.setHex(JEWELS[idx]);
+  }
+
+  renderer.render(scene, camera);
+});
+
+const io = new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+}), {threshold:.25});
+document.querySelectorAll('.card').forEach(el=>io.observe(el));
+
+} // webglOK
+</script>
+</body>
+</html>

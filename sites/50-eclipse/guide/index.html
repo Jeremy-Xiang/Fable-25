@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How ECLIPSE was made — guide</title>
+<meta name="description" content="How the ECLIPSE site was designed and built: techniques, palette, typography, and steps to reproduce it — plus how it closes the two-wing story of the FABLE 25 collection.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,500;0,600;1,400&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #d9b26a; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#040404; color:#e4e0d6;
+    font-family:'Bodoni Moda', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fira Code', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#a49a86; text-decoration:none; border-bottom:1px solid #22201c; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fira Code', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:500; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#a49a86; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #1c1a16;
+    display:flex; align-items:baseline; gap:.75rem;
+    font-family:'Bodoni Moda', serif;
+  }
+  h2 .no { font-family:'Fira Code', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { max-width:60ch; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fira Code', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fira Code', monospace; font-size:.8rem; line-height:1.9; color:#c9c3b4;
+    background:#0b0a08; border:1px solid #1c1a16; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .wings {
+    display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1.4rem;
+  }
+  .wing {
+    background:#0b0a08; border:1px solid #1c1a16; border-radius:8px; padding:1.2rem 1.3rem;
+  }
+  .wing h3 {
+    font-family:'Fira Code', monospace; font-size:.68rem; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:.7rem; font-weight:600;
+  }
+  .wing p { font-size:.94rem; line-height:1.65; max-width:none; }
+  @media(max-width:560px){ .wings{ grid-template-columns:1fr; } }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #1c1a16;
+    font-family:'Fira Code', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#a49a86; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  em { font-style:italic; color:var(--accent); }
+  ::selection { background:var(--accent); color:#1a1204; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to ECLIPSE</a>
+    <a href="../../">all 50 sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 50 of 50 · how it was made</div>
+  <h1>ECLIPSE</h1>
+  <p class="sub">Two bodies, one line — the collection's closing piece</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>ECLIPSE stages the geometry of totality as something you can nudge: a real 3D moon sits directly between the viewer and a light source, in front of a shimmering solar corona. Drag the moon — or tab to it and press the arrow keys — and it slides off the line, un-eclipsing the light at the rim it uncovers, then eases itself back into alignment when you let go. It's the finale by design: the last of fifty sites, and the only one built to combine all three of Wing II's signature techniques — a generated hero image, a generated motion loop, and genuine Three.js 3D — inside a single frame.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>A fixed backdrop layer holds a looping corona video (<code>assets/hero.mp4</code>) with its poster frame set to a still generated image (<code>assets/hero.jpg</code>), so something correct renders even before script runs</li>
+    <li>A Three.js scene sits on top: a <code>THREE.Sprite</code> with a radial-gradient canvas texture and additive blending stands in for the fixed light source, and a real <code>SphereGeometry</code> mesh — the moon — occludes it, lit only at its silhouette by a custom Fresnel rim <code>ShaderMaterial</code> tuned to the corona's gold</li>
+    <li>Interaction is dual-input: pointer drag and keyboard arrow keys both feed the same offset target, which the render loop eases the moon toward with simple lerp damping, then springs back to center after a short delay once input stops</li>
+    <li><code>prefers-reduced-motion</code> is honored at three separate points — the corona video is never fetched or played (the poster stays static), the shader's shimmer term (<code>uFlicker</code>) is zeroed so the rim holds still, and the render loop itself switches from continuous <code>requestAnimationFrame</code> to single on-demand repaints after each discrete input</li>
+    <li>A WebGL capability check wraps the entire Three.js setup in try/catch; if it fails for any reason, the canvas is hidden and a pure-CSS fallback (a radial-gradient corona with a keyframe flare, itself disabled under reduced motion) takes over so the piece still reads as an eclipse with zero WebGL</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Bodoni Moda + Fira Code · near-black #040404, off-white #f5f3ee, gold #d9b26a, gold-bright #f2d38a, dim #a49a86</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Layer three fixed full-viewport elements by z-index: video/image backdrop at the bottom, a WebGL canvas above it, page content above that</li>
+    <li>Build the light as an additive-blended sprite fixed at scene center; build the occluder as a sphere whose Fresnel-shaded rim color matches the light</li>
+    <li>Drive the sphere's x/y offset from both pointer and keyboard events into one shared target value, lerp toward it every frame, and schedule a spring-to-zero after input goes idle</li>
+    <li>Gate all motion — video autoplay, shader shimmer, continuous rendering — behind a single <code>matchMedia('(prefers-reduced-motion: reduce)')</code> check, and provide a no-WebGL CSS fallback so the concept survives without a GPU</li>
+  </ol>
+
+  <h2><span class="no">05</span> Closing the two wings</h2>
+  <p>ECLIPSE is the last of fifty, so this guide closes the story both wings were telling.</p>
+  <div class="wings">
+    <div class="wing">
+      <h3>Wing I — sites 1–25</h3>
+      <p>A deliberate zero-binary-asset flex: every visual was procedural — hand-written shaders, SVG, canvas drawing, Web Audio synthesis — with no generated or photographed imagery anywhere. That discipline and its techniques are documented in full in the <a href="../../guide/">master guide</a>.</p>
+    </div>
+    <div class="wing">
+      <h3>Wing II — sites 26–50</h3>
+      <p>The counterpart the master guide named as the alternative path: the generated-imagery pipeline. Higgsfield <code>nano_banana_pro</code> stills served as key hero assets across most of the wing; Kling video loops were used where motion earned its cost (32-oscilloscope, 42-inkwash, and this site's corona); and real Three.js 3D formed a third axis (35-orrery, 38-facet, 48-murano) — with ECLIPSE closing it by combining all three at once: 3D occlusion, a generated and animated backdrop, and motion design, in one scene.</p>
+    </div>
+  </div>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 5), Anthropic ·
+    Three.js occlusion over a Higgsfield-generated, Kling-animated corona ·
+    3 iteration passes (build, code-review, live-browser) before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

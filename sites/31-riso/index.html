@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RISO CLUB — small-batch print, misregistered on purpose</title>
+<meta name="description" content="RISO CLUB is a duotone riso-print showcase: a single generated illustration recolored live in CSS ink passes, with halftone grain and a registration wobble.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f2ead6;
+    --ink-dark:#191a3d;
+    --inkA:#ff3fa0;
+    --inkB:#191a3d;
+    --line:rgba(25,26,61,.16);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--paper);color:var(--ink-dark);
+    font-family:'Space Mono',monospace;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--inkA);color:var(--paper)}
+  a{color:inherit}
+
+  header{display:flex;justify-content:space-between;align-items:center;
+    padding:1.4rem 2rem;border-bottom:2px solid var(--ink-dark)}
+  .brand{font-family:'Anton',sans-serif;font-size:1.3rem;letter-spacing:.02em;text-transform:uppercase}
+  .brand span{color:var(--inkA)}
+  nav{display:flex;gap:1.6rem;font-size:.68rem;letter-spacing:.18em;text-transform:uppercase}
+  nav a{text-decoration:none;border-bottom:1px solid transparent}
+  nav a:hover{border-color:var(--inkA);color:var(--inkA)}
+
+  main{max-width:1180px;margin:0 auto;padding:0 2rem}
+
+  .hero{display:grid;grid-template-columns:1.1fr 1fr;gap:4vw;align-items:center;padding:7vh 0 6vh}
+  .hero h1{font-family:'Anton',sans-serif;font-size:clamp(2.4rem,6vw,4.6rem);line-height:.98;
+    text-transform:uppercase;letter-spacing:.01em}
+  .hero h1 em{font-style:normal;color:var(--inkA)}
+  .hero .kicker{font-size:.68rem;letter-spacing:.3em;text-transform:uppercase;color:var(--inkA);margin-bottom:1.2rem;display:block}
+  .hero p{margin-top:1.4rem;max-width:44ch;line-height:1.85;font-size:.92rem;opacity:.88}
+  .hero .issue{margin-top:2rem;font-size:.72rem;letter-spacing:.1em;opacity:.7}
+
+  /* — print card — */
+  .print-wrap{position:relative;perspective:1200px}
+  .print{position:relative;aspect-ratio:16/9;border-radius:4px;overflow:hidden;
+    transform:rotate(-2deg);box-shadow:0 30px 60px -20px rgba(25,26,61,.4);
+    border:10px solid var(--paper);outline:2px solid var(--ink-dark);
+    transition:transform .5s cubic-bezier(.16,.84,.28,1)}
+  .print:hover, .print:focus-within{transform:rotate(0deg) scale(1.015)}
+  .layer{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+  .base{filter:grayscale(1) contrast(1.25) brightness(1.14)}
+  .wash{position:absolute;inset:0;mix-blend-mode:color;background:linear-gradient(115deg,var(--inkA),var(--inkB));transition:background .5s}
+  .wash.multiply{mix-blend-mode:multiply;background:var(--inkB);opacity:.5}
+  .halftone{position:absolute;inset:0;mix-blend-mode:multiply;opacity:.35;pointer-events:none;
+    background-image:radial-gradient(circle,rgba(25,26,61,.9) 32%,transparent 33%);
+    background-size:4px 4px}
+  .grain{position:absolute;inset:0;pointer-events:none;opacity:.16;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")}
+  .print.wobble .layerA{animation:jitterA .5s steps(6) infinite}
+  .print.wobble .layerB{animation:jitterB .55s steps(6) infinite}
+  @keyframes jitterA{0%{transform:translate(0,0)}20%{transform:translate(1.4px,-.8px)}40%{transform:translate(-1px,1px)}60%{transform:translate(1px,.6px)}80%{transform:translate(-1.2px,-.6px)}100%{transform:translate(0,0)}}
+  @keyframes jitterB{0%{transform:translate(0,0)}25%{transform:translate(-1.2px,1px)}50%{transform:translate(1px,-1px)}75%{transform:translate(-.8px,-.8px)}100%{transform:translate(0,0)}}
+  .regmark{position:absolute;width:14px;height:14px;border:1.4px solid var(--ink-dark);border-radius:50%;opacity:.55}
+  .regmark::before,.regmark::after{content:'';position:absolute;background:var(--ink-dark)}
+  .regmark::before{left:50%;top:-4px;bottom:-4px;width:1.2px;transform:translateX(-50%)}
+  .regmark::after{top:50%;left:-4px;right:-4px;height:1.2px;transform:translateY(-50%)}
+  .regmark.tl{top:8px;left:8px}
+  .regmark.br{bottom:8px;right:8px}
+
+  /* ink selector */
+  .inks{display:flex;gap:.7rem;margin-top:1.3rem;flex-wrap:wrap}
+  .ink-btn{display:flex;align-items:center;gap:.5rem;background:none;border:1.4px solid var(--ink-dark);
+    border-radius:99px;padding:.4rem .9rem .4rem .5rem;cursor:pointer;font-family:'Space Mono',monospace;
+    font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dark)}
+  .ink-btn .sw{width:16px;height:16px;border-radius:50%;border:1px solid var(--ink-dark)}
+  .ink-btn:hover,.ink-btn:focus-visible{background:var(--ink-dark);color:var(--paper)}
+  .ink-btn.on{background:var(--ink-dark);color:var(--paper)}
+
+  /* colophon */
+  .colophon{border-top:2px solid var(--ink-dark);border-bottom:2px solid var(--ink-dark);
+    padding:3.2rem 0;display:grid;grid-template-columns:repeat(4,1fr);gap:2rem}
+  .colophon .item .no{font-size:.62rem;letter-spacing:.2em;color:var(--inkA);margin-bottom:.5rem;display:block}
+  .colophon .item h3{font-family:'Anton',sans-serif;font-size:1rem;text-transform:uppercase;margin-bottom:.4rem;letter-spacing:.02em}
+  .colophon .item p{font-size:.78rem;line-height:1.6;opacity:.8}
+
+  /* back catalog */
+  .catalog{padding:5vh 0 8vh}
+  .catalog h2{font-family:'Anton',sans-serif;font-size:1.6rem;text-transform:uppercase;margin-bottom:2rem}
+  .rack{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1.1rem}
+  .zine{aspect-ratio:3/4;border-radius:4px;border:2px solid var(--ink-dark);position:relative;overflow:hidden;
+    display:flex;flex-direction:column;justify-content:flex-end;padding:.8rem;cursor:default;
+    transition:transform .3s}
+  .zine:hover{transform:translateY(-6px) rotate(-1deg)}
+  .zine .num{font-size:.6rem;letter-spacing:.14em;opacity:.85}
+  .zine .name{font-family:'Anton',sans-serif;font-size:.92rem;text-transform:uppercase;line-height:1.1;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .zine::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(0,0,0,.5) 30%,transparent 31%);background-size:5px 5px;mix-blend-mode:multiply;opacity:.4}
+
+  footer{border-top:2px solid var(--ink-dark);padding:2.4rem 2rem;text-align:center;
+    font-size:.64rem;letter-spacing:.18em;text-transform:uppercase;opacity:.7}
+  footer a{text-decoration:underline}
+
+  @media(max-width:840px){
+    .hero{grid-template-columns:1fr;gap:3rem;padding:5vh 0 4vh}
+    .colophon{grid-template-columns:repeat(2,1fr);row-gap:2.2rem}
+  }
+  @media(max-width:520px){
+    header{padding:1.1rem 1.2rem}
+    main{padding:0 1.2rem}
+    .colophon{grid-template-columns:1fr}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .print{transition:none}
+    .print.wobble .layerA,.print.wobble .layerB{animation:none}
+    .zine{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">RISO <span>CLUB</span></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<main>
+  <section class="hero">
+    <div>
+      <span class="kicker">Issue 04 · risograph micro-press</span>
+      <h1>Two inks.<br>One <em>plate</em><br>at a time.</h1>
+      <p>Every print here starts life as a single flat illustration and gets recolored live, ink pass by ink pass, the way a riso duplicator actually lays color: one drum, one hue, run through the machine again. Pick a set of inks below and watch the plate.</p>
+      <p class="issue">Hover the print for a registration wobble — the two plates never quite line up, on purpose.</p>
+    </div>
+
+    <div class="print-wrap">
+      <figure class="print" id="print" tabindex="0" aria-label="Riso-printed illustration, duotone, recolorable">
+        <img class="layer base layerA" src="assets/hero.jpg" alt="Risograph-style illustration of a potted plant titled Homegrown, rendered in flat two-tone print." loading="eager">
+        <div class="layer wash layerB" id="wash"></div>
+        <div class="layer halftone"></div>
+        <div class="layer grain"></div>
+        <span class="regmark tl" aria-hidden="true"></span>
+        <span class="regmark br" aria-hidden="true"></span>
+      </figure>
+
+      <div class="inks" role="group" aria-label="Choose an ink pass">
+        <button class="ink-btn on" data-a="#ff3fa0" data-b="#191a3d"><span class="sw" style="background:linear-gradient(90deg,#ff3fa0,#191a3d)"></span>Fluoro Pink / Navy</button>
+        <button class="ink-btn" data-a="#ff7a1a" data-b="#1b3f8c"><span class="sw" style="background:linear-gradient(90deg,#ff7a1a,#1b3f8c)"></span>Flame / Blue</button>
+        <button class="ink-btn" data-a="#2fae6b" data-b="#c3272d"><span class="sw" style="background:linear-gradient(90deg,#2fae6b,#c3272d)"></span>Kelly / Red</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="colophon">
+    <div class="item"><span class="no">01</span><h3>Stock</h3><p>Cream 120gsm uncoated, visible tooth under the halftone screen.</p></div>
+    <div class="item"><span class="no">02</span><h3>Screen</h3><p>4px dot halftone, multiply blend, single pass per ink.</p></div>
+    <div class="item"><span class="no">03</span><h3>Registration</h3><p>±1.5px hand-set wobble — a feature, not a flaw.</p></div>
+    <div class="item"><span class="no">04</span><h3>Run</h3><p>Open edition, browser-native, unlimited reprints.</p></div>
+  </section>
+
+  <section class="catalog">
+    <h2>Back catalog</h2>
+    <div class="rack">
+      <div class="zine" style="background:linear-gradient(160deg,#ff3fa0,#191a3d)"><span class="num">№01</span><span class="name">Static Bloom</span></div>
+      <div class="zine" style="background:linear-gradient(160deg,#ffb347,#1b3f8c)"><span class="num">№02</span><span class="name">Low Ink Day</span></div>
+      <div class="zine" style="background:linear-gradient(160deg,#2fae6b,#c3272d)"><span class="num">№03</span><span class="name">Field Notes</span></div>
+      <div class="zine" style="background:linear-gradient(160deg,#ffd23f,#3a1b6b)"><span class="num">№04</span><span class="name">Homegrown</span></div>
+      <div class="zine" style="background:linear-gradient(160deg,#5ce8c8,#b8433a)"><span class="num">№05</span><span class="name">Drum Test</span></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  RISO CLUB — CSS DUOTONE PRESS · SITE 31 OF 50 · BUILT BY CLAUDE (FABLE 25) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const print = document.getElementById('print');
+  const wash = document.getElementById('wash');
+  const buttons = document.querySelectorAll('.ink-btn');
+
+  function setInk(a,b){
+    document.documentElement.style.setProperty('--inkA', a);
+    document.documentElement.style.setProperty('--inkB', b);
+  }
+  buttons.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      buttons.forEach(b=>b.classList.remove('on'));
+      btn.classList.add('on');
+      setInk(btn.dataset.a, btn.dataset.b);
+    });
+  });
+
+  if(!reduced){
+    print.addEventListener('pointerenter', ()=>print.classList.add('wobble'));
+    print.addEventListener('pointerleave', ()=>print.classList.remove('wobble'));
+    print.addEventListener('focus', ()=>print.classList.add('wobble'));
+    print.addEventListener('blur', ()=>print.classList.remove('wobble'));
+  }
+</script>
+</body>
+</html>

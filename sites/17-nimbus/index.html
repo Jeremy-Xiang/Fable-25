@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NIMBUS — weather for the interior life</title>
+<meta name="description" content="NIMBUS forecasts moods, not millibars. Drag the sun across the sky, switch the precipitation, and read the glass.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Sora:wght@200;300;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --glass:rgba(255,255,255,.14);
+    --glass-brd:rgba(255,255,255,.32);
+    --txt:#ffffff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    min-height:100vh;color:var(--txt);font-family:'Sora',sans-serif;overflow-x:hidden;
+    background:linear-gradient(to bottom,var(--sky1,#2c4a7c),var(--sky2,#7c9cc4) 55%,var(--sky3,#d9b98a));
+    transition:background 1.2s ease;
+  }
+  ::selection{background:rgba(255,255,255,.4)}
+
+  #wx{position:fixed;inset:0;z-index:1;pointer-events:none}
+
+  .celestial{position:fixed;z-index:0;width:120px;height:120px;border-radius:50%;pointer-events:none;
+    transition:background 1s,box-shadow 1s}
+  .clouds{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  .cloud{position:absolute;filter:blur(26px);opacity:.55;border-radius:50%;
+    background:rgba(255,255,255,.65);animation:drift linear infinite}
+  @keyframes drift{from{transform:translateX(-30vw)}to{transform:translateX(130vw)}}
+
+  main{position:relative;z-index:2;max-width:1100px;margin:0 auto;padding:0 5vw 12vh}
+
+  nav{display:flex;justify-content:space-between;align-items:center;padding:1.8rem 0;font-size:.72rem;letter-spacing:.26em;text-transform:uppercase}
+  nav .m{font-family:'Gloock',serif;font-size:1.35rem;letter-spacing:.06em;text-transform:none}
+  nav a{color:#fff;text-decoration:none;opacity:.8;margin-left:1.6rem}
+  nav a:hover{opacity:1}
+
+  header{padding:9vh 0 6vh;text-align:center}
+  h1{font-family:'Gloock',serif;font-size:clamp(2.8rem,8vw,6.5rem);line-height:1.04;font-weight:400;
+    text-shadow:0 1px 3px rgba(28,52,94,.5),0 4px 18px rgba(28,52,94,.42),0 2px 60px rgba(28,52,94,.4)}
+  header p{margin-top:1.6rem;font-weight:200;letter-spacing:.14em;font-size:.9rem;opacity:.9}
+
+  .deck{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.6rem;margin-top:6vh}
+  .card{
+    background:var(--glass);border:1px solid var(--glass-brd);border-radius:22px;
+    backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);
+    padding:1.8rem 1.7rem;box-shadow:0 16px 48px rgba(10,20,40,.18);
+    transition:transform .35s cubic-bezier(.2,.9,.3,1.3),background .35s;
+  }
+  .card:hover{transform:translateY(-7px);background:rgba(255,255,255,.2)}
+  .card .k{font-size:.62rem;letter-spacing:.3em;text-transform:uppercase;opacity:.75;display:block;margin-bottom:1rem}
+  .card .v{font-family:'Gloock',serif;font-size:2.1rem;line-height:1.15}
+  .card .d{margin-top:.8rem;font-weight:200;font-size:.8rem;line-height:1.7;opacity:.85}
+
+  .controls{
+    margin-top:7vh;background:var(--glass);border:1px solid var(--glass-brd);border-radius:26px;
+    backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);
+    padding:2.4rem 2.2rem;box-shadow:0 16px 48px rgba(10,20,40,.18);
+  }
+  .controls .row{display:flex;align-items:center;gap:1.6rem;flex-wrap:wrap}
+  .controls label{font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;opacity:.85;min-width:130px}
+  #daylight{flex:1;min-width:200px;-webkit-appearance:none;appearance:none;background:transparent;cursor:ew-resize}
+  #daylight::-webkit-slider-runnable-track{height:2px;background:rgba(255,255,255,.5);border-radius:2px}
+  #daylight::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+    background:#fff;box-shadow:0 0 20px rgba(255,255,255,.9);margin-top:-10px}
+  #timeword{font-family:'Gloock',serif;font-size:1.15rem;min-width:150px;text-align:right}
+  .row+.row{margin-top:1.8rem}
+  .wxbtns{display:flex;gap:.8rem;flex-wrap:wrap}
+  .wxb{font-family:'Sora';font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;
+    background:transparent;border:1px solid var(--glass-brd);color:#fff;border-radius:99px;
+    padding:.7rem 1.5rem;cursor:pointer;transition:.25s}
+  .wxb:hover{background:rgba(255,255,255,.18)}
+  .wxb.on{background:#fff;color:#31435e;font-weight:500}
+
+  .poem{margin-top:9vh;text-align:center;padding:0 1rem}
+  .poem p{font-family:'Gloock',serif;font-size:clamp(1.4rem,3.4vw,2.4rem);line-height:1.7;text-shadow:0 2px 30px rgba(0,0,0,.2)}
+  .poem .att{margin-top:1.6rem;font-size:.64rem;letter-spacing:.4em;text-transform:uppercase;opacity:.7}
+
+  footer{position:relative;z-index:2;text-align:center;padding:0 2rem 5vh;font-size:.64rem;letter-spacing:.28em;text-transform:uppercase;opacity:.85;line-height:2.6}
+  footer a{color:#fff}
+
+  @media(max-width:640px){#timeword{text-align:left}}
+</style>
+</head>
+<body>
+
+<div class="celestial" id="sun"></div>
+<div class="clouds" id="clouds"></div>
+<canvas id="wx"></canvas>
+
+<main>
+  <nav>
+    <span class="m">Nimbus</span>
+    <span><a href="guide/">Guide</a><a href="../">Index</a></span>
+  </nav>
+
+  <header>
+    <h1 id="headline">Partly luminous,<br>with a chance of wonder.</h1>
+    <p>THE ONLY FORECAST THAT ASKS HOW YOU FEEL ABOUT IT</p>
+  </header>
+
+  <div class="deck">
+    <div class="card"><span class="k">Temperament</span><div class="v" id="c-temp">Golden</div>
+      <div class="d">Rising through the afternoon. Bring a light optimism; layers of doubt can be removed by evening.</div></div>
+    <div class="card"><span class="k">Wind</span><div class="v">Gentle, quotable</div>
+      <div class="d">From the west at the speed of a good conversation. Gusts of nostalgia near open windows.</div></div>
+    <div class="card"><span class="k">Visibility</span><div class="v">Twelve years</div>
+      <div class="d">Unusually clear. You may see all the way back to a summer you had filed away.</div></div>
+    <div class="card"><span class="k">Humidity</span><div class="v">88% poetic</div>
+      <div class="d">Condensation likely on glass surfaces and in the third stanza. Wipe with a soft cloth.</div></div>
+  </div>
+
+  <div class="controls">
+    <div class="row">
+      <label>Drag the sun</label>
+      <input type="range" id="daylight" min="0" max="100" value="38">
+      <span id="timeword">Late morning</span>
+    </div>
+    <div class="row">
+      <label>Precipitation</label>
+      <div class="wxbtns">
+        <button class="wxb on" data-wx="clear">Clear</button>
+        <button class="wxb" data-wx="rain">Rain</button>
+        <button class="wxb" data-wx="snow">Snow</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="poem">
+    <p id="poem">“The sky keeps nothing.<br>That is its entire genius —<br>it lets the weather through.”</p>
+    <div class="att">Nimbus almanac · entry 219</div>
+  </div>
+</main>
+
+<footer>
+  NIMBUS — GLASS, GRADIENT &amp; CANVAS · BUILT BY CLAUDE (FABLE 5)<br>
+  <a href="guide/">HOW IT WAS MADE</a> · <a href="../">ALL 25 SITES</a>
+</footer>
+
+<script>
+/* ——— sky engine ——— */
+const skies=[
+  {t:0,  s:['#0b1026','#1a2342','#324a6d'],sun:['#e8e4f0',.35],word:'Deep night'},
+  {t:14, s:['#1c2a4e','#4a4a7c','#c47a6a'],sun:['#f5d9b0',.6],word:'First light'},
+  {t:28, s:['#3d6ea5','#7ca6cf','#f5d9a8'],sun:['#fff3d6',1],word:'Morning'},
+  {t:45, s:['#3576c4','#7cb2e8','#c8e0f5'],sun:['#fffbe8',1],word:'High noon'},
+  {t:62, s:['#2c4a7c','#7c9cc4','#d9b98a'],sun:['#ffe9b8',.95],word:'Late afternoon'},
+  {t:76, s:['#4a3a6e','#b56a7c','#e8a86a'],sun:['#ffc98a',.8],word:'Golden hour'},
+  {t:88, s:['#241c3e','#5c3a5e','#8a4a52'],sun:['#e8b4c8',.5],word:'Dusk'},
+  {t:100,s:['#0b1026','#1a2342','#324a6d'],sun:['#e8e4f0',.35],word:'Night again'},
+];
+function lerpC(a,b,t){
+  const pa=[1,3,5].map(i=>parseInt(a.slice(i,i+2),16));
+  const pb=[1,3,5].map(i=>parseInt(b.slice(i,i+2),16));
+  return '#'+pa.map((v,i)=>Math.round(v+(pb[i]-v)*t).toString(16).padStart(2,'0')).join('');
+}
+const sun=document.getElementById('sun');
+const slider=document.getElementById('daylight');
+const timeword=document.getElementById('timeword');
+function setSky(v){
+  let i=0;
+  while(i<skies.length-2&&skies[i+1].t<v)i++;
+  const a=skies[i],b=skies[i+1];
+  const t=(v-a.t)/(b.t-a.t);
+  document.body.style.setProperty('--sky1',lerpC(a.s[0],b.s[0],t));
+  document.body.style.setProperty('--sky2',lerpC(a.s[1],b.s[1],t));
+  document.body.style.setProperty('--sky3',lerpC(a.s[2],b.s[2],t));
+  /* sun arc: rises from left horizon to top to right */
+  const ang=Math.PI*(1-v/100);
+  const x=50+42*Math.cos(ang), y=88-72*Math.sin(ang);
+  sun.style.left=`calc(${x}vw - 60px)`;sun.style.top=`calc(${y}vh - 60px)`;
+  const glow=b.sun[1]*t+a.sun[1]*(1-t);
+  const col=lerpC(a.sun[0],b.sun[0],t);
+  sun.style.background=`radial-gradient(circle at 42% 38%,#fff, ${col})`;
+  sun.style.boxShadow=`0 0 ${80*glow}px ${30*glow}px ${col}66,0 0 ${180*glow}px ${80*glow}px ${col}33`;
+  timeword.textContent=(t<.5?a.word:b.word);
+}
+slider.addEventListener('input',()=>setSky(+slider.value));
+setSky(+slider.value);
+
+/* clouds */
+const cl=document.getElementById('clouds');
+for(let i=0;i<7;i++){
+  const c=document.createElement('div');
+  c.className='cloud';
+  const w=160+Math.random()*300;
+  c.style.width=w+'px';c.style.height=w*.36+'px';
+  c.style.top=(Math.random()*46)+'%';
+  c.style.animationDuration=(70+Math.random()*90)+'s';
+  c.style.animationDelay=(-Math.random()*120)+'s';
+  cl.appendChild(c);
+}
+
+/* precipitation canvas */
+const cv=document.getElementById('wx'),ctx=cv.getContext('2d');
+let W,H;function rs(){W=cv.width=innerWidth;H=cv.height=innerHeight}
+addEventListener('resize',rs);rs();
+let mode='clear',parts=[];
+function seed(){
+  parts=[];
+  const n=mode==='rain'?260:mode==='snow'?180:0;
+  for(let i=0;i<n;i++)parts.push({
+    x:Math.random()*W,y:Math.random()*H,
+    v:mode==='rain'?7+Math.random()*7:0.6+Math.random()*1.1,
+    l:mode==='rain'?10+Math.random()*14:0,
+    r:mode==='snow'?1.4+Math.random()*2.6:0,
+    ph:Math.random()*Math.PI*2
+  });
+}
+document.querySelectorAll('.wxb').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.wxb').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');mode=b.dataset.wx;seed();
+  const hl=document.getElementById('headline');
+  hl.innerHTML=mode==='rain'?'Reflective, with<br>persistent introspection.':
+    mode==='snow'?'Hushed. The world<br>speaks in lowercase.':
+    'Partly luminous,<br>with a chance of wonder.';
+  document.getElementById('poem').innerHTML=
+    mode==='rain'?'“Rain is the sky<br>thinking out loud, and we<br>eavesdrop with umbrellas.”':
+    mode==='snow'?'“Snow: the only weather<br>that asks the city<br>to keep its voice down.”':
+    '“The sky keeps nothing.<br>That is its entire genius —<br>it lets the weather through.”';
+}));
+(function loop(){
+  ctx.clearRect(0,0,W,H);
+  if(mode==='rain'){
+    ctx.strokeStyle='rgba(255,255,255,.4)';ctx.lineWidth=1.1;
+    for(const p of parts){
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-2,p.y+p.l);ctx.stroke();
+      p.y+=p.v;p.x-=.8;
+      if(p.y>H){p.y=-20;p.x=Math.random()*W}
+    }
+  }else if(mode==='snow'){
+    ctx.fillStyle='rgba(255,255,255,.85)';
+    for(const p of parts){
+      ctx.beginPath();ctx.arc(p.x+Math.sin(p.ph)*14,p.y,p.r,0,7);ctx.fill();
+      p.y+=p.v;p.ph+=.02;
+      if(p.y>H){p.y=-8;p.x=Math.random()*W}
+    }
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

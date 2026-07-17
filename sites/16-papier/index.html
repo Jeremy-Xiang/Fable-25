@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAPIER — an atelier of cut-outs</title>
+<meta name="description" content="PAPIER is a digital collage atelier in the spirit of the great cut-outs: torn clip-path shapes, layered paper shadows, and scissors you can press.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Nunito+Sans:ital,opsz,wght@0,6..12,300;0,6..12,600;1,6..12,300&family=Caveat:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas:#f3ecdd;
+    --ink:#232120;
+    --blue:#1e56a0;
+    --coral:#e8503a;
+    --leaf:#2e7d4f;
+    --sun:#f2b32c;
+    --lilac:#9b7fc2;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--canvas);color:var(--ink);
+    font-family:'Nunito Sans',sans-serif;overflow-x:hidden;
+  }
+  ::selection{background:var(--sun)}
+  /* paper tooth */
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.4;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 0.85 0 0 0 0 0.82 0 0 0 0 0.75 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  nav{display:flex;justify-content:space-between;align-items:center;padding:1.6rem 2.4rem;position:relative;z-index:10}
+  nav .m{font-family:'DM Serif Display',serif;font-size:1.5rem;letter-spacing:.04em}
+  nav .m i{color:var(--coral)}
+  nav .links{font-size:.74rem;letter-spacing:.24em;text-transform:uppercase;font-weight:600}
+  nav a{color:var(--ink);text-decoration:none;margin-left:1.6rem;border-bottom:2px solid transparent;padding-bottom:2px}
+  nav a:hover{border-color:var(--coral)}
+
+  .hero{position:relative;min-height:92vh;display:grid;place-items:center;overflow:hidden}
+  .collage{position:absolute;inset:0;pointer-events:none}
+  .cut{position:absolute;filter:drop-shadow(0 14px 16px rgba(35,33,32,.28));will-change:transform;
+    transition:transform .12s linear}
+  .cut svg{display:block;width:100%;height:auto}
+
+  .hero .title{position:relative;z-index:5;text-align:center;padding:2rem}
+  .hero h1{font-family:'DM Serif Display',serif;font-size:clamp(3.6rem,12vw,10rem);line-height:.92;letter-spacing:-.01em}
+  .hero h1 .l1{display:block}
+  .hero h1 em{font-style:italic;color:var(--blue)}
+  .hero .sub{font-family:'Caveat',cursive;font-size:clamp(1.3rem,3vw,2rem);color:var(--coral);
+    transform:rotate(-2.5deg);margin-top:1.4rem;display:inline-block}
+  .hero .scissors{margin-top:3rem}
+  #cutbtn{
+    font-family:'Nunito Sans';font-weight:600;letter-spacing:.2em;text-transform:uppercase;font-size:.76rem;
+    background:var(--ink);color:var(--canvas);border:none;padding:1.2rem 2.4rem;cursor:pointer;
+    border-radius:2px;transition:transform .15s cubic-bezier(.3,1.6,.5,1),background .3s;
+  }
+  #cutbtn:hover{transform:rotate(-2deg) scale(1.05);background:var(--coral)}
+
+  .gallery{max-width:1250px;margin:0 auto;padding:14vh 5vw}
+  .gal-head{display:flex;align-items:baseline;gap:2rem;flex-wrap:wrap;margin-bottom:6rem}
+  .gal-head h2{font-family:'DM Serif Display',serif;font-size:clamp(2.4rem,6vw,4.4rem)}
+  .gal-head .rule{flex:1;height:3px;background:var(--ink);border-radius:3px;min-width:80px}
+  .gal-head .count{font-family:'Caveat';font-size:1.4rem;color:var(--blue)}
+
+  .works{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:4rem 3rem}
+  .work{position:relative;transition:transform .4s cubic-bezier(.2,1.4,.4,1)}
+  .work:hover{transform:rotate(0deg)!important;z-index:3}
+  .work .mat{background:#fff;padding:1.2rem 1.2rem 4.2rem;box-shadow:0 18px 40px rgba(35,33,32,.22);position:relative}
+  .work .tape{position:absolute;top:-12px;left:50%;transform:translateX(-50%) rotate(-3deg);
+    width:90px;height:28px;background:rgba(242,179,44,.75);box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  .work .art{aspect-ratio:1;position:relative;overflow:hidden}
+  .work .cap{position:absolute;bottom:1.1rem;left:1.2rem;right:1.2rem;display:flex;justify-content:space-between;align-items:baseline}
+  .work .cap b{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.15rem}
+  .work .cap span{font-family:'Caveat';font-size:1.05rem;color:var(--coral)}
+
+  .about{background:var(--ink);color:var(--canvas);padding:16vh 5vw;position:relative;overflow:hidden}
+  .about .inner{max-width:900px;margin:0 auto;position:relative;z-index:2}
+  .about p{font-family:'DM Serif Display',serif;font-size:clamp(1.7rem,4vw,3rem);line-height:1.45}
+  .about p em{color:var(--sun);font-style:italic}
+  .about .deco{position:absolute;opacity:.9}
+
+  footer{padding:8vh 2.4rem;text-align:center;font-size:.72rem;letter-spacing:.26em;text-transform:uppercase;font-weight:600;line-height:2.6}
+  footer a{color:var(--blue)}
+
+  @media(max-width:640px){nav a{margin-left:.9rem}}
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="m">Papier<i>.</i></span>
+  <span class="links"><a href="#works">Works</a><a href="guide/">Guide</a><a href="../">Index</a></span>
+</nav>
+
+<header class="hero">
+  <div class="collage" id="collage"></div>
+  <div class="title">
+    <h1><span class="l1">Cut first,</span><em>ask later.</em></h1>
+    <span class="sub">— the only rule of the atelier</span>
+    <div class="scissors"><button id="cutbtn">✂ Cut a new shape</button></div>
+  </div>
+</header>
+
+<section class="gallery" id="works">
+  <div class="gal-head"><h2>Recent works</h2><div class="rule"></div><span class="count">edition of one, each</span></div>
+  <div class="works" id="workgrid"></div>
+</section>
+
+<section class="about">
+  <div class="inner">
+    <p>When drawing became too slow for joy, the old master picked up scissors and called it <em>«drawing with scissors».</em> This page does the same with polygons: every shape is a clip-path, every shadow is real light doing its best impression of paste.</p>
+  </div>
+</section>
+
+<footer>
+  PAPIER — AN ATELIER OF CUT-OUTS · BUILT BY CLAUDE (FABLE 5)<br>
+  <a href="guide/">HOW IT WAS MADE</a> · <a href="../">ALL 25 SITES</a>
+</footer>
+
+<script>
+const COLORS=['#1e56a0','#e8503a','#2e7d4f','#f2b32c','#9b7fc2','#232120'];
+/* organic torn-edge polygon generator */
+function tornPoly(n=14,irr=.24){
+  const pts=[];
+  for(let i=0;i<n;i++){
+    const a=i/n*Math.PI*2;
+    const r=50*(1-irr+Math.random()*irr*2);
+    pts.push([(50+Math.cos(a)*r).toFixed(1),(50+Math.sin(a)*r).toFixed(1)]);
+  }
+  return pts.map(p=>p.join(',')).join(' ');
+}
+/* leaf/frond shape */
+function frond(){
+  return `M50 2 C 78 22, 82 55, 50 98 C 18 55, 22 22, 50 2 Z`;
+}
+function makeCut(x,y,size,color,rot,kind){
+  const d=document.createElement('div');
+  d.className='cut';
+  d.style.left=x+'%';d.style.top=y+'%';
+  d.style.width=size+'px';
+  d.dataset.depth=(Math.random()*.8+.2).toFixed(2);
+  d.dataset.rot=rot;
+  const k=kind??(Math.random()*3|0);
+  if(k===0)d.innerHTML=`<svg viewBox="0 0 100 100"><polygon points="${tornPoly()}" fill="${color}"/></svg>`;
+  else if(k===1)d.innerHTML=`<svg viewBox="0 0 100 100"><path d="${frond()}" fill="${color}"/></svg>`;
+  else d.innerHTML=`<svg viewBox="0 0 100 100"><path d="M8 50 Q 30 ${10+Math.random()*20}, 50 50 T 92 50 L 92 62 Q 70 ${80-Math.random()*20}, 50 62 T 8 62 Z" fill="${color}"/></svg>`;
+  d.style.transform=`rotate(${rot}deg)`;
+  return d;
+}
+const collage=document.getElementById('collage');
+const seeds=[
+  [4,8,190,0],[78,6,230,1],[86,58,170,2],[8,62,210,1],[30,74,150,0],
+  [64,78,190,2],[16,30,120,2],[70,32,110,0],[44,6,130,1],[90,30,90,0]
+];
+seeds.forEach((s,i)=>{
+  collage.appendChild(makeCut(s[0],s[1],s[2],COLORS[i%COLORS.length],Math.random()*50-25,s[3]));
+});
+
+/* mouse parallax */
+let mx=0,my=0;
+addEventListener('pointermove',e=>{
+  mx=(e.clientX/innerWidth-.5);my=(e.clientY/innerHeight-.5);
+  document.querySelectorAll('.cut').forEach(c=>{
+    const d=+c.dataset.depth;
+    c.style.transform=`translate(${-mx*46*d}px,${-my*34*d}px) rotate(${c.dataset.rot}deg)`;
+  });
+});
+
+/* cut new shape */
+document.getElementById('cutbtn').addEventListener('click',()=>{
+  const c=makeCut(Math.random()*84,Math.random()*76,90+Math.random()*160,
+    COLORS[Math.random()*COLORS.length|0],Math.random()*60-30);
+  c.animate([
+    {transform:'scale(0) rotate(-100deg)',opacity:0},
+    {transform:`scale(1.12) rotate(${c.dataset.rot}deg)`,opacity:1,offset:.7},
+    {transform:`scale(1) rotate(${c.dataset.rot}deg)`,opacity:1}
+  ],{duration:600,easing:'cubic-bezier(.3,1.5,.4,1)'});
+  collage.appendChild(c);
+});
+
+/* gallery works: generated mini-collages */
+const TITLES=[['La Vague Bleue','after a swim'],['Coquelicot №4','poppies, remembered'],['Jardin Nocturne','the garden at night'],
+  ['L\'Oiseau Jaune','a bird, briefly'],['Danse des Formes','shapes, dancing'],['Mer et Soleil','sea and sun']];
+const grid=document.getElementById('workgrid');
+TITLES.forEach(([t,s],i)=>{
+  const w=document.createElement('div');
+  w.className='work';
+  w.style.transform=`rotate(${(Math.random()*5-2.5).toFixed(1)}deg)`;
+  const bg=COLORS[(i+1)%COLORS.length];
+  let inner='';
+  const m=3+Math.random()*3|0;
+  for(let j=0;j<m;j++){
+    const c2=COLORS[(i+j+2)%COLORS.length];
+    const kind=Math.random()*3|0;
+    const sz=34+Math.random()*44, xx=Math.random()*66, yy=Math.random()*66, rr=Math.random()*70-35;
+    if(kind===0)inner+=`<svg viewBox="0 0 100 100" style="position:absolute;left:${xx}%;top:${yy}%;width:${sz}%;transform:rotate(${rr}deg)"><polygon points="${tornPoly()}" fill="${c2}"/></svg>`;
+    else if(kind===1)inner+=`<svg viewBox="0 0 100 100" style="position:absolute;left:${xx}%;top:${yy}%;width:${sz}%;transform:rotate(${rr}deg)"><path d="${frond()}" fill="${c2}"/></svg>`;
+    else inner+=`<svg viewBox="0 0 100 100" style="position:absolute;left:${xx}%;top:${yy}%;width:${sz}%;transform:rotate(${rr}deg)"><circle cx="50" cy="50" r="42" fill="${c2}"/></svg>`;
+  }
+  w.innerHTML=`<div class="mat"><div class="tape"></div>
+    <div class="art" style="background:${bg}22">${inner}</div>
+    <div class="cap"><b>${t}</b><span>${s}</span></div></div>`;
+  grid.appendChild(w);
+});
+</script>
+</body>
+</html>

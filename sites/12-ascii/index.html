@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIGNAL-3D — a renderer with no pixels</title>
+<meta name="description" content="SIGNAL-3D renders spinning 3D solids as pure text: z-buffered, lambert-shaded ASCII at 30fps. Switch geometry and character ramps live.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@200;400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#101014;
+    --fg:#e6e6ef;
+    --dim:#55555f;
+    --red:#ff3b30;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--fg);
+    font-family:'JetBrains Mono',monospace;
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  ::selection{background:var(--red);color:#fff}
+
+  header{display:flex;justify-content:space-between;align-items:center;
+    padding:1.1rem 1.6rem;border-bottom:1px solid #232329;flex-wrap:wrap;gap:.8rem}
+  .brand{font-weight:700;letter-spacing:.08em;font-size:.95rem}
+  .brand i{color:var(--red);font-style:normal}
+  .brand small{color:var(--dim);font-weight:200;margin-left:1em;letter-spacing:.04em}
+  nav{display:flex;gap:1.4rem;font-size:.7rem;letter-spacing:.18em;text-transform:uppercase}
+  nav a{color:var(--dim);text-decoration:none}
+  nav a:hover{color:var(--fg)}
+
+  main{flex:1;display:grid;place-items:center;position:relative;overflow:hidden}
+  pre#out{
+    font-family:'JetBrains Mono',monospace;font-weight:400;
+    line-height:1.0;letter-spacing:0;user-select:none;
+    color:var(--fg);text-shadow:0 0 14px rgba(230,230,239,.24);
+    cursor:grab;
+  }
+  pre#out:active{cursor:grabbing}
+
+  .hud{position:absolute;font-size:.64rem;letter-spacing:.14em;color:var(--dim);
+    text-transform:uppercase;line-height:2}
+  .hud.tl{top:1.2rem;left:1.6rem}
+  .hud.tr{top:1.2rem;right:1.6rem;text-align:right}
+  .hud.bl{bottom:1.2rem;left:1.6rem}
+  .hud b{color:var(--fg);font-weight:400}
+  .hud .r{color:var(--red)}
+
+  footer{border-top:1px solid #232329;padding:1rem 1.6rem;display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between}
+  .ctlgroup{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+  .ctlgroup .lab{font-size:.6rem;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-right:.4rem}
+  button.ctl{
+    font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.1em;
+    background:none;border:1px solid #2e2e36;color:var(--dim);padding:.45rem .9rem;cursor:pointer;
+    transition:.2s;text-transform:uppercase;
+  }
+  button.ctl:hover{color:var(--fg);border-color:var(--fg)}
+  button.ctl.on{color:var(--red);border-color:var(--red)}
+
+  @media(max-width:700px){
+    .hud.tr,.hud.bl{display:none}
+    pre#out{font-size:5.5px!important}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">SIGNAL<i>-3D</i><small>a renderer with no pixels</small></div>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<main>
+  <pre id="out"></pre>
+  <div class="hud tl">object<br><b id="h-obj">TORUS</b></div>
+  <div class="hud tr">framebuffer<br><b id="h-res">— × —</b> chars</div>
+  <div class="hud bl">throughput<br><b id="h-fps">—</b> fps · <b id="h-chars">—</b> glyphs/s</div>
+</main>
+
+<footer>
+  <div class="ctlgroup">
+    <span class="lab">Geometry</span>
+    <button class="ctl on" data-obj="torus">Torus</button>
+    <button class="ctl" data-obj="knot">Knot</button>
+    <button class="ctl" data-obj="sphere">Sphere</button>
+  </div>
+  <div class="ctlgroup">
+    <span class="lab">Ramp</span>
+    <button class="ctl on" data-ramp="0">Classic</button>
+    <button class="ctl" data-ramp="1">Blocks</button>
+    <button class="ctl" data-ramp="2">Binary</button>
+  </div>
+  <div class="ctlgroup">
+    <span class="lab">Drag to spin · built by Claude (Fable 5)</span>
+  </div>
+</footer>
+
+<script>
+const out=document.getElementById('out');
+const RAMPS=[" .,:;i1tfLCG08@"," ░░▒▒▓▓██"," 01"];
+let ramp=RAMPS[0];
+let W=110,H=48,FONT=9;
+
+function sizeBuffer(){
+  const mw=out.parentElement.clientWidth-40, mh=out.parentElement.clientHeight-40;
+  FONT=Math.max(5,Math.min(11,Math.floor(mh/52)));
+  const cw=FONT*0.6, ch=FONT;
+  W=Math.min(150,Math.floor(mw/cw));
+  H=Math.min(56,Math.floor(mh/ch));
+  out.style.fontSize=FONT+'px';
+  document.getElementById('h-res').textContent=W+' × '+H;
+}
+addEventListener('resize',sizeBuffer);
+
+/* ——— geometry generators: return array of [x,y,z,nx,ny,nz] ——— */
+function torusPts(){
+  const pts=[];
+  for(let a=0;a<Math.PI*2;a+=.07)for(let b=0;b<Math.PI*2;b+=.02){
+    const ca=Math.cos(a),sa=Math.sin(a),cb=Math.cos(b),sb=Math.sin(b);
+    const R=2,r=1;
+    pts.push([(R+r*ca)*cb,r*sa,(R+r*ca)*sb, ca*cb,sa,ca*sb]);
+  }
+  return pts;
+}
+function spherePts(){
+  const pts=[];
+  for(let a=0;a<Math.PI;a+=.045)for(let b=0;b<Math.PI*2;b+=.045){
+    const x=Math.sin(a)*Math.cos(b),y=Math.cos(a),z=Math.sin(a)*Math.sin(b);
+    pts.push([x*2.3,y*2.3,z*2.3,x,y,z]);
+  }
+  return pts;
+}
+function knotPts(){
+  /* trefoil tube */
+  const pts=[];
+  for(let t=0;t<Math.PI*2;t+=.012){
+    const p=2,q=3;
+    const r=Math.cos(q*t)+2;
+    const cx=r*Math.cos(p*t),cy=r*Math.sin(p*t),cz=-Math.sin(q*t);
+    /* tangent */
+    const dt=.01;
+    const r2=Math.cos(q*(t+dt))+2;
+    const tx=r2*Math.cos(p*(t+dt))-cx,ty=r2*Math.sin(p*(t+dt))-cy,tz=-Math.sin(q*(t+dt))-cz;
+    const tl=Math.hypot(tx,ty,tz);
+    const T=[tx/tl,ty/tl,tz/tl];
+    /* arbitrary normal frame */
+    let N=[-T[1],T[0],0];const nl=Math.hypot(...N)||1;N=N.map(v=>v/nl);
+    const B=[T[1]*N[2]-T[2]*N[1],T[2]*N[0]-T[0]*N[2],T[0]*N[1]-T[1]*N[0]];
+    for(let s=0;s<Math.PI*2;s+=.7){
+      const cs=Math.cos(s),sn=Math.sin(s),tr=.42;
+      const nx=N[0]*cs+B[0]*sn,ny=N[1]*cs+B[1]*sn,nz=N[2]*cs+B[2]*sn;
+      pts.push([ (cx+tr*nx)*.75,(cy+tr*ny)*.75,(cz+tr*nz)*.75, nx,ny,nz ]);
+    }
+  }
+  return pts;
+}
+const OBJS={torus:torusPts(),sphere:spherePts(),knot:knotPts()};
+let obj='torus';
+
+/* ——— render ——— */
+let A=0,Bangle=0;         /* auto rotation */
+let dragVX=0,dragVY=0;    /* inertia from drag */
+let dragging=false,lx=0,ly=0;
+out.addEventListener('pointerdown',e=>{dragging=true;lx=e.clientX;ly=e.clientY});
+addEventListener('pointerup',()=>dragging=false);
+addEventListener('pointermove',e=>{
+  if(!dragging)return;
+  dragVY=(e.clientX-lx)*.004;dragVX=(e.clientY-ly)*.004;
+  lx=e.clientX;ly=e.clientY;
+});
+
+let frames=0,lastT=performance.now(),fps=0;
+function render(){
+  A+=.011+dragVX; Bangle+=.019+dragVY;
+  dragVX*=.95;dragVY*=.95;
+
+  const zb=new Float32Array(W*H).fill(0);
+  const fb=new Array(W*H).fill(' ');
+  const cA=Math.cos(A),sA=Math.sin(A),cB=Math.cos(Bangle),sB=Math.sin(Bangle);
+  const pts=OBJS[obj];
+  const K1=Math.min(W,H*2.1)*.62, K2=5.2;
+  const Lx=0,Ly=.7071,Lz=-.7071; /* light dir */
+
+  for(let i=0;i<pts.length;i++){
+    const p=pts[i];
+    /* rotate around X (A) then Z (B) */
+    let x=p[0],y=p[1],z=p[2];
+    let y1=y*cA-z*sA, z1=y*sA+z*cA;
+    let x2=x*cB-y1*sB, y2=x*sB+y1*cB;
+    const zi=1/(z1+K2);
+    const xp=(W/2+ K1*zi*x2)|0;
+    const yp=(H/2 - K1*zi*y2*.5)|0;
+    if(xp<0||xp>=W||yp<0||yp>=H)continue;
+    const idx=yp*W+xp;
+    if(zi>zb[idx]){
+      zb[idx]=zi;
+      /* rotate normal same way */
+      let nx=p[3],ny=p[4],nz=p[5];
+      let nY=ny*cA-nz*sA, nZ=ny*sA+nz*cA;
+      let nX=nx*cB-nY*sB; nY=nx*sB+nY*cB;
+      let lum=nX*Lx+nY*Ly+nZ*Lz;
+      lum=Math.max(0,lum);
+      const ci=Math.min(ramp.length-1,(lum*(ramp.length-1)+.5)|0);
+      fb[idx]=ramp[ci];
+    }
+  }
+  let s='';
+  for(let r=0;r<H;r++){s+=fb.slice(r*W,(r+1)*W).join('')+'\n';}
+  out.textContent=s;
+
+  frames++;
+  const now=performance.now();
+  if(now-lastT>500){
+    fps=Math.round(frames*1000/(now-lastT));
+    document.getElementById('h-fps').textContent=fps;
+    document.getElementById('h-chars').textContent=(fps*W*H).toLocaleString();
+    frames=0;lastT=now;
+  }
+  requestAnimationFrame(render);
+}
+
+/* controls */
+document.querySelectorAll('[data-obj]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-obj]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');obj=b.dataset.obj;
+  document.getElementById('h-obj').textContent=obj.toUpperCase();
+}));
+document.querySelectorAll('[data-ramp]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-ramp]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');ramp=RAMPS[+b.dataset.ramp];
+}));
+
+sizeBuffer();
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How FACET was made — guide</title>
+<meta name="description" content="How the FACET site was designed and built: low-poly Three.js gem, refractive material, procedural jewel-tone environment map, spotlight sweep, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Red+Hat+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #b57bff; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0c0a10; color:#ede8f2;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Red Hat Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9d92a8; text-decoration:none; border-bottom:1px solid #241f2b; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Red Hat Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#9d92a8; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #1e1a24;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Red Hat Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Red Hat Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Red Hat Mono', monospace; font-size:.8rem; line-height:1.9; color:#c4bacc;
+    background:#121019; border:1px solid #1e1a24; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #1e1a24;
+    font-family:'Red Hat Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8f8496; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  code { font-family:'Red Hat Mono',monospace; background:#121019; padding:.1rem .4rem; border-radius:4px; font-size:.92em; }
+  ::selection { background:var(--accent); color:#0c0a10; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to FACET</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 38 of 50 · how it was made</div>
+  <h1>FACET</h1>
+  <p class="sub">One gem, cut by math</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>FACET is Wing II's second real-3D showcase and its one site with zero generated imagery — every pixel is computed at render time. A zero-subdivision icosahedron reads as a cut gem because it's flat-shaded: the same geometry smoothed would look like a soccer ball, not a jewel. A refractive material samples a procedurally shaded environment sphere instead of a photo, and a single spotlight orbits the gem cycling through five jewel tones so each facet flashes a different color as it catches the light.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li><code>IcosahedronGeometry(1.9, 0)</code> — detail level 0 keeps every triangle a distinct flat facet; <code>flatShading:true</code> on the material stops Three.js from smoothing normals across them</li>
+    <li><code>MeshPhysicalMaterial</code> with <code>transmission</code>, <code>ior:2.4</code> and <code>clearcoat</code> approximates glass/gem optics without a full path tracer</li>
+    <li>The environment map is a hand-written fragment shader painted onto a <code>CubeCamera</code> render target — five jewel-tone bands blended around a sphere, so the "reflections" the gem shows are procedural, not a loaded HDRI</li>
+    <li>A single <code>SpotLight</code> orbits on an ellipse, its <code>color</code> stepped through five hex values once per lap — a facet nav indicator at the bottom mirrors which jewel tone is currently active</li>
+    <li>Pointer drag adds rotation velocity that decays back to a slow default spin — direct manipulation, not just autorotation</li>
+    <li>WebGL is feature-detected before the renderer is even constructed; failing that (or if <code>WebGLRenderer</code> throws), a CSS conic-gradient gem with a hue-rotate animation stands in, with a visible notice explaining why</li>
+  </ul>
+  <p><strong>What the three passes caught:</strong> the build pass found the first environment shader produced banding harsh enough to look like a bug rather than a gem facet — softened the band transitions with <code>mix()</code> and cross-faded five colors instead of a hard three-color split. The code-review pass caught the spotlight's color-index calculation running every frame with a modulo against a floating-point orbit angle, occasionally flickering between two indices at the boundary — added a rounding step and only updated the facet-nav dots on actual index change. The live-browser pass found the CSS fallback gem was invisible against the black background at low screen brightness because <code>brightness(.85)</code> was too aggressive on the conic-gradient — raised it and confirmed the WebGL-unavailable notice actually renders (tested by disabling WebGL via browser flags).</p>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Big Shoulders Display + Red Hat Mono · black #050406, amethyst #b57bff, sapphire #4a8dff, emerald #2ee6a6, topaz #ffbe4a, ruby #ff3d68</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Feature-detect WebGL before constructing a renderer; write the CSS fallback first so it's never an afterthought</li>
+    <li>Build a low-poly gem from an <code>IcosahedronGeometry</code> at detail 0 with <code>flatShading:true</code></li>
+    <li>Render a small procedural gradient sphere into a <code>WebGLCubeRenderTarget</code> and feed it to the gem material's <code>envMap</code> for reflections with no photo asset</li>
+    <li>Orbit one colored spotlight around the subject on a slow ellipse, stepping its color through a fixed jewel-tone array</li>
+    <li>Let pointer drag set rotation velocity rather than absolute rotation, so releasing the drag keeps a natural decay spin</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable), Anthropic · Wing II asset pipeline: none — FACET is pure procedural Three.js, no generated imagery, per brief · hand-written HTML/CSS/JS + Three.js via CDN, no build step ·
+    3 iteration passes in a real browser before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

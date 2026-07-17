@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23c89b4d%22/></svg>">
+<title>AUTOMATON — a mechanical songbird, wound by hand</title>
+<meta name="description" content="AUTOMATON is a clockwork songbird driven by real four-bar-linkage and cam-follower kinematics — wind the key and watch the math move its wings and beak.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Fragment+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg0:#1a1108;
+    --bg1:#2b1c0e;
+    --brass:#c89b4d;
+    --brass-lt:#f0d190;
+    --brass-dk:#7a5a26;
+    --wood:#3a2517;
+    --txt:#efe2c8;
+    --dim:#a8926e;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(ellipse at 50% 30%, #3a2413 0%, var(--bg1) 45%, var(--bg0) 100%);
+    color:var(--txt);
+    font-family:'Fragment Mono',monospace;
+    display:flex;flex-direction:column;min-height:100%;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--brass);color:#1a1108}
+
+  header{display:flex;justify-content:space-between;align-items:center;padding:1.3rem 2rem;position:relative;z-index:3}
+  .m{font-family:'Cinzel Decorative',serif;font-weight:700;font-size:1.05rem;letter-spacing:.06em;color:var(--brass-lt)}
+  nav{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--txt);text-decoration:none;opacity:.7;margin-left:1.5rem;border-bottom:1px solid transparent}
+  nav a:hover{opacity:1;color:var(--brass-lt);border-color:var(--brass-lt)}
+
+  .hero{text-align:center;padding:.5rem 1.5rem 0;position:relative;z-index:2}
+  .hero h1{font-family:'Cinzel Decorative',serif;font-weight:700;font-size:clamp(1.8rem,5.4vw,3.4rem);
+    color:var(--brass-lt);letter-spacing:.02em;text-shadow:0 0 40px rgba(200,155,77,.35)}
+  .hero p{font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-top:.8rem}
+
+  .stage-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem;position:relative;z-index:1}
+  .stage{
+    position:relative;width:min(760px,94vw);aspect-ratio:16/11;
+    background:
+      radial-gradient(ellipse at 50% 38%, rgba(255,214,150,.10), transparent 60%),
+      linear-gradient(180deg, #2a1a0e 0%, var(--wood) 70%, #241608 100%);
+    border-radius:14px;
+    box-shadow:0 30px 80px rgba(0,0,0,.55), inset 0 0 0 1px rgba(200,155,77,.25), inset 0 2px 24px rgba(0,0,0,.6);
+    overflow:hidden;
+  }
+  .stage::before{ /* proscenium vignette */
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,.55) 100%);
+    z-index:5;
+  }
+  .stage::after{
+    content:'';position:absolute;inset:0;pointer-events:none;border-radius:14px;
+    box-shadow:inset 0 0 0 10px rgba(20,12,6,.5);
+    z-index:5;
+  }
+  svg#bird{width:100%;height:100%;display:block;position:relative;z-index:1}
+
+  .panel{position:relative;z-index:3;display:flex;flex-wrap:wrap;gap:1.4rem;align-items:center;
+    justify-content:center;padding:0 1.5rem 2rem;text-align:center}
+  .key-wrap{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+  .key-hint{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+  #keyKnob{width:78px;height:78px;cursor:grab;touch-action:none}
+  #keyKnob:active{cursor:grabbing}
+
+  .gauge{display:flex;flex-direction:column;align-items:center;gap:.4rem;min-width:150px}
+  .gauge .lab{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+  .meter{width:150px;height:8px;border-radius:99px;background:rgba(200,155,77,.14);
+    border:1px solid rgba(200,155,77,.3);overflow:hidden}
+  .meter i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--brass-dk),var(--brass-lt));
+    transition:width .12s linear}
+  .readout{font-size:.7rem;color:var(--brass-lt);letter-spacing:.04em}
+
+  footer{position:relative;z-index:3;text-align:center;font-size:.58rem;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--dim);padding:0 1.5rem 1.4rem}
+  footer a{color:var(--brass-lt)}
+
+  #sfxHint{text-align:center;font-size:.58rem;letter-spacing:.1em;color:var(--dim);
+    text-transform:uppercase;opacity:.6;padding-bottom:1.6rem}
+
+  @media(max-width:640px){
+    header{padding:1rem 1.2rem}
+    .hero p{font-size:.68rem}
+    .panel{gap:1rem}
+    .gauge,.meter{min-width:120px;width:120px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    #keyKnob{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="m">AUTOMATON</span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>Wind the key.<br>Watch the linkage sing.</h1>
+  <p>real four-bar &amp; cam kinematics — no canned animation</p>
+</div>
+
+<div class="stage-wrap">
+  <div class="stage">
+    <svg id="bird" viewBox="0 0 760 520" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mechanical brass songbird whose wings and beak move via a driven crank">
+      <defs>
+        <linearGradient id="brassGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#f2d494"/>
+          <stop offset=".5" stop-color="#c89b4d"/>
+          <stop offset="1" stop-color="#8a6428"/>
+        </linearGradient>
+        <linearGradient id="brassGrad2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fbe6ae"/>
+          <stop offset="1" stop-color="#a97d3a"/>
+        </linearGradient>
+        <radialGradient id="perchGlow" cx="50%" cy="30%" r="70%">
+          <stop offset="0" stop-color="rgba(255,220,160,.25)"/>
+          <stop offset="1" stop-color="rgba(255,220,160,0)"/>
+        </radialGradient>
+      </defs>
+
+      <!-- perch / base plate -->
+      <ellipse cx="380" cy="470" rx="260" ry="26" fill="url(#perchGlow)"/>
+      <rect x="150" y="450" width="460" height="20" rx="4" fill="url(#brassGrad)" stroke="#4a3110" stroke-width="1.5"/>
+      <rect x="150" y="450" width="460" height="6" rx="3" fill="#f5dca0" opacity=".55"/>
+      <circle cx="180" cy="460" r="5" fill="#5a3c14"/>
+      <circle cx="580" cy="460" r="5" fill="#5a3c14"/>
+
+      <!-- gear train (decorative, geared to crank) -->
+      <g id="gearMain" transform="translate(150,392)"></g>
+      <g id="gearSmall" transform="translate(214,392)"></g>
+
+      <!-- tail -->
+      <path id="tail" d="M 300 340 Q 220 330 190 300 Q 240 345 300 358 Z" fill="url(#brassGrad)" stroke="#5a3c14" stroke-width="1.5" transform-origin="300px 348px"/>
+
+      <!-- wings (drawn behind/around body) -->
+      <g id="wingL" transform-origin="392px 330px">
+        <path d="M 0 0 C -60 -18 -108 6 -128 46 C -92 30 -54 24 -18 30 C -8 20 -2 8 0 0 Z" fill="url(#brassGrad)" stroke="#5a3c14" stroke-width="1.5" transform="translate(392,330)"/>
+        <path d="M -12 6 C -56 -4 -92 14 -110 44" fill="none" stroke="#6a4a1c" stroke-width="1.2" opacity=".6" transform="translate(392,330)"/>
+      </g>
+      <g id="wingR" transform-origin="392px 330px">
+        <path d="M 0 0 C 60 -18 108 6 128 46 C 92 30 54 24 18 30 C 8 20 2 8 0 0 Z" fill="url(#brassGrad)" stroke="#5a3c14" stroke-width="1.5" transform="translate(392,330)"/>
+        <path d="M 12 6 C 56 -4 92 14 110 44" fill="none" stroke="#6a4a1c" stroke-width="1.2" opacity=".6" transform="translate(392,330)"/>
+      </g>
+
+      <!-- body -->
+      <ellipse cx="392" cy="352" rx="88" ry="66" fill="url(#brassGrad2)" stroke="#5a3c14" stroke-width="2"/>
+      <ellipse cx="392" cy="352" rx="88" ry="66" fill="none" stroke="#5a3c14" stroke-width="1" opacity=".3"/>
+      <path d="M 340 330 Q 392 344 444 330" fill="none" stroke="#7a5a26" stroke-width="1.2" opacity=".55"/>
+      <path d="M 336 352 Q 392 366 448 352" fill="none" stroke="#7a5a26" stroke-width="1.2" opacity=".55"/>
+      <path d="M 344 374 Q 392 386 440 374" fill="none" stroke="#7a5a26" stroke-width="1.2" opacity=".55"/>
+
+      <!-- head -->
+      <g id="head" transform="translate(468,300)">
+        <circle cx="0" cy="0" r="46" fill="url(#brassGrad2)" stroke="#5a3c14" stroke-width="2"/>
+        <circle cx="12" cy="-10" r="7" fill="#241608" stroke="#f5dca0" stroke-width="1.5"/>
+        <circle cx="14" cy="-12" r="2.2" fill="#f5dca0"/>
+        <!-- beak: upper fixed, lower driven by cam -->
+        <path d="M 40 4 L 84 10 L 40 16 Z" fill="url(#brassGrad)" stroke="#5a3c14" stroke-width="1.5"/>
+        <g id="beakLower" transform-origin="40px 16px">
+          <path d="M 40 16 L 82 20 L 40 26 Z" fill="#a97d3a" stroke="#5a3c14" stroke-width="1.5"/>
+        </g>
+      </g>
+
+      <!-- feet -->
+      <path d="M 366 416 L 360 450 M 366 416 L 372 450 M 366 416 L 350 445" stroke="#5a3c14" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M 420 416 L 414 450 M 420 416 L 426 450 M 420 416 L 434 445" stroke="#5a3c14" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+      <!-- crank pivot marker (subtle, engineering detail) -->
+      <circle id="crankPin" cx="150" cy="392" r="4" fill="#f5dca0"/>
+    </svg>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="key-wrap">
+    <svg id="keyKnob" viewBox="0 0 100 100" role="button" tabindex="0" aria-label="Winding key — drag in a circle to wind the spring, or press Enter to give it a turn">
+      <circle cx="50" cy="50" r="46" fill="url(#kg)" stroke="#5a3c14" stroke-width="2"/>
+      <defs><radialGradient id="kg" cx="35%" cy="30%" r="75%">
+        <stop offset="0" stop-color="#f2d494"/><stop offset="1" stop-color="#8a6428"/>
+      </radialGradient></defs>
+      <g id="keyTab">
+        <rect x="46" y="2" width="8" height="26" rx="2" fill="#5a3c14"/>
+        <circle cx="50" cy="50" r="10" fill="#3a2510"/>
+      </g>
+    </svg>
+    <span class="key-hint">drag the key to wind</span>
+  </div>
+  <div class="gauge">
+    <span class="lab">Spring tension</span>
+    <div class="meter"><i id="tensionBar"></i></div>
+  </div>
+  <div class="gauge">
+    <span class="lab">Crank</span>
+    <span class="readout" id="crankReadout">θ 0° · ω 0.00</span>
+  </div>
+</div>
+
+<footer>
+  AUTOMATON — CAM &amp; FOUR-BAR LINKAGE KINEMATICS · SITE 55 OF 62 · BUILT BY CLAUDE (FABLE 25 · WAVE 3) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+<div id="sfxHint">click stage to toggle tick sound</div>
+
+
+<script>
+/* ============================================================
+   REAL KINEMATICS
+   1) Four-bar crank-rocker linkage drives each wing.
+      O2 (crank pivot) -- a --> A -- b (coupler) --> B -- c (rocker) --> O4 (rocker pivot)
+      Grashof crank-rocker: a shortest, ground O2O4 adjacent to crank -> full rotation, no lock.
+      Solve B via circle-circle intersection of (A, r=b) and (O4, r=c).
+   2) Two-lobe radial cam + knife-edge follower drives the lower beak (opens twice per turn).
+   3) Simple gear ratio (R_main/R_small) drives the decorative gear train.
+   ============================================================ */
+
+// --- four-bar linkage solver ---
+function circleIntersect(p0, r0, p1, r1, sign){
+  const dx=p1.x-p0.x, dy=p1.y-p0.y;
+  const d=Math.hypot(dx,dy);
+  if(d===0) return null;
+  const a=(r0*r0-r1*r1+d*d)/(2*d);
+  const hh=r0*r0-a*a;
+  const h=Math.sqrt(hh>0?hh:0);
+  const xm=p0.x+a*dx/d, ym=p0.y+a*dy/d;
+  return { x: xm + sign*h*dy/d, y: ym - sign*h*dx/d };
+}
+
+// linkage geometry (SVG units) — satisfies Grashof: shortest(18)+longest(70) < 64+50
+const LINK = { a:18, b:64, c:50, d:70 };
+const O2 = { x:0, y:0 };      // crank pivot (relative)
+const O4 = { x:LINK.d, y:0 }; // rocker pivot (relative)
+
+function wingAngle(theta){
+  const A = { x:O2.x+LINK.a*Math.cos(theta), y:O2.y+LINK.a*Math.sin(theta) };
+  const B = circleIntersect(A, LINK.b, O4, LINK.c, -1);
+  if(!B) return 0;
+  return Math.atan2(B.y-O4.y, B.x-O4.x);
+}
+// precompute rocker angle range to normalize into a 0..1 flap fraction
+let rockerMin=Infinity, rockerMax=-Infinity;
+for(let i=0;i<360;i++){
+  const a = wingAngle(i*Math.PI/180);
+  if(a<rockerMin) rockerMin=a;
+  if(a>rockerMax) rockerMax=a;
+}
+function flapFraction(theta){
+  const a = wingAngle(theta);
+  return (a-rockerMin)/(rockerMax-rockerMin); // 0..1
+}
+
+// --- cam-follower for the beak (two-lobe: pecks twice per revolution) ---
+function camLift(theta){
+  // radial cam profile r(theta); knife-edge follower displacement = r(theta) - baseCircle
+  const lobe = Math.max(0, Math.sin(theta*2))**2.2;
+  return lobe; // 0..1
+}
+
+// --- gear ratio ---
+const R_MAIN = 34, R_SMALL = 20;
+const GEAR_RATIO = R_MAIN/R_SMALL;
+
+function drawGear(g, r, teeth, fill){
+  g.innerHTML='';
+  const ns='http://www.w3.org/2000/svg';
+  const hub = document.createElementNS(ns,'circle');
+  hub.setAttribute('r', r); hub.setAttribute('fill', fill);
+  hub.setAttribute('stroke','#4a3110'); hub.setAttribute('stroke-width','2');
+  g.appendChild(hub);
+  for(let i=0;i<teeth;i++){
+    const a = (i/teeth)*Math.PI*2;
+    const t = document.createElementNS(ns,'rect');
+    t.setAttribute('x', -3); t.setAttribute('y', -r-6);
+    t.setAttribute('width', 6); t.setAttribute('height', 8);
+    t.setAttribute('fill', fill);
+    t.setAttribute('stroke','#4a3110'); t.setAttribute('stroke-width','1');
+    t.setAttribute('transform', `rotate(${a*180/Math.PI})`);
+    g.appendChild(t);
+  }
+  const center = document.createElementNS(ns,'circle');
+  center.setAttribute('r', 5); center.setAttribute('fill','#3a2510');
+  g.appendChild(center);
+}
+const gearMainEl = document.getElementById('gearMain');
+const gearSmallEl = document.getElementById('gearSmall');
+drawGear(gearMainEl, R_MAIN, 14, 'url(#brassGrad)');
+drawGear(gearSmallEl, R_SMALL, 9, 'url(#brassGrad2)');
+
+// --- state: spring-wound crank ---
+let theta = 0;           // crank angle, radians
+let tension = 0;          // 0..1 stored energy
+let omega = 0;            // current angular velocity
+const MAX_TENSION = 1;
+const DECAY = 0.16;        // tension consumption rate
+let lastTeeth = 0;
+
+const wingL = document.getElementById('wingL');
+const wingR = document.getElementById('wingR');
+const beakLower = document.getElementById('beakLower');
+const tensionBar = document.getElementById('tensionBar');
+const crankReadout = document.getElementById('crankReadout');
+const keyTab = document.getElementById('keyTab');
+
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function applyPose(){
+  const frac = flapFraction(theta);           // 0..1
+  const flapDeg = (frac-0.5) * 30;              // wing sweep amplitude ~30deg
+  wingL.style.transform = `rotate(${flapDeg}deg)`;
+  wingR.style.transform = `rotate(${-flapDeg}deg)`;
+  const lift = camLift(theta);
+  beakLower.style.transform = `rotate(${-lift*16}deg)`;
+  gearMainEl.setAttribute('transform', `translate(150,392) rotate(${theta*180/Math.PI})`);
+  gearSmallEl.setAttribute('transform', `translate(214,392) rotate(${-theta*180/Math.PI*GEAR_RATIO})`);
+  const tailWag = Math.sin(theta*1)*4;
+  document.getElementById('tail').style.transform = `rotate(${tailWag}deg)`;
+  crankReadout.textContent = `θ ${Math.round((theta*180/Math.PI)%360)}° · ω ${omega.toFixed(2)}`;
+  tensionBar.style.width = (tension*100).toFixed(1)+'%';
+}
+
+// tick sound (mechanical escapement click, gated to a user gesture / toggle)
+let AC=null, sfxOn=false;
+function ensureAC(){ if(!AC) AC = new (window.AudioContext||window.webkitAudioContext)(); }
+function tick(vel){
+  if(!sfxOn || !AC) return;
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type='square'; o.frequency.value=1400+Math.random()*200;
+  g.gain.setValueAtTime(Math.min(.05,.015+vel*.02), AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(.0001, AC.currentTime+.05);
+  o.connect(g); g.connect(AC.destination);
+  o.start(); o.stop(AC.currentTime+.06);
+}
+document.querySelector('.stage').addEventListener('click', ()=>{
+  ensureAC(); sfxOn=!sfxOn;
+  document.getElementById('sfxHint').textContent = sfxOn ? 'tick sound on · click to mute' : 'click stage to toggle tick sound';
+});
+
+// winding interaction — drag key knob in a circle
+const knob = document.getElementById('keyKnob');
+let dragging=false, lastAng=0;
+function knobAngle(clientX, clientY){
+  const r = knob.getBoundingClientRect();
+  const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  return Math.atan2(clientY-cy, clientX-cx);
+}
+function windStart(x,y){ dragging=true; lastAng=knobAngle(x,y); ensureAC(); }
+function windMove(x,y){
+  if(!dragging) return;
+  const a = knobAngle(x,y);
+  let d = a-lastAng;
+  while(d>Math.PI) d-=Math.PI*2;
+  while(d<-Math.PI) d+=Math.PI*2;
+  lastAng=a;
+  if(d>0){ // only clockwise winding builds tension
+    tension = Math.min(MAX_TENSION, tension + d*0.9);
+  }
+  const kt = parseFloat(knob.dataset.rot||0) + d*180/Math.PI;
+  knob.dataset.rot = kt;
+  keyTab.setAttribute('transform', `rotate(${kt} 50 50)`);
+}
+function windEnd(){ dragging=false; }
+knob.addEventListener('pointerdown', e=>{ windStart(e.clientX,e.clientY); knob.setPointerCapture(e.pointerId); });
+knob.addEventListener('pointermove', e=>windMove(e.clientX,e.clientY));
+knob.addEventListener('pointerup', windEnd);
+knob.addEventListener('pointercancel', windEnd);
+knob.addEventListener('keydown', e=>{
+  if(e.key==='Enter' || e.key===' '){ e.preventDefault(); tension=Math.min(MAX_TENSION, tension+0.18); ensureAC(); }
+});
+
+// physics loop: tension drives omega, omega decays tension, theta accumulates
+let lastT=performance.now();
+function frame(now){
+  const dt = Math.min(0.05,(now-lastT)/1000); lastT=now;
+  if(!reduceMotion){
+    omega = tension * 6.2;                 // spring torque -> speed (simplified)
+    tension = Math.max(0, tension - omega*dt*DECAY);
+    theta += omega*dt;
+    if(theta>Math.PI*2) theta -= Math.PI*2;
+    const teeth = Math.floor(theta/(Math.PI*2/14));
+    if(teeth!==lastTeeth && omega>0.05){ tick(omega/6.2); lastTeeth=teeth; }
+  } else {
+    // reduced motion: gentle static pose driven by tension only, no continuous animation
+    theta = tension*Math.PI*0.6;
+  }
+  applyPose();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+applyPose();
+</script>
+</body>
+</html>

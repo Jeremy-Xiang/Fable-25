@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE STUDY — a room that follows your eyes</title>
+<meta name="description" content="A 2.5D diorama of a midnight study: eleven layered planes with real parallax depth. Move your cursor and the room looks back — Active Theory-style fake 3D, no WebGL.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23191420'/%3E%3Crect x='7' y='9' width='18' height='13' rx='1.5' fill='none' stroke='%23e8b45a' stroke-width='1.6'/%3E%3Ccircle cx='16' cy='15' r='2.6' fill='%23e8b45a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#191420; --ink:#efe6d8; --dim:#9a8fa3; --dim2:#584f61;
+  --lamp:#e8b45a; --line:rgba(239,230,216,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--night); color:var(--ink); font-family:'Fraunces',serif; height:100vh; overflow:hidden}
+::selection{background:var(--lamp); color:#241703}
+a:focus-visible{outline:2px solid var(--lamp); outline-offset:3px}
+
+#scene{position:fixed; inset:0; perspective:900px; overflow:hidden}
+.layer{position:absolute; inset:-6%; will-change:transform; pointer-events:none}
+.layer svg{width:100%; height:100%; display:block}
+
+header{position:fixed; top:0; left:0; right:0; z-index:20; display:flex; justify-content:space-between;
+  padding:1.3rem 1.6rem}
+.mark{font-weight:600; font-size:1rem; letter-spacing:.16em}
+.mark em{font-style:italic; color:var(--lamp)}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'DM Mono',monospace; font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--lamp)}
+
+.plate{position:fixed; left:1.6rem; bottom:1.4rem; z-index:20; pointer-events:none; max-width:20rem}
+.plate h1{font-weight:400; font-size:clamp(1.3rem,3vw,1.9rem); line-height:1.3; font-style:italic}
+.plate p{font-family:'DM Mono',monospace; font-size:.58rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim2); margin-top:.7rem; line-height:1.9}
+</style>
+</head>
+<body>
+
+<div id="scene" aria-label="A layered 2.5D diorama of a midnight study that shifts with your cursor"></div>
+
+<header>
+  <span class="mark">THE <em>STUDY</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="plate">
+  <h1>A room that<br>follows your eyes.</h1>
+  <p>eleven svg planes · mouse-look parallax<br>no webgl — just depth arithmetic</p>
+</div>
+
+<script>
+/* ═════ THE STUDY — 2.5D layered diorama ═════
+   Eleven SVG planes at different depths. The pointer sets a virtual
+   camera offset; each layer translates by offset·depth and scales
+   slightly with depth, which reads as true parallax. The lamp layer
+   carries a breathing glow; dust motes drift on the nearest plane. */
+
+const NIGHT='#191420', WALL='#241d2e', WALL2='#2c2338', DESKC='#3a2b25',
+      INKC='#efe6d8', LAMP='#e8b45a', PLANT='#40634a', BOOK1='#7a3b3b',
+      BOOK2='#3b5a7a', BOOK3='#6b5a2f', SHADE='#120e18';
+
+/* depth: 0 = far wall … 1 = nearest. Each entry returns SVG innerHTML. */
+const LAYERS = [
+  { d:.02, svg:`<rect width="100" height="100" fill="${WALL}"/>` },
+  { d:.08, svg:`
+    <rect x="12" y="14" width="24" height="30" rx="1" fill="${SHADE}" stroke="${INKC}" stroke-opacity=".28" stroke-width=".5"/>
+    <circle cx="24" cy="24" r="5.5" fill="#efe6d8" opacity=".92"/>
+    <circle cx="26" cy="22.6" r="4.6" fill="${SHADE}"/>
+    <g fill="#efe6d8" opacity=".7">
+      <circle cx="16" cy="34" r=".3"/><circle cx="21" cy="38" r=".25"/><circle cx="30" cy="31" r=".35"/>
+      <circle cx="33" cy="39" r=".22"/><circle cx="19" cy="29" r=".2"/>
+    </g>` },
+  { d:.12, svg:`
+    <g stroke="${WALL2}" stroke-width="2.6">
+      <line x1="58" y1="0" x2="58" y2="100"/><line x1="86" y1="0" x2="86" y2="100"/>
+    </g>
+    <rect x="60" y="18" width="24" height="3.4" fill="${WALL2}"/>
+    <g>
+      <rect x="62" y="12" width="3" height="6" fill="${BOOK1}"/>
+      <rect x="65.4" y="11" width="2.4" height="7" fill="${BOOK2}"/>
+      <rect x="68.2" y="12.6" width="3.4" height="5.4" fill="${BOOK3}"/>
+      <rect x="72" y="11.4" width="2.2" height="6.6" fill="${BOOK2}"/>
+      <rect x="74.6" y="12.2" width="3" height="5.8" fill="${BOOK1}"/>
+    </g>` },
+  { d:.2, svg:`
+    <ellipse cx="50" cy="96" rx="60" ry="14" fill="${SHADE}" opacity=".8"/>` },
+  { d:.3, svg:`
+    <rect x="20" y="64" width="60" height="4" rx="1" fill="${DESKC}"/>
+    <rect x="24" y="68" width="4" height="26" fill="${DESKC}"/>
+    <rect x="72" y="68" width="4" height="26" fill="${DESKC}"/>` },
+  { d:.38, svg:`
+    <g id="lampG">
+      <rect x="63" y="49" width="1.6" height="15" fill="#4c4356"/>
+      <path d="M57 49 Q64 43 71 49 Z" fill="${LAMP}"/>
+      <ellipse id="glow" cx="64" cy="52" rx="16" ry="9" fill="${LAMP}" opacity=".14"/>
+      <circle cx="64" cy="50" r="1.6" fill="#fff3d6"/>
+    </g>
+    <rect x="34" y="58" width="10" height="6.2" rx=".6" fill="${BOOK2}"/>
+    <rect x="35.4" y="55.8" width="10" height="6.2" rx=".6" fill="${BOOK1}" transform="rotate(-4 40 59)"/>
+    <rect x="52" y="60.2" width="7" height="3.6" rx=".5" fill="${INKC}" opacity=".85"/>` },
+  { d:.5, svg:`
+    <g fill="${PLANT}">
+      <path d="M10 96 Q8 76 15 66 Q14 82 13 96 Z"/>
+      <path d="M13 96 Q17 74 26 70 Q19 84 15.6 96 Z"/>
+      <path d="M8 96 Q3 80 2 70 Q9 80 10.4 96 Z"/>
+    </g>
+    <path d="M6 96 H18 L16.6 104 H7.4 Z" fill="#6b4633"/>` },
+  { d:.62, svg:`
+    <g opacity=".92">
+      <rect x="70" y="76" width="26" height="22" rx="1.4" fill="#221a2c"/>
+      <rect x="72" y="78" width="22" height="12" rx="1" fill="#2c2338"/>
+      <path d="M74 88 L79 82 L83 86 L87 81 L92 88 Z" fill="${LAMP}" opacity=".5"/>
+      <circle cx="76.5" cy="81.5" r="1.2" fill="${INKC}" opacity=".6"/>
+    </g>` },
+  { d:.8, svg:`
+    <path d="M-4 100 Q18 92 50 96 Q80 99 104 94 L104 106 L-4 106 Z" fill="#120d19"/>` },
+  { d:.95, svg:`
+    <g fill="${INKC}" id="motes">
+      <circle cx="22" cy="30" r=".34" opacity=".5"/><circle cx="66" cy="20" r=".3" opacity=".4"/>
+      <circle cx="44" cy="52" r=".26" opacity=".45"/><circle cx="82" cy="44" r=".38" opacity=".35"/>
+      <circle cx="12" cy="60" r=".3" opacity=".4"/><circle cx="55" cy="34" r=".22" opacity=".5"/>
+    </g>` },
+];
+
+const scene = document.getElementById('scene');
+const els = LAYERS.map(L=>{
+  const div = document.createElement('div');
+  div.className = 'layer';
+  div.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">${L.svg}</svg>`;
+  div.dataset.d = L.d;
+  scene.appendChild(div);
+  return div;
+});
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let tx=0, ty=0, cx=0, cy=0;
+addEventListener('pointermove', e=>{
+  tx = (e.clientX/innerWidth - .5)*2;
+  ty = (e.clientY/innerHeight - .5)*2;
+});
+
+const glow = ()=>document.getElementById('glow');
+const motes = ()=>document.getElementById('motes');
+
+(function loop(now){
+  requestAnimationFrame(loop);
+  cx += (tx-cx)*.06; cy += (ty-cy)*.06;
+  const t = now/1000;
+  for (const el of els){
+    const d = +el.dataset.d;
+    const px = -cx * d * 46;                    // parallax shift
+    const py = -cy * d * 30;
+    const s = 1 + d*.06;
+    el.style.transform = `translate3d(${px}px, ${py}px, 0) scale(${s})`;
+  }
+  // lamp breath + drifting motes
+  const g = glow();
+  if (g) g.setAttribute('opacity', (.12 + (reduce?0:Math.sin(t*1.4)*.05)).toFixed(3));
+  const m = motes();
+  if (m && !reduce) m.setAttribute('transform', `translate(${Math.sin(t*.4)*1.6} ${Math.cos(t*.3)*1.2})`);
+})(0);
+</script>
+</body>
+</html>

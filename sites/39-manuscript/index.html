@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ILLUMINATED — a page kept the old way</title>
+<meta name="description" content="ILLUMINATED is a study of manuscript gilding: a generated illuminated-page image framed in hand-drawn gold ornament, a shimmering gold-leaf sweep, and a drop cap that animates in.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --parch:#ece0c4;
+    --parch-deep:#e0d1ab;
+    --ink:#2b1d12;
+    --gold:#c8952e;
+    --gold-light:#f6d478;
+    --oxblood:#7a1f2b;
+    --dim:rgba(43,29,18,.72);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--parch);color:var(--ink);
+    font-family:'EB Garamond',Georgia,serif; font-size:1.15rem;
+    background-image:
+      radial-gradient(ellipse at 20% 10%, rgba(122,31,43,.05), transparent 45%),
+      radial-gradient(ellipse at 85% 90%, rgba(200,149,46,.08), transparent 50%);
+  }
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:40;opacity:.06;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+  ::selection{background:var(--gold);color:var(--ink)}
+  .black{font-family:'UnifrakturMaguntia',cursive}
+
+  nav.top{display:flex;justify-content:space-between;align-items:center;padding:1.6rem 6vw;
+    border-bottom:1px solid rgba(43,29,18,.15)}
+  .mark{font-family:'UnifrakturMaguntia',cursive;font-size:1.5rem;color:var(--oxblood)}
+  .links{font-family:'EB Garamond',serif;font-size:.85rem;letter-spacing:.1em;text-transform:uppercase}
+  .links a{color:var(--ink);text-decoration:none;opacity:.75;margin-left:1.6rem;border-bottom:1px solid transparent}
+  .links a:hover{opacity:1;border-color:var(--gold);color:var(--oxblood)}
+
+  .hero{max-width:1080px;margin:0 auto;padding:8vh 6vw 6vh;text-align:center}
+  .hero .kicker{font-size:.78rem;letter-spacing:.32em;text-transform:uppercase;color:var(--oxblood);margin-bottom:1.4rem}
+  .hero h1{font-weight:600;font-size:clamp(2.2rem,6vw,4rem);line-height:1.1;margin-bottom:1.2rem}
+  .hero p.lede{font-style:italic;color:var(--dim);font-size:1.2rem;max-width:52ch;margin:0 auto}
+
+  .frame-wrap{max-width:900px;margin:6vh auto;padding:0 6vw;position:relative}
+  .frame{position:relative;border:10px solid var(--parch);box-shadow:0 0 0 2px rgba(43,29,18,.25),0 20px 60px rgba(43,29,18,.25)}
+  .frame img{display:block;width:100%;height:auto}
+  .frame svg{position:absolute;inset:-2px;width:calc(100% + 4px);height:calc(100% + 4px);pointer-events:none}
+  .frame .cap{position:absolute;bottom:0;left:0;right:0;padding:1rem 1.4rem;
+    background:linear-gradient(0deg,rgba(20,12,6,.72),transparent);color:#f3e9d2;
+    font-size:.8rem;letter-spacing:.06em;font-style:italic;text-align:left}
+
+  .goldtext{background:linear-gradient(100deg,var(--gold) 20%,var(--gold-light) 45%,#fffbe8 50%,var(--gold-light) 55%,var(--gold) 80%);
+    background-size:260% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+    animation:shine 5.5s linear infinite}
+  @keyframes shine{0%{background-position:0% 0}100%{background-position:-260% 0}}
+
+  .intro{max-width:680px;margin:8vh auto;padding:0 6vw;line-height:1.85}
+  .intro .dropcap-line{position:relative;min-height:1px}
+  .dropcap{float:left;font-family:'UnifrakturMaguntia',cursive;font-size:5.2rem;line-height:.8;
+    padding:.1rem .18rem 0 0;color:var(--oxblood);opacity:0;transform:scale(.6) translateY(6px);
+    transition:opacity .9s ease,transform .9s cubic-bezier(.2,.8,.2,1)}
+  .dropcap.in{opacity:1;transform:none}
+  .intro p{margin-bottom:1.4rem}
+
+  section.craft{max-width:900px;margin:0 auto;padding:8vh 6vw;display:grid;grid-template-columns:1fr 1fr;gap:4rem}
+  section.craft .col .no{font-size:.78rem;letter-spacing:.3em;text-transform:uppercase;color:var(--oxblood);
+    display:block;margin-bottom:.9rem}
+  section.craft .col h2{font-weight:600;font-size:1.7rem;margin-bottom:.9rem}
+  section.craft .col p{color:var(--dim);line-height:1.8;font-size:1.02rem}
+
+  .rule{width:64px;height:1px;background:var(--gold);margin:0 auto}
+  .rule-wrap{text-align:center;padding:3vh 0}
+
+  footer{border-top:1px solid rgba(43,29,18,.15);padding:8vh 6vw;text-align:center;
+    font-size:.85rem;letter-spacing:.06em;line-height:2.2}
+  footer a{color:var(--oxblood);text-decoration:none;border-bottom:1px solid var(--gold)}
+
+  @media(max-width:820px){
+    section.craft{grid-template-columns:1fr;gap:2.6rem}
+    nav.top{padding:1.2rem 5vw}
+    .dropcap{font-size:3.6rem}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .goldtext{animation:none;background-position:0 0}
+    .dropcap{transition:opacity .3s ease}
+  }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <span class="mark">Illuminated</span>
+  <span class="links"><a href="guide/">Guide</a><a href="../">Index</a></span>
+</nav>
+
+<header class="hero">
+  <span class="kicker">A study in manuscript gilding</span>
+  <h1><span class="goldtext">A page kept</span> the old way.</h1>
+  <p class="lede">One generated leaf, framed by hand-drawn ornament, lit by a gold shimmer that never stops moving — because real gold leaf never really sits still under candlelight either.</p>
+</header>
+
+<div class="frame-wrap">
+  <div class="frame">
+    <img src="assets/hero.jpg" alt="Close detail of an illuminated manuscript page: a gold-leaf ornamental initial capital with painted vine work in red, blue, and green, beside a lit candle.">
+    <svg viewBox="0 0 400 300" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="goldShine" x1="0" y1="0" x2="1" y2="0" gradientTransform="translate(-1 0)">
+          <stop offset="0%" stop-color="#8a6a1f"/>
+          <stop offset="42%" stop-color="#e8bf5a"/>
+          <stop offset="50%" stop-color="#fff6da"/>
+          <stop offset="58%" stop-color="#e8bf5a"/>
+          <stop offset="100%" stop-color="#8a6a1f"/>
+          <animateTransform id="shineAnim" attributeName="gradientTransform" type="translate"
+            values="-2 0;2.4 0;-2 0" dur="7s" repeatCount="indefinite"/>
+        </linearGradient>
+      </defs>
+      <!-- hand-drawn corner flourishes, gold-leaf shine applied via the animated gradient above -->
+      <path d="M2 2 C 30 2, 40 4, 46 20 C 50 32, 60 34, 74 30" fill="none" stroke="url(#goldShine)" stroke-width="3" stroke-linecap="round"/>
+      <path d="M2 2 C 2 30, 4 40, 20 46 C 32 50, 34 60, 30 74" fill="none" stroke="url(#goldShine)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="2" cy="2" r="5" fill="url(#goldShine)"/>
+
+      <path d="M398 2 C 370 2, 360 4, 354 20 C 350 32, 340 34, 326 30" fill="none" stroke="url(#goldShine)" stroke-width="3" stroke-linecap="round"/>
+      <path d="M398 2 C 398 30, 396 40, 380 46 C 368 50, 366 60, 370 74" fill="none" stroke="url(#goldShine)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="398" cy="2" r="5" fill="url(#goldShine)"/>
+
+      <path d="M2 298 C 30 298, 40 296, 46 280 C 50 268, 60 266, 74 270" fill="none" stroke="url(#goldShine)" stroke-width="3" stroke-linecap="round"/>
+      <path d="M2 298 C 2 270, 4 260, 20 254 C 32 250, 34 240, 30 226" fill="none" stroke="url(#goldShine)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="2" cy="298" r="5" fill="url(#goldShine)"/>
+
+      <path d="M398 298 C 370 298, 360 296, 354 280 C 350 268, 340 266, 326 270" fill="none" stroke="url(#goldShine)" stroke-width="3" stroke-linecap="round"/>
+      <path d="M398 298 C 398 270, 396 260, 380 254 C 368 250, 366 240, 370 226" fill="none" stroke="url(#goldShine)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="398" cy="298" r="5" fill="url(#goldShine)"/>
+    </svg>
+    <p class="cap">Detail, illuminated page — generated reference, gold ornament hand-drawn in SVG</p>
+  </div>
+</div>
+
+<div class="rule-wrap"><div class="rule"></div></div>
+
+<section class="intro">
+  <p class="dropcap-line">
+    <span class="dropcap black" id="dropcap">A</span>
+    scribe filling a drop cap never worked in a hurry. The gold was laid a sheet at a time, burnished with an agate until it threw back candlelight instead of absorbing it, and the vine work grew out from the letter like it had always been rooted there. This page borrows that logic: one generated study of a real illuminated capital, held inside hand-drawn corner ornament, with a gold-leaf sweep that behaves the way real gold leaf does under moving light — brightening, dimming, never quite finished catching the eye.
+  </p>
+  <p>Nothing here is a texture trick pretending to be gold. It's a gradient, in motion, doing the one thing gold has always done for a page: telling your eye where to stop first.</p>
+</section>
+
+<section class="craft">
+  <div class="col">
+    <span class="no">01 — The leaf</span>
+    <h2>One generated reference.</h2>
+    <p>The framed image is a single Higgsfield still of an illuminated manuscript detail — gold leaf, painted vine work, a candle for scale and warmth. It sets the palette for everything else on the page rather than sitting apart from it.</p>
+  </div>
+  <div class="col">
+    <span class="no">02 — The ornament</span>
+    <h2>Hand-drawn, not photographed.</h2>
+    <p>The corner flourishes around the frame are plain SVG paths, drawn to echo the vine work in the image without copying it. They share the same animated gold gradient as the headline, so frame and text read as one gilded system.</p>
+  </div>
+  <div class="col">
+    <span class="no">03 — The shimmer</span>
+    <h2>A gradient that never resolves.</h2>
+    <p>Both the headline and the ornament share one shine: a bright band sliding across a darker gold, on a loop long enough that it never feels mechanical. CSS text does it with <code>background-clip</code>; the SVG paths do the identical trick with an animated gradient transform.</p>
+  </div>
+  <div class="col">
+    <span class="no">04 — The drop cap</span>
+    <h2>Earned, not just there.</h2>
+    <p>The opening capital starts invisible and swells into place the moment the intro paragraph scrolls into view — a small nod to the idea that in a real manuscript, that letter was the one thing the scribe saved for last.</p>
+  </div>
+</section>
+
+<footer>
+  ILLUMINATED — CSS gold-leaf shimmer over hand-drawn ornament, image by Higgsfield<br>
+  Wing II · Site 39 of 50 · designed &amp; built by Claude ·
+  <a href="guide/">How it was made</a> · <a href="../">All sites</a>
+</footer>
+
+<script>
+const dc = document.getElementById('dropcap');
+const io = new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){ dc.classList.add('in'); io.unobserve(dc); }
+}), {threshold:.4});
+io.observe(dc);
+
+if(matchMedia('(prefers-reduced-motion: reduce)').matches){
+  const anim = document.getElementById('shineAnim');
+  if(anim && anim.beginElement){
+    try{ document.querySelector('.frame svg').pauseAnimations(); }catch(e){}
+  }
+}
+</script>
+</body>
+</html>

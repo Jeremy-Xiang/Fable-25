@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VERBA — words that act</title>
+<meta name="description" content="VERBA is a kinetic typography machine. One variable font performs six moods live — weight, slant and casualness animated like stage direction.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Recursive:slnt,wght,CASL,MONO@-15..0,300..1000,0..1,0..1&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bone:#f5f3ef;
+    --ink:#141414;
+    --cobalt:#2440ff;
+    --acid:#c8e838;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bone);color:var(--ink);
+    font-family:'Recursive',sans-serif;overflow-x:hidden;
+  }
+  ::selection{background:var(--cobalt);color:#fff}
+
+  nav{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 2.2rem;
+    border-bottom:2px solid var(--ink);position:sticky;top:0;background:var(--bone);z-index:20}
+  nav .m{font-weight:900;font-size:1.05rem;letter-spacing:.06em;
+    font-variation-settings:'CASL' 1,'slnt' -8}
+  nav .links{font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;font-variation-settings:'MONO' 1}
+  nav a{color:var(--ink);text-decoration:none;margin-left:1.6rem}
+  nav a:hover{color:var(--cobalt)}
+
+  .stage-wrap{border-bottom:2px solid var(--ink)}
+  .stage{
+    min-height:62vh;display:grid;place-items:center;text-align:center;
+    padding:6vh 2rem;overflow:hidden;
+  }
+  #word{
+    font-size:clamp(3.4rem,14vw,12rem);line-height:1;
+    font-variation-settings:'wght' var(--w,700),'CASL' var(--c,0),'slnt' var(--s,0),'MONO' var(--m,0);
+    color:var(--ink);white-space:nowrap;
+    transition:color .4s;
+  }
+  .stagebar{display:flex;flex-wrap:wrap;gap:0;border-top:2px solid var(--ink)}
+  .mood{
+    flex:1;min-width:110px;padding:1.4rem .6rem;text-align:center;cursor:pointer;user-select:none;
+    font-size:.78rem;letter-spacing:.22em;text-transform:uppercase;
+    border-right:2px solid var(--ink);transition:background .18s,color .18s;
+    font-variation-settings:'MONO' 1;
+  }
+  .mood:last-child{border-right:none}
+  .mood:hover{background:#e8e4dc}
+  .mood.on{background:var(--ink);color:var(--acid)}
+
+  .inputrow{display:flex;border-bottom:2px solid var(--ink)}
+  #wordin{
+    flex:1;font-family:'Recursive';font-size:1.05rem;padding:1.2rem 2.2rem;border:none;outline:none;
+    background:transparent;color:var(--ink);font-variation-settings:'MONO' 1;letter-spacing:.06em;
+  }
+  #wordin::placeholder{color:#999}
+  .inputrow .hintbtn{padding:1.2rem 2rem;background:var(--cobalt);color:#fff;font-size:.72rem;
+    letter-spacing:.2em;text-transform:uppercase;display:flex;align-items:center;cursor:pointer;
+    font-variation-settings:'MONO' 1;border:none;font-family:'Recursive'}
+
+  .wall{max-width:1300px;margin:0 auto;padding:10vh 4vw;display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2px;background:var(--ink);border:2px solid var(--ink)}
+  .poster{background:var(--bone);aspect-ratio:4/5;display:flex;flex-direction:column;
+    justify-content:space-between;padding:1.8rem;overflow:hidden;position:relative}
+  .poster .cap{font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;
+    font-variation-settings:'MONO' 1;opacity:.55;display:flex;justify-content:space-between}
+  .poster .big{
+    font-size:clamp(2.6rem,6vw,4.6rem);line-height:.98;align-self:flex-start;margin:auto 0;
+    overflow-wrap:anywhere;
+  }
+  .poster:nth-child(2){background:var(--cobalt);color:#fff}
+  .poster:nth-child(5){background:var(--ink);color:var(--acid)}
+  .poster:nth-child(6){background:var(--acid);color:var(--ink)}
+
+  .p-shout .big{animation:shout 1.5s ease-in-out infinite}
+  @keyframes shout{
+    0%,100%{font-variation-settings:'wght' 300}
+    50%{font-variation-settings:'wght' 1000}
+  }
+  .p-whisper .big{animation:whisper 4.5s ease-in-out infinite;opacity:.8}
+  @keyframes whisper{
+    0%,100%{font-variation-settings:'wght' 300,'CASL' 1;letter-spacing:.02em}
+    50%{font-variation-settings:'wght' 340,'CASL' 1;letter-spacing:.14em}
+  }
+  .p-run .big{animation:run 1.1s cubic-bezier(.4,0,.6,1) infinite}
+  @keyframes run{
+    0%,100%{font-variation-settings:'slnt' 0,'wght' 700;transform:translateX(0)}
+    50%{font-variation-settings:'slnt' -15,'wght' 800;transform:translateX(12px)}
+  }
+  .p-glitch .big{animation:glitch 2.4s steps(2) infinite}
+  @keyframes glitch{
+    0%,100%{font-variation-settings:'MONO' 1,'wght' 400}
+    25%{font-variation-settings:'MONO' 0,'wght' 900}
+    50%{font-variation-settings:'MONO' 1,'wght' 200,'slnt' -15}
+    75%{font-variation-settings:'MONO' .5,'wght' 1000}
+  }
+  .p-breathe .big{animation:breathe 5s ease-in-out infinite}
+  @keyframes breathe{
+    0%,100%{font-variation-settings:'wght' 350,'CASL' .2;transform:scale(1)}
+    50%{font-variation-settings:'wght' 620,'CASL' .2;transform:scale(1.05)}
+  }
+  .p-dance .big{animation:dance 2s cubic-bezier(.4,-.2,.5,1.3) infinite}
+  @keyframes dance{
+    0%,100%{font-variation-settings:'CASL' 1,'wght' 600,'slnt' 0;transform:rotate(-2deg)}
+    25%{font-variation-settings:'CASL' 1,'wght' 900,'slnt' -12;transform:rotate(2deg) translateY(-6px)}
+    50%{font-variation-settings:'CASL' 0,'wght' 400,'slnt' 0;transform:rotate(-1deg)}
+    75%{font-variation-settings:'CASL' 1,'wght' 800,'slnt' -6;transform:rotate(3deg) translateY(-3px)}
+  }
+
+  .theory{max-width:860px;margin:0 auto;padding:4vh 5vw 14vh;font-size:1.05rem;line-height:2;
+    font-variation-settings:'CASL' .3}
+  .theory b{font-variation-settings:'wght' 900,'CASL' 1}
+  .theory .cob{color:var(--cobalt)}
+
+  footer{border-top:2px solid var(--ink);padding:2.6rem 2.2rem;display:flex;justify-content:space-between;
+    flex-wrap:wrap;gap:1rem;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;font-variation-settings:'MONO' 1}
+  footer a{color:var(--cobalt);text-decoration:none}
+
+  @media(max-width:700px){#word{white-space:normal;overflow-wrap:anywhere}}
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="m">VERBA*</span>
+  <span class="links"><a href="#wall">Wall</a><a href="guide/">Guide</a><a href="../">Index</a></span>
+</nav>
+
+<div class="stage-wrap">
+  <div class="inputrow">
+    <input id="wordin" maxlength="16" placeholder="Type a word, then give it stage direction ↓" aria-label="word to animate">
+    <button class="hintbtn" id="randbtn">Surprise me</button>
+  </div>
+  <div class="stage"><div id="word">MOMENTUM</div></div>
+  <div class="stagebar" role="tablist">
+    <div class="mood on" data-mood="shout">Shout</div>
+    <div class="mood" data-mood="whisper">Whisper</div>
+    <div class="mood" data-mood="run">Sprint</div>
+    <div class="mood" data-mood="breathe">Breathe</div>
+    <div class="mood" data-mood="dance">Dance</div>
+    <div class="mood" data-mood="glitch">Glitch</div>
+  </div>
+</div>
+
+<section class="wall" id="wall">
+  <div class="poster p-shout"><div class="cap"><span>Poster 01</span><span>wght 300⇄1000</span></div><div class="big">LOUDER</div><div class="cap"><span>Verba specimen</span><span>∞ loop</span></div></div>
+  <div class="poster p-whisper"><div class="cap"><span>Poster 02</span><span>tracking + casl</span></div><div class="big">hush now</div><div class="cap"><span>Verba specimen</span><span>∞ loop</span></div></div>
+  <div class="poster p-run"><div class="cap"><span>Poster 03</span><span>slnt 0⇄-15</span></div><div class="big">CATCH IT</div><div class="cap"><span>Verba specimen</span><span>∞ loop</span></div></div>
+  <div class="poster p-breathe"><div class="cap"><span>Poster 04</span><span>wght 350⇄620</span></div><div class="big">inhale.</div><div class="cap"><span>Verba specimen</span><span>∞ loop</span></div></div>
+  <div class="poster p-dance"><div class="cap"><span>Poster 05</span><span>casl + slnt + rot</span></div><div class="big">tanz!</div><div class="cap"><span>Verba specimen</span><span>∞ loop</span></div></div>
+  <div class="poster p-glitch"><div class="cap"><span>Poster 06</span><span>mono 0⇄1 steps</span></div><div class="big">S1GNAL</div><div class="cap"><span>Verba specimen</span><span>∞ loop</span></div></div>
+</section>
+
+<section class="theory">
+  <p>Every animation on this page is <b>one font</b>. Recursive ships four variable axes — weight, slant, casualness, and monospacedness — and VERBA treats them as <b class="cob">stage directions</b> rather than styles. A word that gains 700 units of weight in half a second is shouting. A word drifting apart, letter by letter, is a whisper leaving the room. No SVG, no sprites: just <b>font-variation-settings</b> keyframed with intent.</p>
+</section>
+
+<footer>
+  <span>VERBA — TYPE AS PERFORMANCE</span>
+  <span>BUILT BY CLAUDE (FABLE 5) · <a href="guide/">HOW</a> · <a href="../">ALL 25</a></span>
+</footer>
+
+<script>
+const word=document.getElementById('word');
+const moods={
+  shout:{anim:[{fv:"'wght' 300",tr:'scale(.96)'},{fv:"'wght' 1000",tr:'scale(1.04)'}],dur:700,easing:'ease-in-out'},
+  whisper:{anim:[{fv:"'wght' 300,'CASL' 1",ls:'0.02em',op:1},{fv:"'wght' 320,'CASL' 1",ls:'0.22em',op:.55}],dur:2600,easing:'ease-in-out'},
+  run:{anim:[{fv:"'slnt' 0,'wght' 700",tr:'translateX(-14px)'},{fv:"'slnt' -15,'wght' 850",tr:'translateX(14px)'}],dur:520,easing:'cubic-bezier(.4,0,.6,1)'},
+  breathe:{anim:[{fv:"'wght' 340",tr:'scale(1)'},{fv:"'wght' 640",tr:'scale(1.06)'}],dur:2400,easing:'ease-in-out'},
+  dance:{anim:[{fv:"'CASL' 1,'wght' 600,'slnt' 0",tr:'rotate(-2.5deg)'},{fv:"'CASL' 1,'wght' 950,'slnt' -12",tr:'rotate(2.5deg) translateY(-8px)'}],dur:640,easing:'cubic-bezier(.4,-.3,.5,1.4)'},
+  glitch:{anim:[{fv:"'MONO' 1,'wght' 400"},{fv:"'MONO' 0,'wght' 1000,'slnt' -15"}],dur:340,easing:'steps(2)'},
+};
+let current=null;
+function setMood(name){
+  if(current)current.cancel();
+  const m=moods[name];
+  const kf=m.anim.map(f=>({
+    fontVariationSettings:f.fv,
+    transform:f.tr||'none',
+    letterSpacing:f.ls||'normal',
+    opacity:f.op??1,
+  }));
+  kf.push(kf[0]);
+  current=word.animate(kf,{duration:m.dur*2,iterations:Infinity,easing:m.easing});
+  word.style.color=name==='glitch'?'var(--cobalt)':'var(--ink)';
+}
+document.querySelectorAll('.mood').forEach(el=>el.addEventListener('click',()=>{
+  document.querySelectorAll('.mood').forEach(x=>x.classList.remove('on'));
+  el.classList.add('on');setMood(el.dataset.mood);
+}));
+setMood('shout');
+
+const input=document.getElementById('wordin');
+input.addEventListener('input',()=>{word.textContent=input.value.toUpperCase()||'MOMENTUM'});
+const RAND=['VELVET','TURBINE','MARMALADE','ECHO','PAPRIKA','ZENITH','TANGO','QUASAR','BUTTER','LIMINAL'];
+document.getElementById('randbtn').addEventListener('click',()=>{
+  const w=RAND[Math.random()*RAND.length|0];
+  input.value=w;word.textContent=w;
+  const ms=Object.keys(moods);
+  const m=ms[Math.random()*ms.length|0];
+  document.querySelectorAll('.mood').forEach(x=>x.classList.toggle('on',x.dataset.mood===m));
+  setMood(m);
+});
+</script>
+</body>
+</html>

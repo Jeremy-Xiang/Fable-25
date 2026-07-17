@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%237fa3ad%22/></svg>">
+<title>How REVENANT was made — guide</title>
+<meta name="description" content="How the REVENANT site was designed and built: a rejection-sampled humanoid point cloud that holds, disperses and re-coalesces on a hand-rolled noise field.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #7fa3ad; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0d10; color:#dfe7e8;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#8fa0a3; text-decoration:none; border-bottom:1px solid #1f2a2d; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#8fa0a3; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #1c2528;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-family:'Fragment Mono',monospace;font-size:.9em;background:#141b1e;padding:.1em .4em;border-radius:4px}
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#b7c5c7;
+    background:#101618; border:1px solid #1c2528; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #1c2528;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#728185; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0a0d10; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to REVENANT</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 58 of 62 · how it was made</div>
+  <h1>REVENANT</h1>
+  <p class="sub">A formation of thousands of points, briefly a person</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>No mesh, no skeleton — just 4,200 independent points that know two things: where they are, and where they're supposed to be. A figure only exists because enough of them agree to stand still at once. The brief called for the "ghost" to read through point density and motion rather than geometry, so there is no outline drawn anywhere; the silhouette is an emergent effect of thousands of dots converging.</p>
+
+  <h2><span class="no">02</span> How the figure is built</h2>
+  <ul>
+    <li><strong>Procedural silhouette function:</strong> <code>bodyHalfWidth(t)</code> returns the figure's half-width at normalized height t (0=feet, 1=head-top) — piecewise sine/linear segments for legs, hips, torso, neck and head, plus a separate <code>armReach(t)</code> lobe for the torso band.</li>
+    <li><strong>Rejection sampling:</strong> points are proposed at random (t, x) and accepted only if x falls inside the silhouette's width at that height — the standard way to sample uniformly inside an arbitrary implicit region without ever rasterizing it.</li>
+    <li><strong>Hand-rolled value noise</strong> (smoothstep-interpolated hash lattice, no library) drives per-particle jitter while holding and drift while dispersed, so the motion reads as organic rather than random-per-frame static.</li>
+  </ul>
+
+  <h2><span class="no">03</span> The cycle</h2>
+  <p>A simple three-state machine — <code>hold → disperse → recoalesce → hold</code> — runs on a timer and can be interrupted early by a click or the "Disperse now" button. Hold applies a strong spring pull to each point's target with light noise jitter; disperse releases the pull entirely and lets accumulated velocity plus noise carry points outward like fog; recoalesce ramps the pull back in gradually so the reformation looks like a gathering, not a snap.</p>
+
+  <h2><span class="no">04</span> Type &amp; color</h2>
+  <p class="meta">Cardo (italic display) + Fragment Mono · near-black #050709, cold desaturated point color #7fa3ad, single warm point-light accent #ffb37a that follows the cursor</p>
+
+  <h2><span class="no">05</span> The screenshot pass</h2>
+  <p>The first headless render landed mid-recoalesce with points still scattered, so the screenshot showed a formless haze with no discernible figure — a bad first impression for a piece whose entire premise is "briefly a person." Changed particles to spawn already in formation and open directly in the hold state, so a visitor (and the screenshot harness) sees a legible figure immediately, with the disperse/recoalesce cycle still running on its normal timer afterward. Also widened the figure and added a sparse ambient dust field either side of it — the first render's narrow column left too much empty black either side and read as generic.</p>
+
+  <h2><span class="no">06</span> The complexity upgrade</h2>
+  <p>A warm point-light accent that follows the cursor: any particle within its radius shifts from cold desaturated blue-grey toward warm amber and brightens, as if a lantern were passing through the crowd of points — a physically-inspired lighting gesture layered on top of a system that otherwise has no concept of light.</p>
+
+  <h2><span class="no">07</span> Reproduce it</h2>
+  <ol>
+    <li>Write an implicit 2D silhouette function (width as a function of height)</li>
+    <li>Rejection-sample points inside it until you have as many as you need</li>
+    <li>Give every point a target (the sample) and a live position; spring one toward the other</li>
+    <li>Drive the spring strength itself from a state machine, not the noise</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 3), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step, no mesh ·
+    build → code-review → real screenshot critique passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

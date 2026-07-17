@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%233fa9f5%22/></svg>">
+<title>How RIPPLE was made — guide</title>
+<meta name="description" content="How the RIPPLE site was designed and built: a hand-rolled WebGL fragment shader that sums decaying, propagating ripple rings into a UV offset for a liquid image-hover distortion.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #3fa9f5; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#05080b; color:#dfe9f2;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:1rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:700px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#7f93a6; text-decoration:none; border-bottom:1px solid #182432; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-family:'Space Grotesk',sans-serif; font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:700; line-height:1.1; margin-bottom:.6rem; letter-spacing:-.01em; }
+  .sub { color:#7f93a6; font-size:1.05rem; margin-bottom:3.6rem; }
+  h2 {
+    font-family:'Space Grotesk',sans-serif;
+    font-size:1.08rem; font-weight:600; letter-spacing:.01em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #131c26;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  .no { font-size:.7rem; color:var(--accent); letter-spacing:.1em; font-family:'IBM Plex Mono',monospace; }
+  p { margin-bottom:1rem; }
+  ul { list-style:none; margin-bottom:1rem; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-size:.88em;background:#0e161f;padding:.15em .4em;border-radius:4px;color:#bcd6ef}
+  .meta {
+    font-size:.85rem; line-height:1.9; color:#bcd0e0;
+    background:#0a121a; border:1px solid #131c26; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #131c26;
+    font-size:.72rem; letter-spacing:.16em;
+    text-transform:uppercase; color:#6b7d8f; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#02060a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to RIPPLE</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 72 of 72 · Wave 4 · how it was made</div>
+  <h1>RIPPLE</h1>
+  <p class="sub">A hand-rolled WebGL liquid-distortion image hover — no shader library</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Creative-agency portfolio sites love a hover effect where a project thumbnail seems to be made of liquid — the pointer disturbs it and ripples spread across the image. That effect is almost always a fragment shader distorting texture-sample coordinates, not a real physical simulation. RIPPLE builds exactly that mechanism from scratch: raw WebGL, a hand-written GLSL fragment shader, and a small ring buffer of ripple events, dropped into a four-tile project grid so it reads as a real portfolio component, not an isolated toy.</p>
+
+  <h2><span class="no">02</span> How the effect works</h2>
+  <ul>
+    <li><strong>Per-tile WebGL context:</strong> each <code>.tile</code> gets its own <code>&lt;canvas&gt;</code> and <code>getContext('webgl')</code>, a single fullscreen quad (<code>TRIANGLE_STRIP</code> over 4 vertices), and one texture — a 480×600 canvas-2D composition (gradient + shapes + a speckle noise pass) uploaded once with <code>texImage2D</code>. No binary image assets anywhere.</li>
+    <li><strong>Ripple events:</strong> a <code>Float32Array(12*3)</code> ring buffer holds up to 12 concurrent ripples as <code>(u, v, t0)</code> triples in normalized tile-space. <code>pointerdown</code> always adds one; <code>pointermove</code> adds one every ≥45ms so a drag leaves a trail instead of one per pixel.</li>
+    <li><strong>The shader math</strong> (GLSL, per ripple <code>i</code>): <code>age = u_time - t0</code>; skip if <code>age&lt;0</code> or <code>age&gt;3.2</code>. <code>d = uv - center</code>, with <code>d.x *= aspect</code> so the ring stays circular on a non-square tile. <code>dist = length(d)</code>. Then <code>wave = sin(dist*40.0 - age*7.5) * exp(-age*u_decay) * exp(-dist/u_radius)</code> — the <code>sin</code> term is a ring that expands outward as <code>age</code> grows (phase depends on <code>dist - age*const</code>), <code>exp(-age*u_decay)</code> fades it out over time, <code>exp(-dist/u_radius)</code> bounds it in space. All active ripples' <code>normalize(d) * wave</code> vectors sum into one <code>offset</code>, scaled by <code>u_strength</code>.</li>
+    <li><strong>Sampling:</strong> the final texture read is at <code>uv + offset</code> (clamped so it can't sample outside the texture). A second, smaller offset (<code>offset*0.5</code>) is applied only to the red and blue channel samples — a cheap chromatic-aberration split proportional to local distortion — which is what makes the peak of a ripple read as "glassy" rather than just warped.</li>
+    <li><strong>Controls map directly to shader uniforms:</strong> Strength → <code>u_strength</code> (0.03–0.93, displacement magnitude), Decay speed → <code>u_decay</code> (0.4–4.6, how fast <code>exp(-age*decay)</code> kills a ripple), Ripple radius → <code>u_radius</code> (0.08–0.63, the spatial reach in <code>exp(-dist/radius)</code>).</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Space Grotesk (display) + IBM Plex Mono (UI/body) · near-black #05080b→#0a1119 · aqua accent #3fa9f5 · tile compositions vary secondary hue per project (aqua, violet, mint, amber) while the chrome stays monochrome + accent.</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>First headless render was correct but static-looking: <code>screenshot.js</code> never moves a pointer, so with the effect only firing on real pointer events, both PNGs showed four flat, undistorted tiles — technically working but demoing nothing, exactly the "canvas is blank because the effect only fires on an event that never happens on load" trap. Fixed by adding an idle-autoplay path: a timer checks <code>now() - lastInteraction &gt; 2.6s</code> and, if true, injects a synthetic ripple into the next tile every ~1.9s at a deterministic pseudo-random point. Any real <code>pointerdown</code>/<code>pointermove</code> resets <code>lastInteraction</code> and autoplay steps back until the visitor stops. Re-screenshotted and confirmed all four tiles now show visibly mid-ripple, expanding rings on both the desktop and mobile capture instead of flat placeholder art.</p>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <p>To reuse this on a real project grid:</p>
+  <ul>
+    <li>Copy the <code>RippleTile</code> class plus the <code>VS</code>/<code>FS</code> shader source strings verbatim — the class expects an element with a single child <code>&lt;canvas&gt;</code> (it reads size from the parent element's <code>getBoundingClientRect()</code>, not the canvas itself, so make the wrapper the sized box).</li>
+    <li>Swap <code>buildTexCanvas()</code> for whatever texture source you actually have — a real photo works too: draw an <code>&lt;img&gt;</code> onto an offscreen canvas (or upload it directly via <code>texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,imgEl)</code> once it's loaded) instead of a procedural composition.</li>
+    <li>Tunables live in one place: the <code>params</code> object (<code>strength</code>, <code>decay</code>, <code>radius</code>, each 0–1) — wire them to sliders or just hardcode constants if you don't need a live panel.</li>
+    <li><strong>Gotchas:</strong> call <code>resize()</code> on window resize (or a <code>ResizeObserver</code>) or the aspect-correction uniform goes stale and rings turn elliptical; set <code>touch-action: pan-y</code> (not <code>none</code>) on the tile if it sits in a normally-scrollable page, so mobile scrolling still works — <code>pointerdown</code> still fires a ripple on tap even before a scroll gesture takes over; respect <code>prefers-reduced-motion</code> by skipping the <code>requestAnimationFrame</code> loop and autoplay entirely (render one static frame) rather than just slowing it down.</li>
+  </ul>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Give each tile its own canvas + WebGL context and upload one texture (procedural or a real image)</li>
+    <li>On pointer events, push <code>(u, v, timestamp)</code> ripple records into a small fixed-size ring buffer</li>
+    <li>In the fragment shader, sum every active ripple's <code>sin(dist*freq − age*speed) · exp(−age·decay) · exp(−dist/radius)</code> into a UV offset</li>
+    <li>Sample the texture at <code>uv + offset</code>, splitting R/B channels by a fraction of that offset for a chromatic-aberration edge</li>
+    <li>Add an idle-autoplay fallback so the effect is visibly demonstrating itself even before anyone touches it</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 4), Anthropic ·
+    hand-written HTML/CSS/JS/GLSL, no frameworks, no build step, no shader library ·
+    build → screenshot critique → fix → re-screenshot before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

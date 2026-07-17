@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Meadow — a storybook you can poke</title>
+<meta name="description" content="The Meadow is an illustrated storybook page: SVG hills, boing-able flowers, one very slow snail, and a night mode full of fireflies.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Gochi+Hand&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --skyday1:#aee3f5;--skyday2:#e8f7d8;
+    --skynight1:#1a2456;--skynight2:#2c3a72;
+    --hill1:#8fce6e;--hill2:#6db354;--hill3:#569a44;
+    --hilln1:#3a5a4a;--hilln2:#2c4a3e;--hilln3:#224034;
+    --ink:#3a3230;
+    --sun:#ffd24d;
+    --moon:#f5efd8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Fredoka',sans-serif;color:var(--ink);overflow-x:hidden;
+    background:linear-gradient(var(--sky1,var(--skyday1)),var(--sky2,var(--skyday2)));
+    transition:background 2s ease}
+  body.night{--sky1:var(--skynight1);--sky2:var(--skynight2);color:#f0ead8}
+  ::selection{background:var(--sun);color:var(--ink)}
+
+  .scene{position:relative;height:100vh;overflow:hidden}
+  .scene svg.world{position:absolute;inset:0;width:100%;height:100%}
+
+  nav{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;justify-content:space-between;
+    align-items:center;padding:1.4rem 2rem}
+  nav .m{font-weight:600;font-size:1.3rem;letter-spacing:.02em}
+  nav .links{display:flex;gap:1rem;align-items:center;font-size:.85rem;font-weight:500}
+  nav a{color:inherit;text-decoration:none;background:rgba(255,255,255,.5);padding:.45rem 1.1rem;border-radius:99px;transition:.25s}
+  body.night nav a{background:rgba(20,28,70,.55)}
+  nav a:hover{transform:translateY(-2px)}
+  #nightbtn{cursor:pointer;border:none;font-family:'Fredoka';font-size:.85rem;font-weight:600;
+    background:var(--ink);color:#fff;padding:.5rem 1.2rem;border-radius:99px;transition:transform .2s}
+  #nightbtn:hover{transform:scale(1.06) rotate(-3deg)}
+
+  .titlecard{position:absolute;z-index:5;top:16%;width:100%;text-align:center;pointer-events:none;padding:0 1.5rem}
+  .titlecard h1{font-size:clamp(2.6rem,8vw,5.6rem);font-weight:600;line-height:1.05;
+    text-shadow:0 4px 0 rgba(255,255,255,.35)}
+  body.night .titlecard h1{text-shadow:0 4px 0 rgba(0,0,0,.25)}
+  .titlecard p{font-family:'Gochi Hand',cursive;font-size:clamp(1.15rem,3vw,1.7rem);margin-top:1rem;opacity:.85}
+
+  .story{max-width:720px;margin:0 auto;padding:12vh 6vw;text-align:center;position:relative;z-index:2}
+  .story p{font-size:clamp(1.05rem,2.4vw,1.35rem);line-height:2;font-weight:400}
+  .story p+p{margin-top:2rem}
+  .story .hand{font-family:'Gochi Hand',cursive;font-size:1.5em;display:block;margin-top:3rem;transform:rotate(-2deg)}
+  .below{background:#fff;position:relative;z-index:2}
+  body.night .below{background:#141c46}
+  .below .inner{max-width:900px;margin:0 auto;padding:10vh 6vw;display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:2.5rem;text-align:center}
+  .factoid .big{font-size:3rem}
+  .factoid h3{font-weight:600;margin:.6rem 0 .5rem;font-size:1.15rem}
+  .factoid p{font-size:.92rem;line-height:1.7;opacity:.8}
+
+  footer{position:relative;z-index:2;text-align:center;padding:4vh 2rem 6vh;background:#fff;
+    font-size:.8rem;font-weight:500;line-height:2.4}
+  body.night footer{background:#141c46}
+  footer a{color:inherit;font-weight:600}
+
+  .firefly{position:fixed;width:6px;height:6px;border-radius:50%;background:#ffe98a;
+    box-shadow:0 0 12px 4px rgba(255,233,138,.55);pointer-events:none;z-index:8;opacity:0;
+    transition:opacity 1.5s}
+  body.night .firefly{opacity:1}
+
+  @keyframes swayA{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(5deg)}}
+  @keyframes swayB{0%,100%{transform:rotate(3deg)}50%{transform:rotate(-5deg)}}
+  .flower{transform-origin:50% 100%;cursor:pointer}
+  .flower.a{animation:swayA 4.2s ease-in-out infinite}
+  .flower.b{animation:swayB 5.1s ease-in-out infinite}
+  .cloudpuff{animation:cloudmove linear infinite}
+  @keyframes cloudmove{from{transform:translateX(-260px)}to{transform:translateX(1500px)}}
+  #sunmoon{transition:transform 2s cubic-bezier(.5,0,.3,1)}
+  body.night #sunmoon{transform:translateY(60vh)}
+  #moonEl{transition:transform 2s cubic-bezier(.5,0,.3,1);transform:translateY(-60vh)}
+  body.night #moonEl{transform:translateY(0)}
+  #stars circle{opacity:0;transition:opacity 2s}
+  body.night #stars circle{opacity:1;animation:twk 3s ease-in-out infinite}
+  @keyframes twk{50%{opacity:.35}}
+</style>
+</head>
+<body>
+
+<div class="scene">
+  <svg class="world" viewBox="0 0 1440 800" preserveAspectRatio="xMidYMax slice" aria-label="An illustrated meadow with hills, flowers and a snail">
+    <!-- stars (night only) -->
+    <g id="stars"></g>
+
+    <!-- sun -->
+    <g id="sunmoon"><g transform="translate(-40,10)">
+      <circle cx="1150" cy="150" r="64" fill="var(--sun)"/>
+      <g stroke="var(--sun)" stroke-width="7" stroke-linecap="round">
+        <line x1="1150" y1="52" x2="1150" y2="24"/><line x1="1150" y1="248" x2="1150" y2="276"/>
+        <line x1="1052" y1="150" x2="1024" y2="150"/><line x1="1248" y1="150" x2="1276" y2="150"/>
+        <line x1="1081" y1="81" x2="1061" y2="61"/><line x1="1219" y1="219" x2="1239" y2="239"/>
+        <line x1="1081" y1="219" x2="1061" y2="239"/><line x1="1219" y1="81" x2="1239" y2="61"/>
+      </g>
+      <circle cx="1128" cy="138" r="7" fill="#3a3230"/><circle cx="1172" cy="138" r="7" fill="#3a3230"/>
+      <path d="M1128 168 Q1150 186 1172 168" stroke="#3a3230" stroke-width="6" fill="none" stroke-linecap="round"/>
+    </g></g>
+    <!-- moon -->
+    <g id="moonEl"><g transform="translate(-40,10)">
+      <circle cx="1150" cy="140" r="54" fill="var(--moon)"/>
+      <circle cx="1132" cy="124" r="10" fill="#ded5b8"/><circle cx="1166" cy="156" r="7" fill="#ded5b8"/>
+      <circle cx="1150" cy="138" r="5" fill="#ded5b8"/>
+      <path d="M1132 158 Q1150 170 1168 158" stroke="#b8ad8e" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+      <circle cx="1134" cy="132" r="4.5" fill="#8a815f"/><circle cx="1166" cy="132" r="4.5" fill="#8a815f"/>
+    </g></g>
+
+    <!-- clouds -->
+    <g fill="rgba(255,255,255,.9)">
+      <g class="cloudpuff" style="animation-duration:75s">
+        <ellipse cx="200" cy="120" rx="70" ry="34"/><ellipse cx="260" cy="105" rx="52" ry="28"/><ellipse cx="150" cy="105" rx="44" ry="24"/>
+      </g>
+      <g class="cloudpuff" style="animation-duration:110s;animation-delay:-40s">
+        <ellipse cx="600" cy="70" rx="60" ry="28"/><ellipse cx="650" cy="58" rx="42" ry="22"/>
+      </g>
+    </g>
+
+    <!-- hills -->
+    <path d="M0 560 Q 360 420 720 540 T 1440 520 V800 H0 Z" fill="var(--h1,var(--hill1))" style="transition:fill 2s"/>
+    <path d="M0 640 Q 420 520 860 630 T 1440 610 V800 H0 Z" fill="var(--h2,var(--hill2))" style="transition:fill 2s"/>
+    <path d="M0 730 Q 480 640 980 720 T 1440 700 V800 H0 Z" fill="var(--h3,var(--hill3))" style="transition:fill 2s"/>
+
+    <!-- flowers -->
+    <g id="flowerbed"></g>
+
+    <!-- snail -->
+    <g id="snail">
+      <g id="snailbody">
+        <path d="M-46 0 Q-46 -18 -20 -18 L26 -18 Q40 -18 40 -6 L40 0 Z" fill="#e8b84a"/>
+        <circle cx="-2" cy="-26" r="24" fill="#c96f4a"/>
+        <circle cx="-2" cy="-26" r="16" fill="#b85a38"/>
+        <circle cx="-2" cy="-26" r="8" fill="#a34a2c"/>
+        <line x1="30" y1="-16" x2="38" y2="-34" stroke="#e8b84a" stroke-width="4" stroke-linecap="round"/>
+        <line x1="38" y1="-16" x2="48" y2="-30" stroke="#e8b84a" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="38" cy="-36" r="4.5" fill="#3a3230"/><circle cx="48" cy="-32" r="4.5" fill="#3a3230"/>
+        <path d="M30 -8 Q34 -5 38 -8" stroke="#3a3230" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      </g>
+    </g>
+  </svg>
+
+  <nav>
+    <span class="m">🌼 The Meadow</span>
+    <span class="links">
+      <button id="nightbtn">🌙 make it night</button>
+      <a href="guide/">Guide</a>
+      <a href="../">Index</a>
+    </span>
+  </nav>
+
+  <div class="titlecard">
+    <h1>Once upon a<br>very slow snail.</h1>
+    <p>← this is page one. everything here can be poked.</p>
+  </div>
+</div>
+
+<section class="story">
+  <p>The snail's name was <b>Chapter</b>, because he took forever to get anywhere, and everyone agreed the journey was the point.</p>
+  <p>Every morning Chapter set out across the meadow to visit the far fence post, and every evening he was still setting out, which the flowers found extremely relatable.</p>
+  <span class="hand">— poke the flowers. they love it. —</span>
+</section>
+
+<div class="below">
+  <div class="inner">
+    <div class="factoid"><div class="big">🐌</div><h3>Top speed</h3><p>Achieved once, downhill, in the rain of '22. Never spoken of boastfully.</p></div>
+    <div class="factoid"><div class="big">🌼</div><h3>Flowers boinged</h3><p>Each click adds a wobble. The meadow keeps no score, but the flowers do.</p></div>
+    <div class="factoid"><div class="big">✨</div><h3>Fireflies</h3><p>Employed at dusk on a strictly volunteer basis. Press the moon button to meet them.</p></div>
+  </div>
+</div>
+
+<footer>
+  THE MEADOW — AN ILLUSTRATED SVG STORYBOOK · BUILT BY CLAUDE (FABLE 5)<br>
+  <a href="guide/">how it was made</a> · <a href="../">all 25 sites</a>
+</footer>
+
+<script>
+/* flowers */
+const bed=document.getElementById('flowerbed');
+const PET=['#ff8fb2','#ffd24d','#c48ae0','#ff9a5c','#8ad4ff','#ff6f91'];
+const NSVG='http://www.w3.org/2000/svg';
+const positions=[[110,700],[220,672],[330,712],[470,668],[590,708],[760,690],[900,716],[1040,684],[1200,712],[1330,690],[60,748],[680,742],[1130,748]];
+positions.forEach(([x,y],i)=>{
+  /* outer g carries position (attribute transform); inner g carries the CSS sway,
+     so the animation's transform property doesn't clobber the translate */
+  const outer=document.createElementNS(NSVG,'g');
+  outer.setAttribute('transform',`translate(${x},${y})`);
+  const g=document.createElementNS(NSVG,'g');
+  g.setAttribute('class','flower '+(i%2?'a':'b'));
+  g.setAttribute('style',`animation-delay:${-(i*.7)}s`);
+  const h=42+Math.random()*36, c=PET[i%PET.length];
+  let petals='';
+  for(let p=0;p<6;p++){
+    const a=p*60*Math.PI/180;
+    petals+=`<ellipse cx="${Math.cos(a)*13}" cy="${-h+Math.sin(a)*13}" rx="10" ry="14" fill="${c}" transform="rotate(${p*60} 0 ${-h})"/>`;
+  }
+  g.innerHTML=`<line x1="0" y1="0" x2="0" y2="${-h}" stroke="#4a8a3c" stroke-width="5" stroke-linecap="round"/>
+    <path d="M0 ${-h*.5} Q14 ${-h*.5-10} 20 ${-h*.5-2} Q10 ${-h*.5+6} 0 ${-h*.5}" fill="#4a8a3c"/>
+    ${petals}<circle cx="0" cy="${-h}" r="9" fill="#7a4a2c"/>`;
+  outer.appendChild(g);
+  bed.appendChild(outer);
+  g.addEventListener('click',()=>{
+    g.style.animation='none';
+    g.animate([
+      {transform:'scale(1,1)'},
+      {transform:'scale(1.28,.72)',offset:.3},
+      {transform:'scale(.86,1.18)',offset:.6},
+      {transform:'scale(1,1)'}
+    ],{duration:620,easing:'cubic-bezier(.3,1.8,.4,1)'}).onfinish=()=>{g.style.animation=''};
+  });
+});
+
+/* stars */
+const stars=document.getElementById('stars');
+let sHTML='';
+for(let i=0;i<60;i++){
+  sHTML+=`<circle cx="${Math.random()*1440}" cy="${Math.random()*420}" r="${1+Math.random()*2}" fill="#fff" style="animation-delay:${Math.random()*3}s"/>`;
+}
+stars.innerHTML=sHTML;
+
+/* snail crawls, very slowly */
+const snail=document.getElementById('snail');
+let sx=-80;
+(function crawl(){
+  sx+=.12;
+  if(sx>1520)sx=-80;
+  const y=760 - Math.sin((sx/1440)*Math.PI)*8;
+  snail.setAttribute('transform',`translate(${sx},${y})`);
+  requestAnimationFrame(crawl);
+})();
+snail.addEventListener('click',()=>{
+  document.getElementById('snailbody').animate(
+    [{transform:'scale(1,1)'},{transform:'scale(1.14,.86)'},{transform:'scale(1,1)'}],
+    {duration:400,easing:'cubic-bezier(.3,1.8,.4,1)'});
+});
+
+/* night toggle + hill colors */
+const btn=document.getElementById('nightbtn');
+btn.addEventListener('click',()=>{
+  const n=document.body.classList.toggle('night');
+  btn.textContent=n?'☀️ make it day':'🌙 make it night';
+  document.body.style.setProperty('--h1',n?'var(--hilln1)':'var(--hill1)');
+  document.body.style.setProperty('--h2',n?'var(--hilln2)':'var(--hill2)');
+  document.body.style.setProperty('--h3',n?'var(--hilln3)':'var(--hill3)');
+});
+
+/* fireflies */
+const flies=[];
+for(let i=0;i<14;i++){
+  const f=document.createElement('div');
+  f.className='firefly';
+  document.body.appendChild(f);
+  flies.push({el:f,x:Math.random()*innerWidth,y:innerHeight*.4+Math.random()*innerHeight*.5,p:Math.random()*7});
+}
+(function fly(t){
+  for(const f of flies){
+    f.x+=Math.sin(t/1700+f.p)*1.1;
+    f.y+=Math.cos(t/1400+f.p*2)*.8;
+    if(f.x<0)f.x=innerWidth;if(f.x>innerWidth)f.x=0;
+    f.el.style.left=f.x+'px';f.el.style.top=f.y+'px';
+    f.el.style.boxShadow=`0 0 ${10+6*Math.sin(t/300+f.p)}px 4px rgba(255,233,138,.55)`;
+  }
+  requestAnimationFrame(fly);
+})(0);
+</script>
+</body>
+</html>

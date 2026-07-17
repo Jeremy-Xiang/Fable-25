@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OBSERVATORY — a live control-room panel for the sky</title>
+<meta name="description" content="OBSERVATORY is a dense control-room dashboard: solar position, lunar phase, and harmonic tide prediction computed client-side from real astronomical formulas, updating live.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0d0f;
+    --panel:#0f1417;
+    --line:#1e2a2c;
+    --sig:#3fe8c9;
+    --sig-dim:rgba(63,232,201,.35);
+    --amber:#e8b23f;
+    --txt:#dce8e6;
+    --dim:#6d8683;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--txt);font-family:'Roboto Mono',monospace;
+    font-size:13px;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--sig);color:#03110d}
+
+  header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem;
+    padding:1.1rem 1.6rem;border-bottom:1px solid var(--line)}
+  .m{font-weight:700;font-size:1.05rem;letter-spacing:.12em}
+  .m i{color:var(--sig);font-style:normal}
+  .hdr-mid{display:flex;align-items:baseline;gap:.9rem;flex-wrap:wrap}
+  #clock{font-size:1.1rem;letter-spacing:.06em;color:var(--sig);font-variant-numeric:tabular-nums}
+  #clockDate{font-size:.68rem;color:var(--dim);letter-spacing:.1em}
+  .scale{display:flex;align-items:center;gap:.5rem}
+  .scale label{font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+  .scale button{font-family:inherit;font-size:.62rem;letter-spacing:.08em;background:none;
+    border:1px solid var(--line);color:var(--dim);padding:.32rem .6rem;border-radius:4px;cursor:pointer}
+  .scale button.on{border-color:var(--sig);color:var(--sig)}
+  nav{font-size:.66rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--txt);text-decoration:none;opacity:.75;margin-left:1.3rem}
+  nav a:hover{opacity:1;color:var(--sig)}
+
+  main{padding:1.2rem 1.6rem 2.4rem;display:grid;gap:1rem;
+    grid-template-columns:repeat(12,1fr);grid-auto-rows:min-content}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem 1.1rem;
+    display:flex;flex-direction:column;gap:.6rem;min-width:0}
+  .panel h2{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+    font-weight:500;display:flex;justify-content:space-between}
+  .panel h2 b{color:var(--sig);font-weight:700}
+
+  .g-alt{grid-column:span 3}
+  .g-az{grid-column:span 3}
+  .g-moon{grid-column:span 3}
+  .g-info{grid-column:span 3}
+  .g-tide{grid-column:span 8}
+  .g-log{grid-column:span 4}
+
+  canvas{display:block;max-width:100%}
+  .gaugewrap{display:grid;place-items:center;flex:1}
+  .gaugeval{font-size:1.5rem;color:var(--sig);font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
+  .gaugesub{font-size:.62rem;color:var(--dim);text-align:center;letter-spacing:.08em}
+
+  .rows{display:flex;flex-direction:column;gap:.55rem}
+  .row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px dashed var(--line);
+    padding-bottom:.5rem;font-size:.72rem}
+  .row:last-child{border-bottom:none;padding-bottom:0}
+  .row .k{color:var(--dim);letter-spacing:.05em}
+  .row .v{color:var(--txt);font-variant-numeric:tabular-nums;font-weight:500}
+  .row .v.sig{color:var(--sig)}
+
+  .moonrow{display:flex;align-items:center;gap:1rem}
+  .moonname{font-size:.85rem;color:var(--sig);line-height:1.3}
+  .moonpct{font-size:.62rem;color:var(--dim);margin-top:.3rem}
+
+  #log{flex:1;min-height:180px;max-height:260px;overflow:hidden;font-size:.68rem;
+    display:flex;flex-direction:column-reverse;gap:.4rem;position:relative}
+  #log .entry{opacity:0;animation:fadein .5s forwards;line-height:1.5;border-left:2px solid var(--sig-dim);
+    padding-left:.6rem}
+  #log .entry .t{color:var(--dim);margin-right:.5rem}
+  @keyframes fadein{to{opacity:1}}
+
+  footer{padding:1rem 1.6rem 1.6rem;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--dim);text-align:center}
+  footer a{color:var(--txt)}
+
+  @media(max-width:1100px){
+    .g-alt,.g-az,.g-moon,.g-info{grid-column:span 6}
+    .g-tide{grid-column:span 12}
+    .g-log{grid-column:span 12}
+  }
+  @media(max-width:640px){
+    body{font-size:12px}
+    header{padding:1rem 1.1rem}
+    main{padding:1rem 1.1rem 2rem;gap:.8rem}
+    .g-alt,.g-az,.g-moon,.g-info{grid-column:span 12}
+    .hdr-mid{width:100%;justify-content:space-between}
+  }
+  @media (prefers-reduced-motion: reduce){
+    #log .entry{animation:none;opacity:1}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="m">OBSER<i>VATORY</i></span>
+  <div class="hdr-mid">
+    <span id="clock">—</span>
+    <span id="clockDate">—</span>
+    <div class="scale" role="group" aria-label="Simulation speed">
+      <label>Speed</label>
+      <button data-s="1">1×</button>
+      <button data-s="120" class="on">120×</button>
+      <button data-s="1800">1800×</button>
+    </div>
+  </div>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<main>
+  <section class="panel g-alt">
+    <h2>Solar altitude <b id="altBadge">—</b></h2>
+    <div class="gaugewrap"><canvas id="cAlt" width="200" height="140" aria-hidden="true"></canvas></div>
+    <div class="gaugeval" id="altVal">—°</div>
+    <div class="gaugesub" id="altSub">computing…</div>
+  </section>
+
+  <section class="panel g-az">
+    <h2>Solar azimuth <b id="azBadge">—</b></h2>
+    <div class="gaugewrap"><canvas id="cAz" width="150" height="150" aria-hidden="true"></canvas></div>
+    <div class="gaugeval" id="azVal">—°</div>
+    <div class="gaugesub" id="azSub">from true north</div>
+  </section>
+
+  <section class="panel g-moon">
+    <h2>Lunar phase <b id="moonBadge">—</b></h2>
+    <div class="gaugewrap"><canvas id="cMoon" width="110" height="110" aria-hidden="true"></canvas></div>
+    <div class="moonrow" style="justify-content:center">
+      <div style="text-align:center">
+        <div class="moonname" id="moonName">—</div>
+        <div class="moonpct" id="moonPct">illumination —%</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel g-info">
+    <h2>Ephemeris</h2>
+    <div class="rows">
+      <div class="row"><span class="k">Sunrise</span><span class="v" id="iRise">—</span></div>
+      <div class="row"><span class="k">Solar noon</span><span class="v sig" id="iNoon">—</span></div>
+      <div class="row"><span class="k">Sunset</span><span class="v" id="iSet">—</span></div>
+      <div class="row"><span class="k">Day length</span><span class="v" id="iDaylen">—</span></div>
+      <div class="row"><span class="k">Declination</span><span class="v" id="iDecl">—</span></div>
+      <div class="row"><span class="k">Eqn. of time</span><span class="v" id="iEot">—</span></div>
+    </div>
+  </section>
+
+  <section class="panel g-tide">
+    <h2>Tide height — Fable Point Observatory <b id="tideBadge">—</b></h2>
+    <canvas id="cTide" width="900" height="180" aria-hidden="true"></canvas>
+    <div class="rows" style="flex-direction:row;justify-content:space-between;flex-wrap:wrap;gap:.6rem">
+      <span class="row" style="border:none;padding:0"><span class="k">Next high</span> <span class="v sig" id="tNextHigh">—</span></span>
+      <span class="row" style="border:none;padding:0"><span class="k">Next low</span> <span class="v" id="tNextLow">—</span></span>
+      <span class="row" style="border:none;padding:0"><span class="k">Trend</span> <span class="v" id="tTrend">—</span></span>
+    </div>
+  </section>
+
+  <section class="panel g-log">
+    <h2>Event log</h2>
+    <div id="log" aria-live="polite"></div>
+  </section>
+</main>
+
+<footer>OBSERVATORY — SITE 61 OF 62 · SIMULATED ASTRONOMICAL DATA · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a></footer>
+
+<script>
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const D2R = Math.PI/180, R2D = 180/Math.PI;
+
+/* ---------------- location: fixed reference point ---------------- */
+const LAT = 37.77, LON = -122.42; // Fable Point Observatory (San Francisco coords)
+
+/* ---------------- simulated clock ---------------- */
+let simTime = Date.now();
+let timeScale = 120;
+document.querySelectorAll('.scale button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('.scale button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    timeScale = +b.dataset.s;
+  });
+});
+
+/* ---------------- solar position (low-precision NOAA/Meeus method) ---------------- */
+function solarPosition(date, lat, lon){
+  const J2000 = Date.UTC(2000,0,1,12,0,0);
+  const n = (date.getTime() - J2000) / 86400000; // days since J2000
+  let L = (280.460 + 0.9856474*n) % 360; if(L<0) L+=360;
+  let g = (357.528 + 0.9856003*n) % 360; if(g<0) g+=360;
+  const gr = g*D2R;
+  const lambda = L + 1.915*Math.sin(gr) + 0.020*Math.sin(2*gr);
+  const lr = lambda*D2R;
+  const epsilon = 23.439 - 0.0000004*n;
+  const er = epsilon*D2R;
+  const decl = Math.asin(Math.sin(er)*Math.sin(lr));
+  let ra = Math.atan2(Math.cos(er)*Math.sin(lr), Math.cos(lr))*R2D;
+  if(ra<0) ra+=360;
+  // equation of time (minutes)
+  const eot = 4*(L - 0.0057183 - ra); // deg -> minutes (approx form)
+  let eotMin = eot; if(eotMin>20) eotMin-=1440*Math.round(eotMin/1440); if(eotMin<-20 && eotMin>-1440) {} // keep small
+  // Greenwich Mean Sidereal Time-based hour angle via solar time
+  const utcHours = date.getUTCHours() + date.getUTCMinutes()/60 + date.getUTCSeconds()/3600;
+  const solarTime = utcHours + lon/15 + eot/60;
+  const H = (solarTime - 12) * 15; // hour angle, degrees
+  const Hr = H*D2R, latr = lat*D2R;
+  const altR = Math.asin(Math.sin(latr)*Math.sin(decl) + Math.cos(latr)*Math.cos(decl)*Math.cos(Hr));
+  let azR = Math.atan2(
+    -Math.sin(Hr),
+    Math.tan(decl)*Math.cos(latr) - Math.sin(latr)*Math.cos(Hr)
+  );
+  let az = (azR*R2D + 360) % 360;
+  return { altitude: altR*R2D, azimuth: az, declination: decl*R2D, eot: eotMin };
+}
+function sunTimesFor(date, lat, lon){
+  // scan-based sunrise/sunset/noon, centered on "now" so the pair found is
+  // always the nearest chronological rise/set rather than a UTC-calendar-day
+  // pair that can straddle local midnight and go negative
+  const start = new Date(date.getTime() - 12*3600000);
+  let rise=null, set=null, noon=null, maxAlt=-90;
+  let prevAlt = solarPosition(start, lat, lon).altitude;
+  for(let m=1; m<=1440; m++){
+    const t = new Date(start.getTime() + m*60000);
+    const alt = solarPosition(t, lat, lon).altitude;
+    if(prevAlt<0 && alt>=0 && !rise) rise = t;
+    if(prevAlt>=0 && alt<0 && !set) set = t;
+    if(alt>maxAlt){ maxAlt=alt; noon=t; }
+    prevAlt = alt;
+  }
+  return { rise, set, noon, maxAlt };
+}
+
+/* ---------------- lunar phase ---------------- */
+function lunarPhase(date){
+  const synodic = 29.530588853;
+  const ref = Date.UTC(2000,0,6,18,14,0); // known new moon
+  const days = (date.getTime()-ref)/86400000;
+  let phase = (days % synodic) / synodic; if(phase<0) phase+=1;
+  const illum = (1 - Math.cos(2*Math.PI*phase))/2;
+  const names = ['New Moon','Waxing Crescent','First Quarter','Waxing Gibbous',
+                 'Full Moon','Waning Gibbous','Last Quarter','Waning Crescent'];
+  const idx = Math.round(phase*8) % 8;
+  return { phase, illum, name: names[idx] };
+}
+
+/* ---------------- tide: harmonic superposition of real constituents ---------------- */
+// Periods (hours) and relative amplitudes for M2, S2, K1, O1 — simplified single-station model
+const TIDE_CONST = [
+  { period: 12.4206, amp: 1.00, phase: 0.4 },   // M2 principal lunar semidiurnal
+  { period: 12.0000, amp: 0.35, phase: 1.1 },   // S2 principal solar semidiurnal
+  { period: 23.9345, amp: 0.30, phase: 2.0 },   // K1 lunar diurnal
+  { period: 25.8193, amp: 0.22, phase: 0.7 },   // O1 lunar diurnal
+];
+function tideHeight(date){
+  const hrs = date.getTime()/3600000;
+  let h = 0;
+  for(const c of TIDE_CONST) h += c.amp * Math.cos((2*Math.PI/c.period)*hrs - c.phase);
+  return h; // meters, arbitrary datum
+}
+function nextExtreme(date, wantHigh){
+  // step forward in 6-min increments up to 24h, find first local max/min matching sign
+  let t = date.getTime();
+  let prev = tideHeight(new Date(t));
+  let prevSlope = null;
+  for(let i=1;i<=240;i++){
+    t += 6*60000;
+    const h = tideHeight(new Date(t));
+    const slope = h - prev;
+    if(prevSlope!==null){
+      if(wantHigh && prevSlope>0 && slope<=0) return new Date(t);
+      if(!wantHigh && prevSlope<0 && slope>=0) return new Date(t);
+    }
+    prevSlope = slope; prev = h;
+  }
+  return null;
+}
+
+/* ---------------- canvas gauges ---------------- */
+const dpr = Math.min(devicePixelRatio||1, 2);
+function fitCanvas(cv){
+  const w = cv.width, h = cv.height;
+  cv.style.width = w+'px'; cv.style.height = h+'px';
+  cv.width = w*dpr; cv.height = h*dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  return ctx;
+}
+const cAlt = document.getElementById('cAlt'), xAlt = fitCanvas(cAlt);
+const cAz = document.getElementById('cAz'), xAz = fitCanvas(cAz);
+const cMoon = document.getElementById('cMoon'), xMoon = fitCanvas(cMoon);
+const cTide = document.getElementById('cTide');
+let xTide, tideW = 900, tideH = 180;
+function fitTideCanvas(){
+  // the tide chart's container width varies a lot (8-col desktop panel vs.
+  // full-width mobile stack); a fixed backing size meant text/lines drawn at
+  // canvas-space coordinates shrank to unreadable specks once CSS scaled the
+  // element down on narrow screens, so the backing store is rebuilt to match
+  // the panel's actual rendered width instead
+  const cssW = Math.max(280, cTide.parentElement.clientWidth - 2);
+  tideW = cssW; tideH = Math.round(Math.min(230, Math.max(120, cssW*0.26)));
+  cTide.style.width = tideW+'px'; cTide.style.height = tideH+'px';
+  cTide.width = tideW*dpr; cTide.height = tideH*dpr;
+  xTide = cTide.getContext('2d');
+  xTide.scale(dpr,dpr);
+}
+fitTideCanvas();
+addEventListener('resize', ()=>{ fitTideCanvas(); });
+
+function drawAltGauge(alt){
+  const w=200,h=140,cx=w/2,cy=h-16,r=100;
+  xAlt.clearRect(0,0,w,h);
+  // arc track: -90 (below horizon) to +90 (zenith), mapped across 180deg semicircle
+  xAlt.lineWidth=10; xAlt.lineCap='round';
+  xAlt.strokeStyle='#1a2528';
+  xAlt.beginPath(); xAlt.arc(cx,cy,r,Math.PI,0); xAlt.stroke();
+  const t = Math.max(-90,Math.min(90,alt));
+  const frac = (t+90)/180;
+  const ang = Math.PI + frac*Math.PI;
+  const col = alt>=0 ? '#3fe8c9' : '#3f6fe8';
+  xAlt.strokeStyle=col;
+  xAlt.beginPath(); xAlt.arc(cx,cy,r,Math.PI,ang); xAlt.stroke();
+  // horizon tick
+  xAlt.strokeStyle='#e8b23f'; xAlt.lineWidth=2;
+  xAlt.beginPath(); xAlt.moveTo(cx-r-6,cy); xAlt.lineTo(cx-r+6,cy); xAlt.stroke();
+  // needle
+  xAlt.save(); xAlt.translate(cx,cy); xAlt.rotate(ang);
+  xAlt.strokeStyle='#dce8e6'; xAlt.lineWidth=2;
+  xAlt.beginPath(); xAlt.moveTo(0,0); xAlt.lineTo(r-14,0); xAlt.stroke();
+  xAlt.restore();
+  xAlt.fillStyle=col; xAlt.beginPath(); xAlt.arc(cx,cy,4,0,7); xAlt.fill();
+}
+function drawAzGauge(az){
+  const w=150,h=150,cx=w/2,cy=h/2,r=62;
+  xAz.clearRect(0,0,w,h);
+  xAz.strokeStyle='#1a2528'; xAz.lineWidth=1.4;
+  xAz.beginPath(); xAz.arc(cx,cy,r,0,7); xAz.stroke();
+  const labels=['N','E','S','W'];
+  xAz.fillStyle='#6d8683'; xAz.font='9px Roboto Mono'; xAz.textAlign='center'; xAz.textBaseline='middle';
+  for(let i=0;i<4;i++){
+    const a = -Math.PI/2 + i*Math.PI/2;
+    xAz.fillText(labels[i], cx+Math.cos(a)*(r+12), cy+Math.sin(a)*(r+12));
+  }
+  const ang = -Math.PI/2 + az*D2R;
+  xAz.strokeStyle='#3fe8c9'; xAz.lineWidth=2.4; xAz.lineCap='round';
+  xAz.beginPath(); xAz.moveTo(cx,cy); xAz.lineTo(cx+Math.cos(ang)*(r-8), cy+Math.sin(ang)*(r-8)); xAz.stroke();
+  xAz.fillStyle='#3fe8c9'; xAz.beginPath(); xAz.arc(cx,cy,3,0,7); xAz.fill();
+}
+function drawMoon(illum, phase){
+  // phase: 0 = new, 0.25 = first quarter, 0.5 = full, 0.75 = last quarter.
+  // Built as two flat fills rather than one combined arc/ellipse path — much
+  // easier to reason about correctly than a single compound Bezier-ish path.
+  const w=110,h=110,cx=w/2,cy=h/2,r=40;
+  const DARK='#141c1e', LIGHT='#e9eeec';
+  xMoon.clearRect(0,0,w,h);
+  xMoon.save(); xMoon.beginPath(); xMoon.arc(cx,cy,r,0,Math.PI*2); xMoon.clip();
+  xMoon.fillStyle = DARK; xMoon.fillRect(cx-r,cy-r,r*2,r*2);
+
+  const brightRight = phase < 0.5;               // waxing → bright limb faces right
+  const rx = Math.abs(Math.cos(phase*2*Math.PI)) * r; // terminator ellipse half-width
+  const crescent = illum < 0.5;                   // nearer new (thin sliver) vs nearer full
+
+  xMoon.fillStyle = LIGHT;
+  xMoon.beginPath();
+  if(brightRight) xMoon.arc(cx,cy,r,-Math.PI/2,Math.PI/2,false);
+  else xMoon.arc(cx,cy,r,Math.PI/2,Math.PI*1.5,false);
+  xMoon.closePath(); xMoon.fill();
+
+  xMoon.fillStyle = crescent ? DARK : LIGHT;
+  xMoon.beginPath();
+  xMoon.ellipse(cx,cy,rx,r,0,0,Math.PI*2);
+  xMoon.fill();
+
+  xMoon.restore();
+  xMoon.strokeStyle='#2a3638'; xMoon.lineWidth=1; xMoon.beginPath(); xMoon.arc(cx,cy,r,0,Math.PI*2); xMoon.stroke();
+}
+
+function drawTide(now){
+  const w=tideW,h=tideH;
+  xTide.clearRect(0,0,w,h);
+  // gridlines
+  xTide.strokeStyle='#161f21'; xTide.lineWidth=1;
+  for(let i=0;i<=4;i++){ const y=10+i*(h-30)/4; xTide.beginPath(); xTide.moveTo(0,y); xTide.lineTo(w,y); xTide.stroke(); }
+  // compute curve across window: -18h to +6h from now
+  const pts=[];
+  let maxAbs=2;
+  for(let i=0;i<=200;i++){
+    const t = new Date(now.getTime() + (-18 + i*24/200)*3600000);
+    const hgt = tideHeight(t);
+    maxAbs = Math.max(maxAbs, Math.abs(hgt)+0.3);
+    pts.push({x:i/200*w, y:hgt});
+  }
+  const scaleY = v => (h-30)/2 - v*((h-30)/2-8)/maxAbs + 4;
+  xTide.strokeStyle='#3fe8c9'; xTide.lineWidth=2; xTide.beginPath();
+  pts.forEach((p,i)=>{ const y=scaleY(p.y); i===0?xTide.moveTo(p.x,y):xTide.lineTo(p.x,y); });
+  xTide.stroke();
+  // fill under curve
+  const grad = xTide.createLinearGradient(0,0,0,h-30);
+  grad.addColorStop(0,'rgba(63,232,201,.22)'); grad.addColorStop(1,'rgba(63,232,201,0)');
+  xTide.fillStyle=grad; xTide.lineTo(w, scaleY(0)); xTide.lineTo(0, scaleY(0)); xTide.closePath(); xTide.fill();
+  // "now" marker at x = 18/24*w
+  const nowX = 18/24*w, nowY = scaleY(tideHeight(now));
+  xTide.strokeStyle='#e8b23f'; xTide.setLineDash([3,3]); xTide.beginPath();
+  xTide.moveTo(nowX,6); xTide.lineTo(nowX,h-26); xTide.stroke(); xTide.setLineDash([]);
+  xTide.fillStyle='#e8b23f'; xTide.beginPath(); xTide.arc(nowX,nowY,4,0,7); xTide.fill();
+  // baseline axis labels
+  xTide.fillStyle='#6d8683'; xTide.font='10px Roboto Mono'; xTide.textAlign='center';
+  xTide.fillText('-18h', 10, h-10);
+  xTide.fillText('now', nowX, h-10);
+  xTide.fillText('+6h', w-14, h-10);
+}
+
+/* ---------------- event log ---------------- */
+const logEl = document.getElementById('log');
+const loggedEvents = new Set();
+function pushLog(msg, t){
+  const key = msg;
+  if(loggedEvents.has(key)) return;
+  loggedEvents.add(key);
+  const div = document.createElement('div');
+  div.className='entry';
+  const hh = String(t.getHours()).padStart(2,'0'), mm=String(t.getMinutes()).padStart(2,'0');
+  div.innerHTML = `<span class="t">${hh}:${mm}</span>${msg}`;
+  logEl.prepend(div);
+  while(logEl.children.length>40) logEl.removeChild(logEl.lastChild);
+}
+let lastAltSign=null, lastMoonName=null, lastTideSlope=null;
+pushLog('SYSTEM ONLINE — tracking sun, moon and tide', new Date());
+
+/* ---------------- main update loop ---------------- */
+let lastFrame = performance.now();
+function fmtTime(d){
+  if(!d) return '—';
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function update(now){
+  const dt = now-lastFrame; lastFrame = now;
+  simTime += dt*timeScale;
+  const t = new Date(simTime);
+
+  const sun = solarPosition(t, LAT, LON);
+  const times = sunTimesFor(t, LAT, LON);
+  const moon = lunarPhase(t);
+  const tide = tideHeight(t);
+
+  document.getElementById('clock').textContent = t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('clockDate').textContent = t.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+
+  document.getElementById('altVal').textContent = sun.altitude.toFixed(1)+'°';
+  document.getElementById('altBadge').textContent = sun.altitude>=0 ? 'DAY' : 'NIGHT';
+  document.getElementById('altSub').textContent = sun.altitude>=0 ? 'above horizon' : 'below horizon';
+  drawAltGauge(sun.altitude);
+
+  document.getElementById('azVal').textContent = sun.azimuth.toFixed(1)+'°';
+  const compass = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  document.getElementById('azBadge').textContent = compass[Math.round(sun.azimuth/22.5)%16];
+  drawAzGauge(sun.azimuth);
+
+  document.getElementById('moonName').textContent = moon.name;
+  document.getElementById('moonPct').textContent = 'illumination '+(moon.illum*100).toFixed(0)+'%';
+  document.getElementById('moonBadge').textContent = (moon.illum*100).toFixed(0)+'%';
+  drawMoon(moon.illum, moon.phase);
+
+  document.getElementById('iRise').textContent = fmtTime(times.rise);
+  document.getElementById('iNoon').textContent = fmtTime(times.noon);
+  document.getElementById('iSet').textContent = fmtTime(times.set);
+  if(times.rise && times.set){
+    const mins = Math.round((times.set-times.rise)/60000);
+    document.getElementById('iDaylen').textContent = Math.floor(mins/60)+'h '+(mins%60)+'m';
+  }
+  document.getElementById('iDecl').textContent = sun.declination.toFixed(2)+'°';
+  document.getElementById('iEot').textContent = (sun.eot>=0?'+':'')+sun.eot.toFixed(1)+' min';
+
+  drawTide(t);
+  document.getElementById('tideBadge').textContent = tide.toFixed(2)+'m';
+  const nh = nextExtreme(t, true), nl = nextExtreme(t, false);
+  document.getElementById('tNextHigh').textContent = nh ? fmtTime(nh) : '—';
+  document.getElementById('tNextLow').textContent = nl ? fmtTime(nl) : '—';
+  const slope = tideHeight(new Date(t.getTime()+300000)) - tide;
+  document.getElementById('tTrend').textContent = slope>0 ? '▲ rising' : '▼ falling';
+
+  // event log: detect crossings
+  const altSign = sun.altitude>=0;
+  if(lastAltSign!==null && altSign!==lastAltSign){
+    pushLog(altSign ? 'SUNRISE — altitude crosses 0°' : 'SUNSET — altitude crosses 0°', t);
+  }
+  lastAltSign = altSign;
+  if(lastMoonName!==null && moon.name!==lastMoonName){
+    pushLog('LUNAR PHASE — now '+moon.name.toUpperCase(), t);
+  }
+  lastMoonName = moon.name;
+  const tideSlopeSign = slope>0;
+  if(lastTideSlope!==null && tideSlopeSign!==lastTideSlope){
+    pushLog(tideSlopeSign ? 'TIDE — local minimum reached' : 'TIDE — local maximum reached', t);
+  }
+  lastTideSlope = tideSlopeSign;
+
+  requestAnimationFrame(update);
+}
+requestAnimationFrame(update);
+</script>
+</body>
+</html>

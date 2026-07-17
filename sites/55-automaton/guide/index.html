@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23c89b4d%22/></svg>">
+<title>How AUTOMATON was made — guide</title>
+<meta name="description" content="How the AUTOMATON site was designed and built: four-bar linkage kinematics, cam-follower beak, and the winding-key interaction.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #c89b4d; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#151009; color:#efe2d0;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#a8916e; text-decoration:none; border-bottom:1px solid #33291a; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#a8916e; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #2a2115;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-family:'Fragment Mono',monospace;font-size:.9em;background:#1f1810;padding:.1em .4em;border-radius:4px}
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#c9b696;
+    background:#1c1610; border:1px solid #2a2115; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #2a2115;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a7a5e; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#151009; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to AUTOMATON</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 55 of 62 · how it was made</div>
+  <h1>AUTOMATON</h1>
+  <p class="sub">A mechanical songbird, wound by hand</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Clockwork toy birds are real machines: a wound spring drives a crank, the crank drives linkages, the linkages drive wings and beak in a fixed, physically-determined cycle. The brief for 55 was explicit — no canned CSS keyframe flap, actual linkage math. So the wing motion here is the numerical output of a real four-bar mechanism, and the beak motion is the output of a real cam profile, both solved every frame from the crank angle.</p>
+
+  <h2><span class="no">02</span> The kinematics</h2>
+  <ul>
+    <li><strong>Four-bar crank-rocker (wings):</strong> a short crank (a=18) rotates continuously at pivot O2; a coupler (b=64) connects it to a rocker (c=50) pivoted at O4, with a ground link (d=70) between the two pivots. The rocker's swing angle is found each frame by intersecting two circles — one centered on the crank pin with radius b, one centered on O4 with radius c — the classic RRRR position-analysis problem. Link lengths satisfy the Grashof condition (shortest + longest &lt; sum of the other two, with the ground link adjacent to the crank), which guarantees the crank can spin a full 360° while the rocker oscillates without ever locking up.</li>
+    <li><strong>Radial cam + knife-edge follower (beak):</strong> the lower mandible's lift is <code>max(0, sin(2θ))^2.2</code> — a two-lobe cam profile, so the beak "pecks" twice per crank revolution, like a real pecking-bird automaton.</li>
+    <li><strong>Gear train:</strong> the two background gears are geometrically meshed — the small gear's angular speed is the main gear's speed × (R_main/R_small), same as a real spur-gear pair.</li>
+    <li><strong>Winding physics:</strong> dragging the key accumulates spring tension; tension drives angular velocity (ω = tension × k); the crank consumes tension as it turns and coasts to a stop, exactly like an unwinding mainspring.</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Cinzel Decorative (engraved brass-plate display) + Fragment Mono · umber stage, brass gradient #f2d494→#8a6428, walnut proscenium</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>Rendered headless at desktop and mobile widths. First pass had the wing linkage swinging almost imperceptibly (~4°) because the raw rocker-angle range wasn't renormalized against its own min/max, so most of the arc was wasted off-screen; fixed by mapping the solved rocker angle into a 0–1 fraction across its true swing range, then applying a fixed visual amplitude. Also tightened the proscenium vignette — the first render read a little flat/empty around the bird, so an inset shadow and radial glow were added to focus the eye on the mechanism.</p>
+
+  <h2><span class="no">05</span> The complexity upgrade</h2>
+  <p>An escapement-style tick synthesized in Web Audio, gated to actual gear-tooth crossings: the crank angle is checked each frame against a 14-tooth division, and a click fires only when a new tooth boundary is crossed, with its gain scaled to the current angular velocity — so the ticking genuinely speeds up and slows down with the spring, instead of looping on a timer.</p>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Pick Grashof-valid four-bar lengths (shortest link = crank, ground adjacent to crank)</li>
+    <li>Solve the rocker point via circle-circle intersection each frame from crank angle θ</li>
+    <li>Normalize the solved angle into a 0–1 range once at load, then map to visual degrees</li>
+    <li>Drive a second mechanism (cam or second linkage) off the same θ for secondary motion</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 3), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    build → code-review → real screenshot critique passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

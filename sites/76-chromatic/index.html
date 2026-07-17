@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHROMATIC — a gallery that smears with speed</title>
+<meta name="description" content="A WebGL film-strip gallery where chromatic aberration and radial blur are driven by your scroll velocity. Scroll gently and it's crisp; fling it and the light splits.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23070608'/%3E%3Ccircle cx='14' cy='16' r='7' fill='none' stroke='%23ff3355' stroke-width='2'/%3E%3Ccircle cx='18' cy='16' r='7' fill='none' stroke='%2333ddff' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@300;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070608; --ink:#efeaf2; --dim:#867f8e; --dim2:#4a4552;
+  --line:rgba(239,234,242,.1); --r:#ff3355; --c:#33ddff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg); color:var(--ink); font-family:'Space Mono',monospace; overflow-x:hidden}
+::selection{background:var(--c); color:#03222b}
+a:focus-visible,button:focus-visible{outline:2px solid var(--c); outline-offset:3px}
+
+#gl{position:fixed; inset:0; width:100%; height:100%; display:block; z-index:0}
+
+header{position:fixed; top:0; left:0; right:0; z-index:10; display:flex; justify-content:space-between;
+  align-items:center; padding:1.2rem 1.6rem; mix-blend-mode:difference}
+.mark{font-family:'Unbounded',sans-serif; font-weight:600; font-size:.9rem; letter-spacing:.12em}
+nav{display:flex; gap:1.5rem}
+nav a{font-size:.62rem; letter-spacing:.2em; text-transform:uppercase; color:var(--ink); text-decoration:none; opacity:.75}
+nav a:hover{opacity:1}
+
+.hud{position:fixed; left:1.6rem; bottom:1.4rem; z-index:10; font-size:.6rem; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--dim); line-height:2}
+.hud b{color:var(--ink); font-weight:400}
+.hud .vel{color:var(--c)}
+
+.scroll-note{position:fixed; right:1.6rem; bottom:1.4rem; z-index:10; font-size:.6rem;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--dim2); text-align:right; line-height:2}
+
+/* the page itself is just tall; the GL layer reads scrollY */
+#track{height:640vh; position:relative; z-index:1; pointer-events:none}
+
+.caption{
+  position:fixed; left:50%; bottom:9vh; transform:translateX(-50%); z-index:9;
+  text-align:center; pointer-events:none;
+}
+.caption h2{font-family:'Unbounded',sans-serif; font-weight:600; font-size:clamp(1.2rem,3.6vw,2.2rem); letter-spacing:.04em}
+.caption p{font-size:.62rem; letter-spacing:.24em; text-transform:uppercase; color:var(--dim); margin-top:.5rem}
+
+footer{position:fixed; left:0; right:0; bottom:0; height:0; z-index:8}
+.guide-link{position:fixed; left:50%; top:1.4rem; transform:translateX(-50%); z-index:10;
+  font-size:.6rem; letter-spacing:.24em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+.guide-link:hover{color:var(--c)}
+@media(max-width:640px){ .hud{display:none} }
+</style>
+</head>
+<body>
+
+<canvas id="gl" aria-label="Film-strip gallery with speed-driven chromatic aberration"></canvas>
+<div id="track" aria-hidden="true"></div>
+
+<header>
+  <span class="mark">CHROMATIC</span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hud" aria-hidden="true">
+  frame <b id="hFrame">01 / 06</b><br>
+  velocity <b class="vel" id="hVel">0.000</b><br>
+  aberration <b id="hAb">0.0 px</b>
+</div>
+<div class="scroll-note" aria-hidden="true">scroll slow — it's crisp<br>fling it — the light splits</div>
+
+<div class="caption">
+  <h2 id="capT">Prism № 1</h2>
+  <p id="capS">gentle light, held still</p>
+</div>
+
+<script>
+/* ═════ CHROMATIC — velocity-driven aberration gallery ═════
+   Six procedural "photographs" (canvas-painted, zero assets) on a vertical
+   film strip. Scroll position picks the frame; scroll VELOCITY drives
+   chromatic aberration + radial blur in the fragment shader. */
+
+const cv = document.getElementById('gl');
+const gl = cv.getContext('webgl', { antialias:false });
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ── procedural slides ─────────────────────────────────── */
+const SLIDES = [
+  ['Prism № 1','gentle light, held still', (x,w,h)=>{
+    const g=x.createLinearGradient(0,0,w,h);
+    g.addColorStop(0,'#1b0f2e'); g.addColorStop(.55,'#8a2f6b'); g.addColorStop(1,'#ffb347');
+    x.fillStyle=g; x.fillRect(0,0,w,h);
+    x.fillStyle='rgba(255,255,255,.9)';
+    x.beginPath(); x.arc(w*.68,h*.34,h*.13,0,7); x.fill();
+  }],
+  ['Signal Hill','antenna field at dusk', (x,w,h)=>{
+    x.fillStyle='#0a1420'; x.fillRect(0,0,w,h);
+    const g=x.createLinearGradient(0,h*.5,0,h);
+    g.addColorStop(0,'#0a1420'); g.addColorStop(1,'#ff5533');
+    x.fillStyle=g; x.fillRect(0,h*.5,w,h*.5);
+    x.strokeStyle='rgba(239,234,242,.8)'; x.lineWidth=3;
+    for(let i=0;i<7;i++){const px=w*(.12+i*.13);
+      x.beginPath(); x.moveTo(px,h*.82); x.lineTo(px,h*(.3+((i*37)%20)/100)); x.stroke();
+      x.beginPath(); x.arc(px,h*(.3+((i*37)%20)/100),4,0,7); x.stroke();}
+  }],
+  ['Reactor Bloom','contained sunrise', (x,w,h)=>{
+    x.fillStyle='#050608'; x.fillRect(0,0,w,h);
+    const g=x.createRadialGradient(w/2,h/2,10,w/2,h/2,h*.55);
+    g.addColorStop(0,'#eaffff'); g.addColorStop(.25,'#33ddff'); g.addColorStop(.6,'#0b4d66'); g.addColorStop(1,'transparent');
+    x.fillStyle=g; x.fillRect(0,0,w,h);
+    x.strokeStyle='rgba(239,234,242,.25)';
+    for(let r=h*.12;r<h*.6;r+=h*.09){x.beginPath();x.arc(w/2,h/2,r,0,7);x.stroke();}
+  }],
+  ['Vermilion Court','handball wall, 3pm', (x,w,h)=>{
+    x.fillStyle='#c92f1e'; x.fillRect(0,0,w,h);
+    x.fillStyle='#e8552f'; x.fillRect(0,0,w,h*.42);
+    x.fillStyle='#f5efe0'; x.fillRect(w*.1,h*.42,w*.8,h*.03);
+    x.fillStyle='rgba(20,8,4,.55)';
+    x.beginPath(); x.moveTo(w*.62,h*.45); x.lineTo(w*.92,h); x.lineTo(w*.5,h); x.closePath(); x.fill();
+  }],
+  ['Glasshouse','fog through panes', (x,w,h)=>{
+    x.fillStyle='#0d1a16'; x.fillRect(0,0,w,h);
+    for(let i=0;i<6;i++)for(let j=0;j<4;j++){
+      const a=.15+((i*13+j*29)%50)/100*.5;
+      x.fillStyle=`rgba(140,220,190,${a*.5})`;
+      x.fillRect(w*.08+i*w*.145, h*.1+j*h*.2, w*.12, h*.17);
+    }
+    x.strokeStyle='rgba(10,20,16,.9)'; x.lineWidth=6;
+    x.strokeRect(w*.06,h*.08,w*.88,h*.84);
+  }],
+  ['Terminal Moon','last frame before dark', (x,w,h)=>{
+    x.fillStyle='#03040a'; x.fillRect(0,0,w,h);
+    x.fillStyle='#e8e4f5';
+    x.beginPath(); x.arc(w*.5,h*.44,h*.19,0,7); x.fill();
+    x.fillStyle='#03040a';
+    x.beginPath(); x.arc(w*.56,h*.4,h*.17,0,7); x.fill();
+    x.fillStyle='rgba(239,234,242,.6)';
+    for(let i=0;i<60;i++){const sx=(i*97)%w,sy=(i*61)%h;x.fillRect(sx,sy,2,2);}
+  }],
+];
+
+function makeTexture(draw){
+  const c=document.createElement('canvas'); c.width=1024; c.height=768;
+  const x=c.getContext('2d'); draw(x,c.width,c.height);
+  const t=gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  return t;
+}
+
+/* ── shader ────────────────────────────────────────────── */
+const VS=`attribute vec2 p; varying vec2 uv; void main(){ uv=p*.5+.5; gl_Position=vec4(p,0.,1.); }`;
+const FS=`precision mediump float;
+varying vec2 uv;
+uniform sampler2D texA, texB;
+uniform float mixv;     // 0..1 crossfade between neighboring frames
+uniform float vel;      // smoothed |scroll velocity| 0..1
+uniform float asp;      // canvas aspect / slide aspect fit
+uniform vec2 res;
+
+vec2 fitUV(vec2 u){
+  // cover-fit a 4:3 slide in the viewport
+  float slideAsp = 4./3.;
+  float scrAsp = res.x/res.y;
+  vec2 v = u - .5;
+  if (scrAsp > slideAsp) v.y *= slideAsp/scrAsp; else v.x *= scrAsp/slideAsp;
+  return v + .5;
+}
+vec3 grab(sampler2D t, vec2 u, float ab, vec2 dir){
+  float r = texture2D(t, u + dir*ab).r;
+  float g = texture2D(t, u).g;
+  float b = texture2D(t, u - dir*ab).b;
+  return vec3(r,g,b);
+}
+void main(){
+  vec2 u = fitUV(uv);
+  vec2 fromC = u - .5;
+  float d = length(fromC);
+  vec2 dir = d > 0.001 ? fromC/d : vec2(0.);
+  float ab = vel * 0.035 * (0.25 + d);          // aberration grows with radius
+  // radial blur: sample along the center ray, amount by velocity
+  vec3 colA = vec3(0.); vec3 colB = vec3(0.);
+  const int STEPS = 7;
+  for (int i=0;i<STEPS;i++){
+    float k = (float(i)/float(STEPS-1) - .5) * vel * 0.12;
+    vec2 su = u - fromC * k;
+    colA += grab(texA, su, ab, dir);
+    colB += grab(texB, su, ab, dir);
+  }
+  colA /= float(STEPS); colB /= float(STEPS);
+  vec3 col = mix(colA, colB, smoothstep(0.,1.,mixv));
+  // vignette + slight scanline shimmer with velocity
+  col *= 1. - d*d*0.55;
+  col += vel * 0.05 * sin(uv.y*res.y*1.5);
+  gl_FragColor = vec4(col,1.);
+}`;
+
+function shader(type,src){
+  const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog=gl.createProgram();
+gl.attachShader(prog,shader(gl.VERTEX_SHADER,VS));
+gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,FS));
+gl.linkProgram(prog); gl.useProgram(prog);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const loc=gl.getAttribLocation(prog,'p');
+gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+const U = n=>gl.getUniformLocation(prog,n);
+const uMix=U('mixv'), uVel=U('vel'), uRes=U('res');
+gl.uniform1i(U('texA'),0); gl.uniform1i(U('texB'),1);
+
+const textures = SLIDES.map(([,,d])=>makeTexture(d));
+
+function resize(){
+  cv.width=innerWidth; cv.height=innerHeight;
+  gl.viewport(0,0,cv.width,cv.height);
+  gl.uniform2f(uRes,cv.width,cv.height);
+}
+addEventListener('resize',resize); resize();
+
+/* ── scroll → frame + velocity ─────────────────────────── */
+const capT=document.getElementById('capT'), capS=document.getElementById('capS');
+const hFrame=document.getElementById('hFrame'), hVel=document.getElementById('hVel'), hAb=document.getElementById('hAb');
+let lastY=scrollY, velSm=0, lastCap=-1;
+
+function frame(){
+  requestAnimationFrame(frame);
+  const max = document.documentElement.scrollHeight - innerHeight;
+  const t = max>0 ? scrollY/max : 0;
+  const pos = t * (SLIDES.length-1);
+  const i = Math.min(SLIDES.length-2, Math.floor(pos));
+  const f = pos - i;
+
+  const v = Math.abs(scrollY - lastY); lastY = scrollY;
+  velSm += ((reduce?0:Math.min(1, v/60)) - velSm) * .08;
+
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, textures[i]);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, textures[i+1]);
+  gl.uniform1f(uMix, f);
+  gl.uniform1f(uVel, velSm);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+
+  const cap = Math.round(pos);
+  if (cap !== lastCap){
+    lastCap = cap;
+    capT.textContent = SLIDES[cap][0];
+    capS.textContent = SLIDES[cap][1];
+    hFrame.textContent = String(cap+1).padStart(2,'0')+' / '+String(SLIDES.length).padStart(2,'0');
+  }
+  hVel.textContent = velSm.toFixed(3);
+  hAb.textContent = (velSm*35).toFixed(1)+' px';
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CREVASSE — light, refracted through a thousand years of ice</title>
+<meta name="description" content="CREVASSE composites a live WebGL refraction and caustics shader over a generated photograph of glacier ice, sampling the photo as the shader's own texture.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;700&family=PT+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1a24;
+    --ice:#9fe8ff;
+    --deep:#123244;
+    --txt:#eaf6fc;
+    --dim:#a9c4d1;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--txt);font-family:'Outfit',sans-serif;font-weight:300;overflow-x:hidden}
+  ::selection{background:var(--ice);color:#06222f}
+  a{color:inherit}
+
+  .hero{position:relative;height:100vh;min-height:560px;overflow:hidden}
+  .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .hero img.fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+  .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(10,26,36,.15),rgba(10,26,36,0) 34%,rgba(10,26,36,.55) 100%);pointer-events:none}
+
+  header{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.6rem 2.2rem}
+  .brand{font-weight:500;font-size:1.05rem;letter-spacing:.12em;text-transform:uppercase}
+  .brand span{color:var(--ice);font-weight:200}
+  nav{font-family:'PT Mono',monospace;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase}
+  nav a{text-decoration:none;color:var(--txt);opacity:.75;margin-left:1.6rem;transition:opacity .2s,color .2s}
+  nav a:hover{opacity:1;color:var(--ice)}
+
+  .mid{position:absolute;z-index:4;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:0 6vw;pointer-events:none}
+  .mid .kick{font-family:'PT Mono',monospace;font-size:.68rem;letter-spacing:.3em;text-transform:uppercase;color:var(--ice);margin-bottom:1.2rem}
+  .mid h1{font-weight:200;font-size:clamp(2.1rem,7vw,5rem);line-height:1.05;max-width:14ch;text-shadow:0 4px 30px rgba(0,0,0,.5)}
+  .mid h1 b{font-weight:700;color:var(--ice)}
+  .mid p{margin-top:1.2rem;max-width:32rem;font-size:1rem;line-height:1.65;color:var(--dim);font-weight:300}
+
+  .panel{position:absolute;z-index:5;right:0;bottom:0;left:0;display:flex;justify-content:center;padding:1.6rem 1.4rem;pointer-events:none}
+  .readout{pointer-events:auto;width:min(680px,100%);background:rgba(10,26,36,.55);backdrop-filter:blur(14px);
+    border:1px solid rgba(159,232,255,.22);border-radius:14px;padding:1.1rem 1.5rem;
+    display:flex;gap:1.6rem;align-items:center;flex-wrap:wrap;font-family:'PT Mono',monospace}
+  .stat{display:flex;flex-direction:column;gap:.2rem}
+  .stat b{font-size:1rem;color:var(--ice);font-weight:400}
+  .stat span{font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .slidewrap{flex:1;min-width:150px;display:flex;align-items:center;gap:.8rem}
+  input[type=range]{-webkit-appearance:none;flex:1;height:2px;background:rgba(159,232,255,.3);cursor:ew-resize}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--ice);box-shadow:0 0 12px rgba(159,232,255,.9)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--ice);border:none;box-shadow:0 0 12px rgba(159,232,255,.9)}
+
+  main{position:relative;z-index:2;background:var(--bg);padding:8vh 6vw 9vh}
+  .grid{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:4rem}
+  .field h2{font-family:'PT Mono',monospace;font-size:.66rem;letter-spacing:.24em;text-transform:uppercase;color:var(--ice);margin-bottom:1rem}
+  .field p{font-size:1.02rem;line-height:1.8;color:var(--dim);font-weight:300}
+  .field p+p{margin-top:1rem}
+  .specs{display:flex;flex-direction:column;gap:0}
+  .srow{display:flex;justify-content:space-between;padding:.9rem 0;border-bottom:1px solid rgba(159,232,255,.14);font-family:'PT Mono',monospace;font-size:.78rem}
+  .srow span:first-child{color:var(--dim);letter-spacing:.05em}
+  .srow span:last-child{color:var(--ice)}
+
+  footer{position:relative;z-index:2;background:var(--bg);text-align:center;font-family:'PT Mono',monospace;
+    font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;opacity:.55;padding:0 1rem 2.6rem}
+  footer a{color:var(--ice);text-decoration:underline}
+
+  @media(max-width:800px){
+    .grid{grid-template-columns:1fr;gap:2.4rem}
+    .mid h1{font-size:clamp(1.9rem,9vw,3rem)}
+    .mid{align-items:center;text-align:center}
+  }
+  @media (prefers-reduced-motion: reduce){
+    * { scroll-behavior:auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<section class="hero" id="heroSection">
+  <canvas id="gl" aria-hidden="true"></canvas>
+  <img class="fallback" id="fallbackImg" src="assets/hero.jpg" alt="Photograph looking through a narrow glacial ice crevasse, crystalline blue-white walls, light entering from above, generated with nano_banana_pro.">
+
+  <header>
+    <span class="brand">CRE<span>VASSE</span></span>
+    <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+  </header>
+
+  <div class="mid">
+    <div>
+      <div class="kick">Site 29 of 50 &middot; Wing II</div>
+      <h1>Light takes <b>a thousand years</b> to reach the bottom of this.</h1>
+      <p>A generated photograph of glacier ice, used as a live texture inside a WebGL shader that bends and refracts it in real time. Move your cursor across the ice.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="readout">
+      <div class="stat"><b>−14°C</b><span>core temp</span></div>
+      <div class="stat"><b>~1,200 yr</b><span>ice age</span></div>
+      <div class="slidewrap">
+        <span style="font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)">Refraction</span>
+        <input type="range" id="intensity" min="0" max="100" value="55" aria-label="Refraction and caustics intensity">
+      </div>
+    </div>
+  </div>
+</section>
+
+<main>
+  <div class="grid">
+    <div class="field">
+      <h2>How it bends</h2>
+      <p>The photograph never moves — it's the fixed input texture a fragment shader samples every frame. What you're actually seeing shift is the sampling coordinate itself: a pair of slow sine waves nudge each pixel's lookup position by a few thousandths of the canvas, the same way real ice bends light passing through its uneven crystal structure.</p>
+      <p>On top of that, a second pass layers a classic caustic pattern — overlapping absolute-value sine waves, the cheapest way to fake the shifting light-net you see on a pool floor — tinted glacier-blue and added back into the refracted image. The slider scales both effects together, so "refraction" is one real shader uniform, not a filter.</p>
+    </div>
+    <div class="specs">
+      <div class="srow"><span>Render</span><span>WebGL1, single fragment shader pass</span></div>
+      <div class="srow"><span>Texture</span><span>hero.jpg, sampled directly, no pre-processing</span></div>
+      <div class="srow"><span>Refraction</span><span>dual sine-wave UV offset</span></div>
+      <div class="srow"><span>Caustics</span><span>3-octave abs(sin·cos) field</span></div>
+      <div class="srow"><span>Interaction</span><span>cursor warps the local refraction center</span></div>
+      <div class="srow"><span>Fallback</span><span>static image + CSS tint if WebGL is unavailable</span></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  CREVASSE &middot; GENERATED IMAGE AS LIVE SHADER TEXTURE &middot; SITE 29 OF 50 &middot; BUILT BY CLAUDE (FABLE 25, WING II) &middot; <a href="guide/">/GUIDE</a> &middot; <a href="../">/INDEX</a>
+</footer>
+
+<script>
+(function(){
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const heroSection = document.getElementById('heroSection');
+  const canvas = document.getElementById('gl');
+  const fallbackImg = document.getElementById('fallbackImg');
+
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if(!gl){
+    canvas.style.display = 'none';
+    fallbackImg.style.display = 'block';
+    fallbackImg.style.filter = 'saturate(1.1) brightness(.9) hue-rotate(-4deg)';
+    return;
+  }
+
+  const VERT = `
+    attribute vec2 aPos;
+    varying vec2 vUv;
+    void main(){
+      vUv = aPos*0.5+0.5;
+      gl_Position = vec4(aPos,0.0,1.0);
+    }
+  `;
+  const FRAG = `
+    precision mediump float;
+    varying vec2 vUv;
+    uniform sampler2D uTex;
+    uniform float uTime;
+    uniform vec2 uMouse;
+    uniform float uIntensity;
+
+    float caustic(vec2 uv, float t){
+      vec2 p = uv*6.0;
+      float c = 0.0;
+      for(int i=0;i<3;i++){
+        float fi = float(i);
+        p += vec2(cos(t*0.3+fi*2.0), sin(t*0.25+fi*1.7))*0.5;
+        c += abs(sin(p.x*3.0 + t*0.6) * cos(p.y*3.0 - t*0.5));
+      }
+      return c/3.0;
+    }
+
+    void main(){
+      vec2 uv = vUv;
+      vec2 toMouse = uv - uMouse;
+      float dMouse = length(toMouse);
+
+      float n1 = sin(uv.y*18.0 + uTime*0.6)*0.006;
+      float n2 = cos(uv.x*14.0 - uTime*0.5)*0.006;
+      vec2 distortion = vec2(n1,n2) * uIntensity;
+      distortion += normalize(toMouse+0.0001) * smoothstep(0.4,0.0,dMouse) * 0.024 * uIntensity;
+
+      vec2 sampleUv = clamp(uv + distortion, 0.0, 1.0);
+      vec3 base = texture2D(uTex, sampleUv).rgb;
+
+      float c = caustic(uv, uTime);
+      vec3 causticCol = vec3(0.5,0.82,1.0) * c * 0.32 * uIntensity;
+
+      vec3 col = base + causticCol;
+      col = mix(col, col*vec3(0.92,1.02,1.1), 0.4);
+      gl_FragColor = vec4(col,1.0);
+    }
+  `;
+
+  function compile(type, src){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+      console.warn(gl.getShaderInfoLog(s));
+      return null;
+    }
+    return s;
+  }
+  const vs = compile(gl.VERTEX_SHADER, VERT);
+  const fs = compile(gl.FRAGMENT_SHADER, FRAG);
+  if(!vs || !fs){
+    canvas.style.display = 'none';
+    fallbackImg.style.display = 'block';
+    return;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+
+  const quad = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'aPos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const uTime = gl.getUniformLocation(prog, 'uTime');
+  const uMouse = gl.getUniformLocation(prog, 'uMouse');
+  const uIntensity = gl.getUniformLocation(prog, 'uIntensity');
+  const uTexLoc = gl.getUniformLocation(prog, 'uTex');
+
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([10,40,55,255]));
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  let texReady = false;
+  img.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    texReady = true;
+    if(reduceMotion) renderFrame(0);
+  };
+  img.onerror = () => {
+    canvas.style.display = 'none';
+    fallbackImg.style.display = 'block';
+  };
+  img.src = 'assets/hero.jpg';
+
+  let mouseX = 0.5, mouseY = 0.5;
+  heroSection.addEventListener('pointermove', e=>{
+    const r = heroSection.getBoundingClientRect();
+    mouseX = (e.clientX - r.left)/r.width;
+    mouseY = 1 - (e.clientY - r.top)/r.height;
+  });
+
+  let intensity = 0.55;
+  const intensityEl = document.getElementById('intensity');
+  intensityEl.addEventListener('input', e=>{
+    intensity = (+e.target.value/100) * 1.5;
+    if(reduceMotion) renderFrame(0);
+  });
+
+  function resize(){
+    const dpr = Math.min(devicePixelRatio||1, 2);
+    canvas.width = heroSection.clientWidth*dpr;
+    canvas.height = heroSection.clientHeight*dpr;
+    canvas.style.width = heroSection.clientWidth+'px';
+    canvas.style.height = heroSection.clientHeight+'px';
+    gl.viewport(0,0,canvas.width,canvas.height);
+    if(reduceMotion) renderFrame(0);
+  }
+  addEventListener('resize', resize); resize();
+
+  function renderFrame(t){
+    gl.useProgram(prog);
+    gl.uniform1f(uTime, t);
+    gl.uniform2f(uMouse, mouseX, mouseY);
+    gl.uniform1f(uIntensity, intensity);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.uniform1i(uTexLoc, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  if(!reduceMotion){
+    function loop(ts){
+      renderFrame(ts*0.001);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  } else {
+    renderFrame(0);
+  }
+})();
+</script>
+</body>
+</html>

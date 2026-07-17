@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23ff9d5c%22/></svg>">
+<title>How GLOAMING was made — guide</title>
+<meta name="description" content="How the GLOAMING site was designed and built: a real-time Rayleigh/Mie single-scattering sky shader you can drag the sun through.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #ffb27a; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0810; color:#f0e6dc;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#a89aa6; text-decoration:none; border-bottom:1px solid #2a2233; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#a89aa6; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #221c2a;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-family:'Fragment Mono',monospace;font-size:.9em;background:#171320;padding:.1em .4em;border-radius:4px}
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#c9bcc4;
+    background:#141019; border:1px solid #221c2a; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #221c2a;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a7e8a; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0a0810; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to GLOAMING</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 56 of 62 · how it was made</div>
+  <h1>GLOAMING</h1>
+  <p class="sub">A draggable dusk sky, built from real scattering physics</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Most "sky" web graphics are a CSS gradient with a couple of stops. GLOAMING instead computes the sky color per-pixel from an approximation of how sunlight actually scatters through an atmosphere — the same Rayleigh/Mie single-scattering model used in physically based sky renderers — so dragging the sun doesn't crossfade between presets, it re-runs the integral and the whole dome repaints correctly: blue zenith, warm horizon, red gloaming band, all falling out of the math rather than being hand-picked.</p>
+
+  <h2><span class="no">02</span> The scattering model</h2>
+  <ul>
+    <li>Per pixel, a view ray is cast into a spherical atmosphere shell around an idealized planet (radius 6,360km, atmosphere top 6,420km — Earth-scale constants).</li>
+    <li>The ray is marched in 12 steps; at each sample, a second ray is marched 5 steps toward the sun to find how much light survives to reach that point (the "light ray" / transmittance term).</li>
+    <li>Rayleigh scattering (wavelength-dependent, <code>β_R ≈ (5.5, 13.0, 22.4)×10⁻⁶</code>) makes blue scatter more than red — the reason the zenith is blue and the horizon reddens as the light path lengthens.</li>
+    <li>Mie scattering (grey, forward-biased via a Henyey-Greenstein phase function with g=0.76) adds the hazy glow around the sun disk itself.</li>
+    <li>Both terms are summed with their phase functions and exponential extinction, then tone-mapped (Reinhard-style <code>1-exp(-x)</code>) and gamma-corrected.</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Antic Didot + Fragment Mono · no fixed palette — every color on screen is a shader output driven by sun elevation</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>The first headless render showed a sky that looked plausible but the hero read as slightly empty — no sense of scale or place. Added a two-layer procedural ridge silhouette along the bottom of the viewport (a simple sine-based jagged path, tinted near-black) so the sky has something to sit behind, and moved the drag-hint text down so it no longer crowded the header on narrow viewports. Also caught that the on-screen HUD readouts could sit flush against the bottom credit line at small heights; added spacing so both stay legible.</p>
+
+  <h2><span class="no">05</span> The complexity upgrade</h2>
+  <p>A gentle idle auto-drift: until the visitor first drags or presses an arrow key, the sun slowly sweeps through a dawn-to-dusk arc on its own (a couple of offset sine waves on azimuth and elevation), so the piece never sits static waiting to be discovered — and it stops immediately and permanently once you touch it, handing control over cleanly. Fully disabled under <code>prefers-reduced-motion</code>.</p>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Fullscreen quad + orthographic camera, one <code>ShaderMaterial</code> — no 3D scene needed</li>
+    <li>Map screen UV to a wide-FOV elevation/azimuth ray direction (a "sky dome" camera)</li>
+    <li>Ray-sphere intersect against atmosphere + planet radii to bound the march</li>
+    <li>Nest a short light-ray march inside the primary march for transmittance</li>
+    <li>Sum Rayleigh + Mie contributions weighted by their phase functions, tone-map, gamma-correct</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 3), Anthropic ·
+    hand-written HTML/CSS/JS + Three.js (CDN) for the shader plane, no build step ·
+    build → code-review → real screenshot critique passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

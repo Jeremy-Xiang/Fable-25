@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TEKTON — architecture drawn in one line weight</title>
+<meta name="description" content="TEKTON is a monochrome architecture studio. Elevations draft themselves in SVG line work as you scroll; the whitespace is structural.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400&family=Work+Sans:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --white:#fcfcfa;
+    --black:#151513;
+    --gray:#8a8a85;
+    --draftred:#c8372d;
+    --hair:rgba(21,21,19,.16);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--white);color:var(--black);font-family:'Work Sans',sans-serif;font-weight:300;overflow-x:hidden}
+  ::selection{background:var(--black);color:var(--white)}
+
+  nav{display:flex;justify-content:space-between;align-items:baseline;padding:2rem 3rem;
+    position:sticky;top:0;background:rgba(252,252,250,.9);backdrop-filter:blur(8px);z-index:20;
+    border-bottom:1px solid var(--hair)}
+  nav .m{font-family:'Oswald';font-weight:400;font-size:1.05rem;letter-spacing:.5em;text-transform:uppercase}
+  nav .links{font-size:.7rem;letter-spacing:.26em;text-transform:uppercase}
+  nav a{color:var(--black);text-decoration:none;margin-left:2rem;padding-bottom:3px;border-bottom:1px solid transparent}
+  nav a:hover{border-color:var(--black)}
+
+  .hero{padding:18vh 3rem 14vh;max-width:1300px;margin:0 auto}
+  .hero h1{font-family:'Oswald';font-weight:200;text-transform:uppercase;
+    font-size:clamp(2.8rem,9vw,8rem);line-height:1.02;letter-spacing:.02em}
+  .hero h1 .indent{margin-left:14vw}
+  .hero .sub{margin-top:4rem;display:flex;gap:4rem;flex-wrap:wrap;font-size:.85rem;line-height:1.9;color:var(--gray)}
+  .hero .sub div{max-width:32ch}
+  .hero .sub b{color:var(--black);font-weight:400;display:block;margin-bottom:.4rem;
+    font-size:.68rem;letter-spacing:.3em;text-transform:uppercase}
+
+  .project{max-width:1300px;margin:0 auto;padding:12vh 3rem;border-top:1px solid var(--hair);
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:6vw;align-items:center}
+  .project:nth-child(even){grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+  .project:nth-child(even) .pcopy{order:2}
+  .project:nth-child(even) .pdraw{order:1}
+  .pcopy .no{font-family:'Oswald';font-weight:300;font-size:.75rem;letter-spacing:.4em;
+    text-transform:uppercase;color:var(--draftred);display:block;margin-bottom:1.6rem}
+  .pcopy h2{font-family:'Oswald';font-weight:200;font-size:clamp(1.9rem,4vw,3.4rem);
+    line-height:1.08;text-transform:uppercase;letter-spacing:.02em;margin-bottom:1.8rem}
+  .pcopy p{font-size:.95rem;line-height:2;color:#3d3d3a;max-width:44ch}
+  .pcopy .specs{margin-top:2.4rem;font-size:.74rem;letter-spacing:.08em;line-height:2.4;color:var(--gray)}
+  .pcopy .specs b{color:var(--black);font-weight:400}
+
+  .pdraw svg{width:100%;display:block}
+  .pdraw .ln{fill:none;stroke:var(--black);stroke-width:1.4;vector-effect:non-scaling-stroke}
+  .pdraw .thin{stroke-width:.7;opacity:.65}
+  .pdraw .dim{stroke:var(--draftred);stroke-width:.8;opacity:0;transition:opacity .8s ease 1.6s}
+  .pdraw text{font-family:'Work Sans';font-size:9px;fill:var(--draftred);opacity:0;transition:opacity .8s ease 1.8s}
+  .pdraw.drawn .dim,.pdraw.drawn text{opacity:.9}
+  .pdraw .ln{stroke-dasharray:var(--len,1200);stroke-dashoffset:var(--len,1200)}
+  .pdraw.drawn .ln{animation:draft 2.6s cubic-bezier(.4,0,.2,1) forwards}
+  @keyframes draft{to{stroke-dashoffset:0}}
+
+  .credo{max-width:900px;margin:0 auto;padding:18vh 3rem;text-align:center;border-top:1px solid var(--hair)}
+  .credo p{font-family:'Oswald';font-weight:200;font-size:clamp(1.6rem,3.6vw,2.8rem);
+    line-height:1.5;text-transform:uppercase;letter-spacing:.04em}
+  .credo p b{font-weight:400;border-bottom:2px solid var(--draftred)}
+
+  footer{border-top:1px solid var(--hair);padding:3.5rem 3rem;display:flex;flex-wrap:wrap;gap:1.5rem;
+    justify-content:space-between;font-size:.68rem;letter-spacing:.26em;text-transform:uppercase;color:var(--gray)}
+  footer a{color:var(--black);text-decoration:none;border-bottom:1px solid var(--hair)}
+  footer a:hover{border-color:var(--black)}
+
+  @media(max-width:900px){
+    .project,.project:nth-child(even){grid-template-columns:1fr}
+    .project:nth-child(even) .pcopy{order:1}
+    .project:nth-child(even) .pdraw{order:2}
+    nav{padding:1.4rem 1.6rem}
+    .hero{padding:12vh 1.6rem 10vh}
+    .project{padding:9vh 1.6rem}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="m">Tekton</span>
+  <span class="links"><a href="#work">Work</a><a href="guide/">Guide</a><a href="../">Index</a></span>
+</nav>
+
+<header class="hero">
+  <h1>Buildings,<br><span class="indent">reduced to</span><br>their argument.</h1>
+  <div class="sub">
+    <div><b>Studio</b>We draw every project at one line weight until it can defend itself without color, texture, or adjectives.</div>
+    <div><b>Method</b>The drawings below draft themselves as you arrive — stroke by stroke, the way a pencil would, if a pencil ran on requestAnimationFrame.</div>
+    <div><b>Office</b>Basel / Naoshima<br>Est. — let's say 1999</div>
+  </div>
+</header>
+
+<div id="work"></div>
+
+<section class="project">
+  <div class="pcopy">
+    <span class="no">Project 01 — 2024</span>
+    <h2>House for a Horizon</h2>
+    <p>A single habitable beam, forty meters long, aimed at the flattest view in the prefecture. The client asked for "a house that points." Rooms occur where the pointing pauses.</p>
+    <div class="specs"><b>Program</b> — dwelling, one axis &nbsp;·&nbsp; <b>Area</b> — 210 m²<br><b>Structure</b> — steel, stubbornness</div>
+  </div>
+  <div class="pdraw" data-draw>
+    <svg viewBox="0 0 560 300">
+      <path class="ln" style="--len:1400" d="M40 210 H520 M60 210 V150 H460 V210 M460 170 H520 V210"/>
+      <path class="ln" style="--len:700" d="M60 150 L100 110 H420 L460 150"/>
+      <path class="ln thin" style="--len:900" d="M120 210 V150 M180 210 V150 M240 210 V150 M300 210 V150 M360 210 V150 M420 210 V150"/>
+      <path class="ln thin" style="--len:400" d="M130 180 H170 M250 180 H290 M370 180 H410"/>
+      <path class="dim" d="M60 240 H460 M60 234 V246 M460 234 V246"/>
+      <text x="240" y="258">40 000</text>
+      <path class="dim" d="M30 210 V150 M24 210 H36 M24 150 H36"/>
+      <text x="6" y="184" transform="rotate(-90 10 184)">3 600</text>
+    </svg>
+  </div>
+</section>
+
+<section class="project">
+  <div class="pcopy">
+    <span class="no">Project 02 — 2022</span>
+    <h2>Stair That Owns<br>the Building</h2>
+    <p>A cultural center where the staircase arrived first and the museum was negotiated around it. Forty-one steps, each one a small municipality with its own weather.</p>
+    <div class="specs"><b>Program</b> — museum, subordinate &nbsp;·&nbsp; <b>Area</b> — 4 800 m²<br><b>Structure</b> — concrete, hierarchy</div>
+  </div>
+  <div class="pdraw" data-draw>
+    <svg viewBox="0 0 560 300">
+      <path class="ln" style="--len:1200" d="M40 260 H520 M70 260 V60 H490 V260"/>
+      <path class="ln" style="--len:1100" d="M90 260 L90 240 H110 V220 H130 V200 H150 V180 H170 V160 H190 V140 H210 V120 H230 V100 H250 V80 H270"/>
+      <path class="ln thin" style="--len:600" d="M300 100 H470 M300 140 H470 M300 180 H470 M300 220 H470"/>
+      <path class="ln thin" style="--len:300" d="M330 100 V260 M400 100 V260"/>
+      <path class="dim" d="M270 40 L270 80 M264 46 L270 40 L276 46"/>
+      <text x="240" y="34">summit, 41 r</text>
+      <path class="dim" d="M40 285 H520 M40 279 V291 M520 279 V291"/>
+      <text x="262" y="299">48 000</text>
+    </svg>
+  </div>
+</section>
+
+<section class="project">
+  <div class="pcopy">
+    <span class="no">Project 03 — 2019</span>
+    <h2>Pavilion of<br>Withheld Walls</h2>
+    <p>Nine columns, one roof, zero enclosure. Reviewers called it unfinished; the weather calls it collaborative. Our most photographed void to date.</p>
+    <div class="specs"><b>Program</b> — shade, opinions &nbsp;·&nbsp; <b>Area</b> — yes<br><b>Structure</b> — timber, restraint</div>
+  </div>
+  <div class="pdraw" data-draw>
+    <svg viewBox="0 0 560 300">
+      <path class="ln" style="--len:1100" d="M60 90 L280 50 L500 90 L280 130 Z"/>
+      <path class="ln" style="--len:400" d="M60 90 V100 L280 140 L500 100 V90"/>
+      <path class="ln thin" style="--len:900" d="M100 105 V230 M190 122 V250 M280 140 V264 M370 122 V250 M460 105 V230"/>
+      <path class="ln thin" style="--len:900" d="M140 113 V240 M235 131 V257 M325 131 V257 M420 113 V240"/>
+      <path class="ln" style="--len:600" d="M40 235 L280 275 L520 235"/>
+      <path class="dim" d="M280 150 V254 M274 156 L280 150 L286 156 M274 248 L280 254 L286 248"/>
+      <text x="290" y="205">3 200 clr</text>
+    </svg>
+  </div>
+</section>
+
+<section class="credo">
+  <p>A plan is a promise.<br>An elevation is <b>a confession.</b></p>
+</section>
+
+<footer>
+  <span>Tekton — drawn, not rendered</span>
+  <span>Built by Claude (Fable 5) · <a href="guide/">How</a> · <a href="../">All 25</a></span>
+</footer>
+
+<script>
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('drawn');io.unobserve(e.target)}
+}),{threshold:.4});
+document.querySelectorAll('[data-draw]').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

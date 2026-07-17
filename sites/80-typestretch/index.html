@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ELASTIC — type that feels your scroll</title>
+<meta name="description" content="A variable-font editorial where scroll velocity drives the weight and width axes: fling the page and the headlines physically stretch, settle, and snap back.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111014'/%3E%3Ctext x='16' y='23' font-size='19' font-weight='900' text-anchor='middle' fill='%23ff6b9d' font-family='sans-serif'%3EE%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=Azeret+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#111014; --ink:#f4eff1; --dim:#8d8391; --dim2:#4f4954; --pink:#ff6b9d; --line:rgba(244,239,241,.1); }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg); color:var(--ink); font-family:'Fraunces',serif; overflow-x:hidden}
+::selection{background:var(--pink); color:#2b0714}
+a:focus-visible{outline:2px solid var(--pink); outline-offset:3px}
+
+header{position:fixed; top:0; left:0; right:0; z-index:10; display:flex; justify-content:space-between;
+  padding:1.2rem 1.6rem; mix-blend-mode:difference}
+.mark{font-family:'Azeret Mono',monospace; font-weight:600; font-size:.78rem; letter-spacing:.24em}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'Azeret Mono',monospace; font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--ink); opacity:.7; text-decoration:none}
+nav a:hover{opacity:1}
+
+.meter{position:fixed; right:1.5rem; top:50%; transform:translateY(-50%); z-index:10; text-align:right;
+  font-family:'Azeret Mono',monospace; font-size:.58rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim2); line-height:2.1; pointer-events:none}
+.meter b{color:var(--pink); font-weight:400}
+@media(max-width:760px){.meter{display:none}}
+
+section{min-height:88vh; display:flex; flex-direction:column; justify-content:center; padding:12vh 5vw; border-bottom:1px solid var(--line)}
+.kick{font-family:'Azeret Mono',monospace; font-size:.6rem; letter-spacing:.3em; text-transform:uppercase; color:var(--pink); margin-bottom:1.6rem}
+.stretch{
+  font-size:clamp(2.6rem,9.5vw,8rem); line-height:1.02; letter-spacing:-.01em;
+  font-variation-settings:'wght' var(--w,400), 'SOFT' var(--soft,0), 'WONK' 0;
+  font-optical-sizing:auto;
+  will-change:font-variation-settings, transform;
+  transform:scaleY(var(--sy,1));
+  transform-origin:50% 100%;
+}
+.stretch em{font-style:italic; color:var(--pink); font-variation-settings:'wght' var(--w,400), 'SOFT' var(--soft,0), 'WONK' 1}
+section p.body{font-family:'Azeret Mono',monospace; font-size:.78rem; line-height:2; color:var(--dim); max-width:34rem; margin-top:2rem}
+section p.body b{color:var(--ink); font-weight:400}
+
+footer{padding:2rem 5vw 3rem; font-family:'Azeret Mono',monospace; font-size:.58rem; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--dim2); display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem}
+footer a{color:var(--pink); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">ELASTIC</span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="meter" aria-hidden="true">
+  velocity <b id="mV">0.00</b><br>
+  wght <b id="mW">340</b><br>
+  soft <b id="mS">0</b><br>
+  stretch <b id="mY">1.00</b>
+</div>
+
+<section>
+  <div class="kick">issue 01 — the velocity edition</div>
+  <h1 class="stretch">Type that<br><em>feels</em> your scroll.</h1>
+  <p class="body">Every headline on this page sits on a variable font with live
+  <b>wght</b> and <b>SOFT</b> axes. Scroll gently: nothing. Fling the page:
+  the letters gain weight, soften, and physically stretch with the motion —
+  then spring back when you stop. The type is the speedometer.</p>
+</section>
+
+<section>
+  <div class="kick">chapter two</div>
+  <h2 class="stretch">Momentum is<br>a <em>typeface.</em></h2>
+  <p class="body">The mechanics: scroll velocity is smoothed with a spring, then mapped
+  onto three channels at once — <b>font-variation-settings</b> for weight (340 → 820)
+  and softness (0 → 80), plus a subtle <b>scaleY</b> squash-and-stretch. Because the axes
+  are real font data, the letterforms re-draw — this isn't a CSS scale faking it.</p>
+</section>
+
+<section>
+  <div class="kick">chapter three</div>
+  <h2 class="stretch">Stop scrolling.<br><em>Watch it settle.</em></h2>
+  <p class="body">The spring is deliberately underdamped — when you release,
+  the weight rings past its resting value once before settling, like a plucked string.
+  <b>prefers-reduced-motion</b> pins every axis to its resting book weight.</p>
+</section>
+
+<section>
+  <div class="kick">colophon</div>
+  <h2 class="stretch">Set in <em>Fraunces,</em><br>all axes live.</h2>
+  <p class="body">Fraunces ships wght, SOFT and WONK axes — the italics here keep
+  <b>WONK 1</b> permanently, because a little wonk is good for you.</p>
+</section>
+
+<footer>
+  <span>site 80 / fable 25 · built by claude (fable 5)</span>
+  <span><a href="guide/">how it was made</a></span>
+</footer>
+
+<script>
+/* ELASTIC — scroll velocity → variable font axes with an underdamped spring */
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const root = document.documentElement;
+const mV=document.getElementById('mV'), mW=document.getElementById('mW'),
+      mS=document.getElementById('mS'), mY=document.getElementById('mY');
+
+let lastY = scrollY;
+let vel = 0;        // spring position (smoothed velocity)
+let vvel = 0;       // spring velocity
+const K = 90, DAMP = 2*Math.sqrt(90)*0.55;   // underdamped on purpose
+
+let last = performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt = Math.min(.04, (now-last)/1000); last = now;
+
+  const raw = Math.min(1.6, Math.abs(scrollY - lastY) / 26);
+  lastY = scrollY;
+
+  // spring vel toward raw
+  const acc = K*(raw - vel) - DAMP*vvel;
+  vvel += acc*dt;
+  vel = Math.max(0, vel + vvel*dt);
+
+  const v = reduce ? 0 : vel;
+  const w   = 340 + v*480;          // weight 340 → 820
+  const soft= v*80;                 // SOFT 0 → 80
+  const sy  = 1 + v*.045;           // gentle squash-stretch
+
+  root.style.setProperty('--w', w.toFixed(0));
+  root.style.setProperty('--soft', soft.toFixed(1));
+  root.style.setProperty('--sy', sy.toFixed(3));
+
+  mV.textContent = v.toFixed(2);
+  mW.textContent = w.toFixed(0);
+  mS.textContent = soft.toFixed(0);
+  mY.textContent = sy.toFixed(2);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

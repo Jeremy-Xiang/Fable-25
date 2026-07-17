@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRANSIT — every route drawn straight</title>
+<meta name="description" content="TRANSIT is a Vignelli-style subway diagram generated entirely from a small set of hub coordinates and an elbow-routing algorithm — six flat-color lines, interactive stations, on aged paper.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#efe9db;
+    --ink:#1c1a17;
+    --accent:#0039a6;
+    --red:#e4002b;
+    --blue:#0039a6;
+    --green:#00933c;
+    --orange:#ff6319;
+    --yellow:#c99a00;
+    --purple:#a626aa;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--paper);color:var(--ink);font-family:'Archivo',sans-serif;overflow-x:hidden}
+  ::selection{background:var(--accent);color:#fff}
+  a{color:inherit}
+  .mono{font-family:'IBM Plex Mono',monospace}
+
+  .stage{position:relative;min-height:100vh;display:flex;flex-direction:column}
+
+  header{position:relative;z-index:5;display:flex;justify-content:space-between;align-items:center;
+    padding:1.5rem 2rem}
+  .m{font-weight:800;font-size:1.15rem;letter-spacing:.04em}
+  .m i{color:var(--red);font-style:normal}
+  nav{font-family:'IBM Plex Mono',monospace;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase}
+  nav a{color:var(--ink);text-decoration:none;opacity:.72;margin-left:1.6rem;border-bottom:1px solid transparent;
+    padding-bottom:2px;transition:.2s}
+  nav a:hover,nav a:focus-visible{opacity:1;border-color:var(--accent);color:var(--accent)}
+
+  .paper-bg{position:absolute;inset:0;z-index:0;overflow:hidden}
+  .paper-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    opacity:.55;mix-blend-mode:multiply;filter:sepia(.15) contrast(1.02)}
+  .paper-bg::after{content:'';position:absolute;inset:0;background:var(--paper);opacity:.28}
+
+  .titleblock{position:relative;z-index:3;padding:.5rem 2rem 0;max-width:640px}
+  .kicker{font-family:'IBM Plex Mono',monospace;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--red);margin-bottom:.7rem}
+  h1{font-weight:800;font-size:clamp(1.7rem,4.6vw,3rem);line-height:1.12;letter-spacing:-.01em}
+  h1 em{font-style:normal;color:var(--blue)}
+  .titleblock p{font-size:.98rem;line-height:1.6;margin-top:.9rem;max-width:52ch;color:#3a362f}
+
+  .map-wrap{position:relative;z-index:2;flex:1;display:flex;align-items:center;justify-content:center;
+    padding:1.5rem 1rem}
+  svg#diagram{width:100%;max-width:1080px;height:auto;overflow:visible}
+
+  .line-path{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:6.5;
+    transition:opacity .35s ease,stroke-width .25s ease;cursor:pointer}
+  .line-path.dim{opacity:.16}
+  .line-path.hot{stroke-width:9.5}
+
+  .station circle.dot{fill:var(--paper);stroke-width:2.5;transition:opacity .35s ease,r .2s ease}
+  .station circle.hub{fill:var(--paper);stroke:var(--ink);stroke-width:3.2}
+  .station.dim circle{opacity:.2}
+  .station{cursor:pointer;outline:none}
+  .station:focus-visible circle{stroke:var(--accent);stroke-width:4}
+  .station text{font-family:'IBM Plex Mono',monospace;font-size:11px;fill:var(--ink);
+    paint-order:stroke;stroke:var(--paper);stroke-width:3px;pointer-events:none}
+  .station.dim text{opacity:.25}
+
+  #train{fill:#fff;stroke:var(--red);stroke-width:2.5}
+
+  .console{position:relative;z-index:5;padding:0 1.4rem 1.6rem}
+  .panel{max-width:1080px;margin:0 auto;background:rgba(239,233,219,.86);backdrop-filter:blur(8px);
+    border:1.5px solid rgba(28,26,23,.16);border-radius:14px;padding:1.1rem 1.3rem}
+  .legend-row{display:flex;flex-wrap:wrap;gap:.55rem;align-items:center;justify-content:center}
+  .lbtn{display:flex;align-items:center;gap:.5rem;font-family:'IBM Plex Mono',monospace;font-size:.72rem;
+    letter-spacing:.05em;background:#fff;border:1.5px solid rgba(28,26,23,.18);color:var(--ink);
+    padding:.42rem .8rem;border-radius:99px;cursor:pointer;transition:.2s}
+  .lbtn .sw{width:11px;height:11px;border-radius:50%;flex:none}
+  .lbtn:hover{border-color:var(--ink)}
+  .lbtn.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .lbtn.on .sw{box-shadow:0 0 0 2px var(--paper)}
+  #info{margin-top:.9rem;font-family:'IBM Plex Mono',monospace;font-size:.78rem;color:#4a4538;
+    text-align:center;min-height:1.4em}
+  #info b{color:var(--ink)}
+  #info .chip{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 .15em -.5px}
+
+  footer{position:relative;z-index:5;text-align:center;font-family:'IBM Plex Mono',monospace;
+    font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;opacity:.62;padding:0 1rem 1.4rem;
+    background:var(--paper)}
+  footer a{color:var(--accent);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  @media(max-width:720px){
+    h1{font-size:clamp(1.4rem,6vw,2rem)}
+    .legend-row{gap:.4rem}
+    .lbtn{font-size:.66rem;padding:.36rem .65rem}
+    .station text{font-size:9.5px}
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    .line-path{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="paper-bg">
+    <img src="assets/hero.jpg" alt="" aria-hidden="true">
+  </div>
+
+  <header>
+    <span class="m">TRANS<i>IT</i></span>
+    <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+  </header>
+
+  <div class="titleblock">
+    <div class="kicker">System diagram — six lines, algorithmically routed</div>
+    <h1>Every route drawn straight,<br>even where the city <em>isn't.</em></h1>
+    <p>No two stations on this map are really where the diagram puts them. Six hub points and one elbow-routing rule generate every line, every 45° jog, every interchange — the aged paper underneath is the only thing that was drawn by someone else.</p>
+  </div>
+
+  <div class="map-wrap">
+    <svg id="diagram" viewBox="0 0 1000 660" role="img" aria-label="Schematic transit map with six color-coded lines connecting fourteen stations."></svg>
+  </div>
+
+  <div class="console">
+    <div class="panel">
+      <div class="legend-row" id="legend" role="group" aria-label="Toggle a line to highlight it"></div>
+      <div id="info" aria-live="polite">Select a line or a station to highlight it — click a station for details.</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  TRANSIT — ALGORITHMIC ELBOW-ROUTED DIAGRAM · SITE 49 OF 50 · BUILT BY CLAUDE (FABLE 5) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('diagram');
+
+/* ---------- data: hubs + lines ---------- */
+const HUBS = {
+  NORTH:  [520, 50,  'North Terminal'],
+  NW:     [200, 150, 'Millbank'],
+  NE:     [820, 150, 'Highfield'],
+  PARK:   [330, 190, 'Greenwood Park'],
+  MILL:   [700, 210, 'Old Mill'],
+  WEST:   [70,  330, 'Westgate'],
+  MARKET: [290, 310, 'Market Square'],
+  UNION:  [520, 330, 'Union Cross'],
+  DOCKS:  [750, 350, 'The Docks'],
+  EAST:   [950, 330, 'Eastport'],
+  FERRY:  [330, 470, 'Ferry Landing'],
+  SW:     [200, 510, 'Rosedale'],
+  SE:     [820, 510, 'Kingsport'],
+  SOUTH:  [520, 610, 'South Terminal']
+};
+
+const LINES = [
+  { id:'red',    name:'Anthem Line',   code:'A', color:'var(--red)',    hex:'#e4002b', hubs:['WEST','MARKET','UNION','DOCKS','EAST'] },
+  { id:'blue',   name:'Harbor Line',   code:'H', color:'var(--blue)',   hex:'#0039a6', hubs:['NORTH','PARK','UNION','FERRY','SOUTH'] },
+  { id:'green',  name:'Meadow Line',   code:'M', color:'var(--green)',  hex:'#00933c', hubs:['NW','PARK','MARKET','SW'] },
+  { id:'orange', name:'Foundry Line',  code:'F', color:'var(--orange)', hex:'#ff6319', hubs:['NE','MILL','DOCKS','SE'] },
+  { id:'yellow', name:'Solstice Line', code:'S', color:'var(--yellow)', hex:'#c99a00', hubs:['NW','UNION','SE'] },
+  { id:'purple', name:'Vesper Line',   code:'V', color:'var(--purple)', hex:'#a626aa', hubs:['SW','UNION','NE'] }
+];
+
+/* ---------- elbow router: diagonal-then-straight, Vignelli-style ---------- */
+function routeD(points){
+  let d = `M ${points[0][0]} ${points[0][1]}`;
+  for(let i=1;i<points.length;i++){
+    const [ax,ay] = points[i-1], [bx,by] = points[i];
+    const dx = bx-ax, dy = by-ay;
+    if(dx===0 || dy===0 || Math.abs(dx)===Math.abs(dy)){
+      d += ` L ${bx} ${by}`;
+    } else {
+      const step = Math.min(Math.abs(dx), Math.abs(dy));
+      const mx = ax + Math.sign(dx)*step;
+      const my = ay + Math.sign(dy)*step;
+      d += ` L ${mx} ${my} L ${bx} ${by}`;
+    }
+  }
+  return d;
+}
+
+/* ---------- build station -> lines index ---------- */
+const stationLines = {};
+LINES.forEach(line=>{
+  line.hubs.forEach(h=>{
+    (stationLines[h] = stationLines[h] || []).push(line);
+  });
+});
+
+/* ---------- render lines ---------- */
+const linesGroup = document.createElementNS(NS,'g');
+linesGroup.setAttribute('id','lines');
+svg.appendChild(linesGroup);
+
+LINES.forEach((line,i)=>{
+  const pts = line.hubs.map(h=>HUBS[h]);
+  const d = routeD(pts);
+  const p = document.createElementNS(NS,'path');
+  p.setAttribute('d', d);
+  p.setAttribute('class','line-path');
+  p.style.stroke = line.color;
+  p.dataset.line = line.id;
+  p.setAttribute('tabindex','0');
+  p.setAttribute('role','img');
+  p.setAttribute('aria-label', line.name + ' — stops ' + line.hubs.map(h=>HUBS[h][2]).join(', '));
+  linesGroup.appendChild(p);
+
+  if(!reduced){
+    const len = p.getTotalLength();
+    p.style.strokeDasharray = len;
+    p.style.strokeDashoffset = len;
+    p.style.transition = `stroke-dashoffset 1.3s cubic-bezier(.2,.7,.25,1) ${i*.12}s, opacity .35s ease, stroke-width .25s ease`;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ p.style.strokeDashoffset = 0; }));
+  }
+
+  p.addEventListener('mouseenter', ()=> setActive(line.id));
+  p.addEventListener('mouseleave', ()=> setActive(null));
+  p.addEventListener('focus', ()=> setActive(line.id));
+  p.addEventListener('blur', ()=> setActive(null));
+  p.addEventListener('click', ()=> toggleLine(line.id));
+});
+
+/* ---------- render stations ---------- */
+const stationsGroup = document.createElementNS(NS,'g');
+stationsGroup.setAttribute('id','stations');
+svg.appendChild(stationsGroup);
+
+Object.entries(HUBS).forEach(([key,[x,y,name]])=>{
+  const servedBy = stationLines[key] || [];
+  const isHub = servedBy.length > 1;
+  const g = document.createElementNS(NS,'g');
+  g.setAttribute('class','station');
+  g.setAttribute('tabindex','0');
+  g.setAttribute('role','button');
+  g.dataset.key = key;
+  const lineNames = servedBy.map(l=>l.name).join(', ');
+  g.setAttribute('aria-label', `${name} station — ${lineNames}`);
+
+  const c = document.createElementNS(NS,'circle');
+  c.setAttribute('cx', x); c.setAttribute('cy', y);
+  if(isHub){
+    c.setAttribute('r', 11);
+    c.setAttribute('class','dot hub');
+  } else {
+    c.setAttribute('r', 6.5);
+    c.setAttribute('class','dot');
+    c.style.stroke = servedBy[0] ? servedBy[0].color : 'var(--ink)';
+  }
+  g.appendChild(c);
+
+  const t = document.createElementNS(NS,'text');
+  t.setAttribute('x', x);
+  t.setAttribute('y', y - (isHub ? 18 : 14));
+  t.setAttribute('text-anchor','middle');
+  t.textContent = name;
+  g.appendChild(t);
+
+  const activate = ()=> showInfo(key);
+  g.addEventListener('click', activate);
+  g.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); activate(); }});
+  g.addEventListener('mouseenter', ()=> g.classList.add('peek'));
+
+  stationsGroup.appendChild(g);
+});
+
+/* ---------- ambient train marker (paused under reduced motion) ---------- */
+if(!reduced){
+  const trunk = linesGroup.querySelector('[data-line="red"]');
+  const train = document.createElementNS(NS,'circle');
+  train.setAttribute('id','train');
+  train.setAttribute('r', 6);
+  svg.appendChild(train);
+  const total = trunk.getTotalLength();
+  const t0 = performance.now();
+  (function tick(now){
+    const elapsed = (now - t0) / 1000;
+    const cycle = 9; // seconds one-way
+    const phase = (elapsed % (cycle*2)) / cycle;
+    const frac = phase <= 1 ? phase : 2 - phase;
+    const pt = trunk.getPointAtLength(frac * total);
+    train.setAttribute('cx', pt.x);
+    train.setAttribute('cy', pt.y);
+    requestAnimationFrame(tick);
+  })(t0);
+}
+
+/* ---------- legend ---------- */
+const legend = document.getElementById('legend');
+LINES.forEach(line=>{
+  const b = document.createElement('button');
+  b.className = 'lbtn';
+  b.type = 'button';
+  b.dataset.line = line.id;
+  b.innerHTML = `<span class="sw" style="background:${line.color}"></span><span>${line.code} · ${line.name}</span>`;
+  b.addEventListener('click', ()=> toggleLine(line.id));
+  legend.appendChild(b);
+});
+
+let selected = null;
+function setActive(id){
+  const target = id || selected;
+  const paths = linesGroup.querySelectorAll('.line-path');
+  const stations = stationsGroup.querySelectorAll('.station');
+  if(!target){
+    paths.forEach(p=>p.classList.remove('dim','hot'));
+    stations.forEach(s=>s.classList.remove('dim'));
+    return;
+  }
+  paths.forEach(p=>{
+    const on = p.dataset.line === target;
+    p.classList.toggle('dim', !on);
+    p.classList.toggle('hot', on);
+  });
+  stations.forEach(s=>{
+    const key = s.dataset.key;
+    const served = (stationLines[key]||[]).some(l=>l.id===target);
+    s.classList.toggle('dim', !served);
+  });
+}
+
+function toggleLine(id){
+  selected = (selected === id) ? null : id;
+  document.querySelectorAll('.lbtn').forEach(b=> b.classList.toggle('on', b.dataset.line===selected));
+  setActive(selected);
+  const line = LINES.find(l=>l.id===selected);
+  document.getElementById('info').innerHTML = line
+    ? `<b>${line.name}</b> — ${line.hubs.map(h=>HUBS[h][2]).join(' · ')}`
+    : 'Select a line or a station to highlight it — click a station for details.';
+}
+
+function showInfo(key){
+  const [,, name] = HUBS[key];
+  const served = stationLines[key] || [];
+  const chips = served.map(l=>`<span class="chip" style="background:${l.color}"></span>${l.code}`).join('  ');
+  document.getElementById('info').innerHTML = `<b>${name}</b> — ${served.length>1?'interchange':'station'} — ${chips}`;
+}
+</script>
+</body>
+</html>

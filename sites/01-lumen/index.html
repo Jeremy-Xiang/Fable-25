@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUMEN — A Type Foundry for Light</title>
+<meta name="description" content="LUMEN is a fictional type foundry set against a living aurora. Variable fonts, editable specimens, glyph constellations.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Space+Grotesk:wght@300..700&family=Spline+Sans+Mono:wght@300..700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#07070f;
+    --paper:#f4f1ea;
+    --aurora-1:#37e6a0;
+    --aurora-2:#7b5cff;
+    --aurora-3:#ff5c8a;
+    --hairline:rgba(244,241,234,.16);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Space Grotesk',sans-serif;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--aurora-1);color:var(--ink)}
+
+  #gl{position:fixed;inset:0;width:100%;height:100%;z-index:0}
+  .grain{position:fixed;inset:-50%;width:200%;height:200%;z-index:2;pointer-events:none;opacity:.055;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain 8s steps(10) infinite}
+  @keyframes grain{
+    0%,100%{transform:translate(0,0)}10%{transform:translate(-5%,-8%)}20%{transform:translate(-13%,3%)}
+    30%{transform:translate(6%,-9%)}40%{transform:translate(-4%,12%)}50%{transform:translate(-9%,-4%)}
+    60%{transform:translate(2%,7%)}70%{transform:translate(9%,-2%)}80%{transform:translate(-6%,6%)}90%{transform:translate(4%,-11%)}
+  }
+
+  main{position:relative;z-index:3}
+
+  nav{
+    position:fixed;top:0;left:0;right:0;z-index:10;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:1.4rem 2.2rem;mix-blend-mode:difference;
+  }
+  nav .word{font-family:'Fraunces',serif;font-weight:600;letter-spacing:.35em;font-size:.95rem}
+  nav .links{display:flex;gap:1.8rem}
+  nav a{color:var(--paper);text-decoration:none;font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;opacity:.75;transition:opacity .3s}
+  nav a:hover{opacity:1}
+
+  .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:0 4vw}
+  .hero h1{
+    font-family:'Fraunces',serif;
+    font-variation-settings:'opsz' 144;
+    font-weight:250;
+    font-size:clamp(4.5rem,17vw,17rem);
+    line-height:.88;letter-spacing:-.02em;
+    mix-blend-mode:exclusion;
+  }
+  .hero h1 span{display:block}
+  .hero h1 .shift{font-style:italic;font-weight:500;margin-left:12vw}
+  .hero .tag{
+    margin-top:3rem;max-width:34ch;font-size:clamp(.85rem,1.2vw,1.05rem);
+    line-height:1.7;letter-spacing:.04em;opacity:.85;
+  }
+  .hero .scroll-cue{
+    position:absolute;bottom:2.2rem;right:2.4rem;font-size:.68rem;letter-spacing:.3em;
+    text-transform:uppercase;opacity:.6;writing-mode:vertical-rl;
+  }
+  .hero .scroll-cue::after{
+    content:"";display:block;width:1px;height:52px;background:var(--paper);
+    margin:12px auto 0;animation:drip 2.4s ease-in-out infinite;transform-origin:top;
+  }
+  @keyframes drip{0%{transform:scaleY(0)}55%{transform:scaleY(1)}100%{transform:scaleY(1);opacity:0}}
+
+  section{padding:14vh 4vw;border-top:1px solid var(--hairline);background:transparent}
+  .section-label{
+    font-size:.68rem;letter-spacing:.34em;text-transform:uppercase;opacity:.55;
+    margin-bottom:4rem;display:flex;align-items:center;gap:1rem;
+  }
+  .section-label::before{content:"";width:34px;height:1px;background:var(--paper);opacity:.5}
+
+  /* — Specimen rows — */
+  .face{border-bottom:1px solid var(--hairline);padding:3.2rem 0;display:grid;
+    grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2rem;cursor:default;
+    transition:padding .45s cubic-bezier(.2,.8,.2,1)}
+  .face:hover{padding-left:1.4rem}
+  .face .name{
+    font-size:clamp(2.6rem,7.5vw,7rem);line-height:1.04;transition:font-variation-settings .5s ease, color .4s;
+    outline:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .f-serif .name{font-family:'Fraunces',serif;font-variation-settings:'wght' 300,'opsz' 100}
+  .f-sans .name{font-family:'Space Grotesk',sans-serif;font-weight:400}
+  .f-text .name{font-family:'Fraunces',serif;font-variation-settings:'wght' 400,'opsz' 14}
+  .f-mono .name{font-family:'Spline Sans Mono',monospace;font-weight:350;letter-spacing:-.03em}
+  .f-italic .name{font-family:'Fraunces',serif;font-style:italic;font-variation-settings:'wght' 500,'opsz' 144}
+  .f-serif:hover .name{font-variation-settings:'wght' 620,'opsz' 144;color:var(--aurora-1)}
+  .f-sans:hover .name{font-weight:700;color:var(--aurora-3)}
+  .f-text:hover .name{font-variation-settings:'wght' 640,'opsz' 144;color:var(--aurora-2)}
+  .f-mono:hover .name{font-weight:640;color:var(--aurora-1)}
+  .f-italic:hover .name{font-variation-settings:'wght' 250,'opsz' 144;color:var(--aurora-3)}
+  .face .meta{text-align:right;font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;opacity:.55;line-height:2}
+  .hint{font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;opacity:.4;margin-top:2rem}
+
+  /* — Playground — */
+  .playground{display:grid;grid-template-columns:1fr;gap:3rem}
+  .stage{
+    border:1px solid var(--hairline);border-radius:2px;padding:6vh 3vw;min-height:38vh;
+    display:flex;align-items:center;justify-content:center;text-align:center;
+    background:rgba(7,7,15,.35);backdrop-filter:blur(6px);
+  }
+  #playtext{
+    font-family:'Fraunces',serif;outline:none;
+    font-size:clamp(2.4rem,7vw,6.4rem);line-height:1.05;
+    font-variation-settings:'wght' var(--w,400),'opsz' var(--o,60);
+    font-style:var(--slant,normal);
+    transition:color .3s;
+  }
+  .controls{display:flex;flex-wrap:wrap;gap:2.4rem;justify-content:center}
+  .ctl{display:flex;flex-direction:column;gap:.7rem;min-width:200px}
+  .ctl label{font-size:.66rem;letter-spacing:.28em;text-transform:uppercase;opacity:.6;display:flex;justify-content:space-between}
+  .ctl input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;cursor:ew-resize}
+  .ctl input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--hairline)}
+  .ctl input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:var(--aurora-1);margin-top:-6.5px;transition:transform .2s;
+  }
+  .ctl input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.4)}
+  .ctl:nth-child(2) input[type=range]::-webkit-slider-thumb{background:var(--aurora-2)}
+  .ctl:nth-child(3) input[type=range]::-webkit-slider-thumb{background:var(--aurora-3)}
+
+  /* — Glyph constellation — */
+  .glyphs{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
+  .glyph{
+    aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+    font-family:'Fraunces',serif;font-size:2rem;background:var(--ink);
+    transition:background .35s,color .35s,font-variation-settings .35s,transform .35s;
+  }
+  .glyph:hover{
+    background:var(--paper);color:var(--ink);
+    font-variation-settings:'wght' 900,'opsz' 144;transform:scale(1.06);z-index:2;font-style:italic;
+  }
+
+  /* — Manifesto — */
+  .manifesto p{
+    font-family:'Fraunces',serif;font-weight:300;
+    font-size:clamp(1.6rem,3.6vw,3.2rem);line-height:1.35;max-width:26ch;
+  }
+  .manifesto em{font-style:italic;color:var(--aurora-1)}
+  .manifesto strong{font-weight:600;color:var(--aurora-3)}
+
+  footer{
+    padding:10vh 4vw 6vh;border-top:1px solid var(--hairline);
+    display:flex;flex-wrap:wrap;justify-content:space-between;gap:2rem;align-items:flex-end;
+  }
+  footer .big{font-family:'Fraunces',serif;font-size:clamp(2rem,5vw,4rem);font-weight:250;font-style:italic}
+  footer .fine{font-size:.66rem;letter-spacing:.24em;text-transform:uppercase;opacity:.5;line-height:2.2}
+  footer a{color:var(--paper)}
+
+  .reveal{opacity:0;transform:translateY(46px);transition:opacity 1s cubic-bezier(.2,.7,.2,1),transform 1s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+
+  @media (max-width:720px){
+    .face{grid-template-columns:1fr}
+    .face .meta{text-align:left}
+    nav{padding:1.1rem 1.2rem}
+    nav .word{letter-spacing:.22em;font-size:.85rem;margin-right:1rem}
+    nav .links{gap:.85rem}
+    nav a{font-size:.62rem;letter-spacing:.16em}
+    .hero .scroll-cue{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div class="grain"></div>
+
+<main>
+  <nav>
+    <div class="word">LUMEN</div>
+    <div class="links">
+      <a href="#faces">Faces</a>
+      <a href="#lab">Lab</a>
+      <a href="#glyphs">Glyphs</a>
+      <a href="guide/">Guide</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1>
+      <span>Type,</span>
+      <span class="shift">cast in</span>
+      <span>light.</span>
+    </h1>
+    <p class="tag">LUMEN is a foundry for letters that behave like weather — shifting weight, warming and cooling, never quite still. Move your cursor. The sky is listening.</p>
+    <div class="scroll-cue">Descend</div>
+  </header>
+
+  <section id="faces">
+    <div class="section-label">01 — The Faces</div>
+    <div class="face f-serif reveal"><div class="name" contenteditable spellcheck="false">Borealis Display</div><div class="meta">Serif · 12 styles<br>opsz 9–144</div></div>
+    <div class="face f-sans reveal"><div class="name" contenteditable spellcheck="false">Meridian Grotesk</div><div class="meta">Sans · 8 styles<br>wght 300–700</div></div>
+    <div class="face f-text reveal"><div class="name" contenteditable spellcheck="false">Zodiacal Text</div><div class="meta">Serif · 6 styles<br>optical text</div></div>
+    <div class="face f-mono reveal"><div class="name" contenteditable spellcheck="false">Umbra Mono 0123</div><div class="meta">Mono · 4 styles<br>tabular</div></div>
+    <div class="face f-italic reveal"><div class="name" contenteditable spellcheck="false">Solar Wind Italic</div><div class="meta">Serif · italic only<br>display</div></div>
+    <p class="hint">↖ every specimen is editable — click a name and type your own words</p>
+  </section>
+
+  <section id="lab">
+    <div class="section-label">02 — The Lab</div>
+    <div class="playground">
+      <div class="stage reveal">
+        <div id="playtext" contenteditable spellcheck="false">Aurora borealis over Reykjavík</div>
+      </div>
+      <div class="controls reveal">
+        <div class="ctl">
+          <label>Weight <span id="wv">400</span></label>
+          <input type="range" id="w" min="100" max="900" value="400">
+        </div>
+        <div class="ctl">
+          <label>Optical size <span id="ov">60</span></label>
+          <input type="range" id="o" min="9" max="144" value="60">
+        </div>
+        <div class="ctl">
+          <label>Hue drift <span id="hv">0°</span></label>
+          <input type="range" id="h" min="0" max="360" value="0">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="glyphs">
+    <div class="section-label">03 — Glyph Constellation</div>
+    <div class="glyphs reveal" id="glyphgrid"></div>
+    <p class="hint">hover to see each glyph flare to 900 weight, optical 144</p>
+  </section>
+
+  <section class="manifesto">
+    <div class="section-label">04 — Manifesto</div>
+    <p class="reveal">A letterform is a <em>lens</em>. It bends whatever passes through it — a grocery list, a love letter, a constitution. We cast ours from <strong>light</strong>, so the bending is visible.</p>
+  </section>
+
+  <footer>
+    <div class="big">Set something in Lumen.</div>
+    <div class="fine">
+      LUMEN TYPE FOUNDRY — A FICTION<br>
+      DESIGNED &amp; BUILT BY CLAUDE (FABLE 5)<br>
+      <a href="guide/">HOW THIS SITE WAS MADE →</a> · <a href="../">ALL 25 SITES</a>
+    </div>
+  </footer>
+</main>
+
+<script>
+/* ————— WebGL aurora ————— */
+const canvas = document.getElementById('gl');
+const gl = canvas.getContext('webgl',{antialias:false});
+const VERT = `attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`;
+const FRAG = `
+precision highp float;
+uniform vec2 u_res;uniform float u_t;uniform vec2 u_mouse;
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
+float noise(vec2 p){
+  vec2 i=floor(p),f=fract(p);
+  f=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);
+}
+float fbm(vec2 p){
+  float v=0.,a=.5;
+  for(int i=0;i<5;i++){v+=a*noise(p);p*=2.03;a*=.55;}
+  return v;
+}
+void main(){
+  vec2 uv=gl_FragCoord.xy/u_res;
+  vec2 asp=vec2(u_res.x/u_res.y,1.);
+  vec2 p=uv*asp;
+  float t=u_t*.06;
+  vec2 m=(u_mouse-.5)*.8;
+  float q=fbm(p*1.6+vec2(t*.7,-t*.4)+m*.5);
+  float r=fbm(p*2.2-vec2(t*.3,t*.6)+q*1.4);
+  float band=fbm(vec2(p.x*1.2+q*.8, p.y*3.2 - t + r));
+  vec3 c1=vec3(.216,.902,.627); /* emerald */
+  vec3 c2=vec3(.482,.361,1.0);  /* violet */
+  vec3 c3=vec3(1.0,.361,.541);  /* rose */
+  vec3 sky=vec3(.027,.027,.059);
+  float curtain=smoothstep(.25,.85,band)*smoothstep(1.05,.35,uv.y+r*.25);
+  vec3 col=sky;
+  col+=c1*curtain*(.55+.45*sin(t*2.+p.x*3.));
+  col+=c2*fbm(p*3.+vec2(-t,t*.5))*curtain*.5;
+  col+=c3*pow(fbm(p*1.1+vec2(t*.2,-t*.35)),3.)*.6;
+  /* faint stars */
+  float star=step(.9985,hash(floor(gl_FragCoord.xy/1.5)));
+  col+=star*(.4+.6*sin(u_t*3.+hash(gl_FragCoord.xy)*40.))*vec3(.8);
+  /* vignette */
+  col*=1.-.45*length(uv-.5);
+  gl_FragColor=vec4(col,1.);
+}`;
+function shader(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);return s;}
+const prog=gl.createProgram();
+gl.attachShader(prog,shader(gl.VERTEX_SHADER,VERT));
+gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,FRAG));
+gl.linkProgram(prog);gl.useProgram(prog);
+const buf=gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const loc=gl.getAttribLocation(prog,'p');
+gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+const uRes=gl.getUniformLocation(prog,'u_res'),uT=gl.getUniformLocation(prog,'u_t'),uM=gl.getUniformLocation(prog,'u_mouse');
+let mx=.5,my=.5,tx=.5,ty=.5;
+addEventListener('pointermove',e=>{tx=e.clientX/innerWidth;ty=1-e.clientY/innerHeight;});
+function resize(){
+  const dpr=Math.min(devicePixelRatio,2);
+  canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;
+  gl.viewport(0,0,canvas.width,canvas.height);
+}
+addEventListener('resize',resize);resize();
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let start=performance.now();
+(function frame(now){
+  mx+=(tx-mx)*.04;my+=(ty-my)*.04;
+  gl.uniform2f(uRes,canvas.width,canvas.height);
+  gl.uniform1f(uT,reduced?0:(now-start)/1000);
+  gl.uniform2f(uM,mx,my);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+  requestAnimationFrame(frame);
+})(start);
+
+/* ————— Variable font lab ————— */
+const play=document.getElementById('playtext');
+const w=document.getElementById('w'),o=document.getElementById('o'),h=document.getElementById('h');
+const wv=document.getElementById('wv'),ov=document.getElementById('ov'),hv=document.getElementById('hv');
+function upd(){
+  play.style.setProperty('--w',w.value);
+  play.style.setProperty('--o',o.value);
+  play.style.fontVariationSettings=`'wght' ${w.value},'opsz' ${o.value}`;
+  play.style.color=`hsl(${h.value}, ${h.value==0?0:80}%, ${h.value==0?96:78}%)`;
+  wv.textContent=w.value;ov.textContent=o.value;hv.textContent=h.value+'°';
+}
+[w,o,h].forEach(el=>el.addEventListener('input',upd));upd();
+
+/* ————— Glyph grid ————— */
+const chars="AaBbGgKkMmQqRrSsWwXx?&@§¶ÆŒøßfiffi0369*†‡";
+const grid=document.getElementById('glyphgrid');
+for(const ch of chars){
+  const d=document.createElement('div');
+  d.className='glyph';d.textContent=ch;grid.appendChild(d);
+}
+
+/* ————— Scroll reveals ————— */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting||e.boundingClientRect.top<0){e.target.classList.add('in');io.unobserve(e.target);}
+}),{threshold:.15});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

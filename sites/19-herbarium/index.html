@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Herbarium Digitalis — a garden of algorithms</title>
+<meta name="description" content="Herbarium Digitalis grows L-system plants in real time. Click the soil to plant a seed; every specimen is a grammar, not a picture.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital@0;1&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --parchment:#f4efe1;
+    --moss:#2d4a2a;
+    --fern:#4a7247;
+    --ink:#2b2a24;
+    --clay:#a06a4a;
+    --line:rgba(43,42,36,.25);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--parchment);color:var(--ink);font-family:'Libre Baskerville',serif;overflow-x:hidden}
+  ::selection{background:var(--fern);color:var(--parchment)}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:40;opacity:.5;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.87 0 0 0 0 0.78 0 0 0 0.045 0'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  nav{display:flex;justify-content:space-between;align-items:baseline;padding:1.7rem 2.4rem;
+    border-bottom:1px solid var(--line)}
+  nav .m{font-style:italic;font-size:1.2rem}
+  nav .m b{font-style:normal;color:var(--moss)}
+  nav .links{font-family:'Courier Prime',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase}
+  nav a{color:var(--ink);text-decoration:none;margin-left:1.5rem;border-bottom:1px solid var(--line)}
+  nav a:hover{color:var(--moss);border-color:var(--moss)}
+
+  .plate{position:relative;border-bottom:1px solid var(--line)}
+  #garden{display:block;width:100%;height:74vh;cursor:crosshair}
+  .plate .label{
+    position:absolute;top:2.2rem;left:2.4rem;max-width:340px;pointer-events:none;
+  }
+  .plate .label h1{font-size:clamp(1.9rem,4.4vw,3.2rem);line-height:1.15;font-weight:400}
+  .plate .label h1 em{color:var(--moss)}
+  .plate .label p{font-family:'Courier Prime',monospace;font-size:.74rem;letter-spacing:.12em;
+    text-transform:uppercase;margin-top:1.2rem;color:var(--clay)}
+  .plate .plateno{position:absolute;top:2.2rem;right:2.4rem;font-family:'Courier Prime',monospace;
+    font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;opacity:.6;text-align:right;line-height:2}
+  .plate .hint{position:absolute;bottom:4.9rem;left:1.8rem;
+    font-family:'Courier Prime',monospace;font-size:.72rem;letter-spacing:.24em;text-transform:uppercase;
+    opacity:.65;animation:blinkh 3s ease-in-out infinite;pointer-events:none;white-space:nowrap}
+  @keyframes blinkh{50%{opacity:.25}}
+
+  .toolbar{position:absolute;bottom:1.4rem;right:1.8rem;display:flex;gap:.7rem}
+  .toolbar button{
+    font-family:'Courier Prime',monospace;font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+    background:var(--parchment);border:1px solid var(--ink);padding:.65rem 1.2rem;cursor:pointer;
+    transition:.2s;color:var(--ink)}
+  .toolbar button:hover{background:var(--moss);color:var(--parchment);border-color:var(--moss)}
+
+  .specimens{max-width:1250px;margin:0 auto;padding:11vh 4vw}
+  .spec-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:5rem}
+  .spec-head h2{font-size:clamp(1.8rem,4.4vw,3rem);font-weight:400}
+  .spec-head span{font-family:'Courier Prime',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--clay)}
+  .specgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:2.6rem}
+  .spec{border:1px solid var(--line);background:rgba(255,255,255,.4);position:relative;
+    transition:transform .4s ease,box-shadow .4s}
+  .spec:hover{transform:translateY(-6px);box-shadow:0 20px 44px rgba(43,42,36,.14)}
+  .spec canvas{display:block;width:100%;aspect-ratio:3/4}
+  .spec .tag{border-top:1px solid var(--line);padding:1rem 1.2rem}
+  .spec .tag b{display:block;font-style:italic;font-weight:400;font-size:1.02rem}
+  .spec .tag span{font-family:'Courier Prime',monospace;font-size:.64rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--clay);display:block;margin-top:.5rem}
+  .spec .pin{position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:14px;height:14px;
+    border-radius:50%;background:var(--clay);box-shadow:0 2px 4px rgba(0,0,0,.3)}
+
+  .method{background:var(--moss);color:var(--parchment);padding:14vh 5vw}
+  .method .inner{max-width:820px;margin:0 auto;text-align:center}
+  .method p{font-size:clamp(1.25rem,2.8vw,1.9rem);line-height:1.9;font-style:italic}
+  .method p b{font-style:normal;color:#c8dfae;font-weight:400}
+  .method .rule{font-family:'Courier Prime',monospace;font-style:normal;font-size:clamp(.8rem,2vw,1.05rem);
+    letter-spacing:.1em;display:block;margin-top:3rem;color:#c8dfae}
+
+  footer{padding:7vh 2.4rem;text-align:center;font-family:'Courier Prime',monospace;
+    font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;line-height:2.6}
+  footer a{color:var(--moss);font-weight:700}
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="m"><b>Herbarium</b> digitalis</span>
+  <span class="links"><a href="#specimens">Specimens</a><a href="guide/">Guide</a><a href="../">Index</a></span>
+</nav>
+
+<div class="plate">
+  <canvas id="garden"></canvas>
+  <div class="label">
+    <h1>A garden that grows <em>when you ask.</em></h1>
+    <p>Lindenmayer systems · drawn live · no two alike</p>
+  </div>
+  <div class="plateno">Plate I<br>Folio 2026</div>
+  <div class="hint">☘ click the soil to plant a seed</div>
+  <div class="toolbar">
+    <button id="meadow">Sow meadow</button>
+    <button id="clear">Clear bed</button>
+  </div>
+</div>
+
+<section class="specimens" id="specimens">
+  <div class="spec-head">
+    <h2>Collected specimens</h2>
+    <span>each drawn from a grammar, not a picture</span>
+  </div>
+  <div class="specgrid" id="specgrid"></div>
+</section>
+
+<section class="method">
+  <div class="inner">
+    <p>Every plant on this page is a sentence in a tiny language: <b>F</b> means grow, <b>+</b> and <b>−</b> mean turn, brackets remember where you were. Apply the rule five times and a single letter becomes <b>a fern</b>. Aristid Lindenmayer wrote the grammar in 1968; your browser is the greenhouse.
+    <span class="rule">F → FF+[+F−F−F]−[−F+F+F]</span></p>
+  </div>
+</section>
+
+<footer>
+  HERBARIUM DIGITALIS — GENERATIVE BOTANY · BUILT BY CLAUDE (FABLE 5)<br>
+  <a href="guide/">HOW IT WAS MADE</a> · <a href="../">ALL 25 SITES</a>
+</footer>
+
+<script>
+/* ————— L-system engine ————— */
+function expand(axiom,rules,n){
+  let s=axiom;
+  for(let i=0;i<n;i++){
+    let t='';
+    for(const ch of s)t+=rules[ch]||ch;
+    s=t;
+  }
+  return s;
+}
+/* turtle → segment list */
+function segments(s,opts){
+  const {ang,len,jitter=0}=opts;
+  let x=0,y=0,a=-Math.PI/2,stack=[],segs=[],depth=0;
+  for(const ch of s){
+    if(ch==='F'){
+      const j=jitter?(Math.random()-.5)*jitter:0;
+      const nx=x+Math.cos(a+j)*len,ny=y+Math.sin(a+j)*len;
+      segs.push({x1:x,y1:y,x2:nx,y2:ny,d:depth});
+      x=nx;y=ny;
+    }
+    else if(ch==='+')a+=ang*(1+(Math.random()-.5)*.14);
+    else if(ch==='-')a-=ang*(1+(Math.random()-.5)*.14);
+    else if(ch==='['){stack.push([x,y,a,depth]);depth++}
+    else if(ch===']'){
+      segs.push({leaf:true,x1:x,y1:y,d:depth});
+      [x,y,a,depth]=stack.pop();
+    }
+  }
+  return segs;
+}
+const SPECIES=[
+  {name:'Filix recursiva',common:'the common recursion fern',axiom:'F',n:4,ang:25*Math.PI/180,
+   rules:{F:'FF+[+F-F-F]-[-F+F+F]'},len:6.5,leafC:'#4a7247'},
+  {name:'Salix bracketensis',common:'weeping bracket willow',axiom:'X',n:5,ang:22*Math.PI/180,
+   rules:{X:'F[+X]F[-X]+X',F:'FF'},len:4.4,leafC:'#6a8a4f'},
+  {name:'Umbella iterata',common:'iterated parasol sedge',axiom:'X',n:5,ang:28*Math.PI/180,
+   rules:{X:'F[-X][X]F[-X]+FX',F:'FF'},len:4.6,leafC:'#8aa04a'},
+  {name:'Ramus austerus',common:'the austere twig',axiom:'F',n:4,ang:33*Math.PI/180,
+   rules:{F:'F[+F]F[-F]F'},len:3.4,leafC:'#4a7247'},
+  {name:'Corallina terrestris',common:'land coral bush',axiom:'F',n:4,ang:24*Math.PI/180,
+   rules:{F:'F[+F]F[-F][F]'},len:6.4,leafC:'#a06a4a'},
+  {name:'Flabellum binarium',common:'binary fan',axiom:'X',n:6,ang:20*Math.PI/180,
+   rules:{X:'F[+X][-X]FX',F:'FF'},len:2.6,leafC:'#6a8a4f'},
+];
+
+/* ————— main garden ————— */
+const cv=document.getElementById('garden'),ctx=cv.getContext('2d');
+let W,H,DPR;
+function resize(){
+  DPR=Math.min(devicePixelRatio,2);
+  W=cv.clientWidth;H=cv.clientHeight;
+  cv.width=W*DPR;cv.height=H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  drawGround();
+  plants.forEach(p=>drawPlant(p,1));
+}
+let plants=[];
+function drawGround(){
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='rgba(43,42,36,.5)';
+  ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,H-46);ctx.lineTo(W,H-46);ctx.stroke();
+  /* soil hatching */
+  ctx.strokeStyle='rgba(43,42,36,.16)';
+  for(let x=0;x<W;x+=13){
+    ctx.beginPath();ctx.moveTo(x,H-46);ctx.lineTo(x-8,H-30+Math.sin(x)*3);ctx.stroke();
+  }
+}
+function makePlant(x,scale){
+  const sp=SPECIES[Math.random()*SPECIES.length|0];
+  const s=expand(sp.axiom,sp.rules,sp.n);
+  const segs=segments(s,{ang:sp.ang,len:sp.len*scale,jitter:.22});
+  return {segs,x,y:H-46,sp,born:performance.now(),grow:2600+Math.random()*1800};
+}
+function drawPlant(p,t){
+  const n=Math.floor(p.segs.length*t);
+  ctx.save();
+  ctx.translate(p.x,p.y);
+  for(let i=0;i<n;i++){
+    const s=p.segs[i];
+    if(s.leaf){
+      if(s.d>1){
+        ctx.fillStyle=p.sp.leafC+'cc';
+        ctx.beginPath();ctx.ellipse(s.x1,s.y1,2.6,1.4,s.x1*.1,0,7);ctx.fill();
+      }
+      continue;
+    }
+    const w=Math.max(.5,3.2-s.d*.75);
+    ctx.strokeStyle=s.d<2?'#3d3a2e':'#2d4a2a';
+    ctx.globalAlpha=Math.min(1,.5+s.d*.2);
+    ctx.lineWidth=w;
+    ctx.beginPath();ctx.moveTo(s.x1,s.y1);ctx.lineTo(s.x2,s.y2);ctx.stroke();
+  }
+  ctx.restore();
+  ctx.globalAlpha=1;
+}
+let animating=false;
+function animate(){
+  if(animating)return;
+  animating=true;
+  (function frame(){
+    const now=performance.now();
+    drawGround();
+    let growing=false;
+    for(const p of plants){
+      const t=Math.min(1,(now-p.born)/p.grow);
+      if(t<1)growing=true;
+      drawPlant(p,t*t*(3-2*t)); /* smoothstep */
+    }
+    if(growing)requestAnimationFrame(frame);
+    else animating=false;
+  })();
+}
+cv.addEventListener('click',e=>{
+  const r=cv.getBoundingClientRect();
+  plants.push(makePlant(e.clientX-r.left,.9+Math.random()*.5));
+  animate();
+});
+document.getElementById('meadow').addEventListener('click',()=>{
+  for(let i=0;i<7;i++){
+    const p=makePlant(40+Math.random()*(W-80),.55+Math.random()*.75);
+    p.born=performance.now()+i*420;
+    plants.push(p);
+  }
+  animate();
+});
+document.getElementById('clear').addEventListener('click',()=>{plants=[];drawGround()});
+addEventListener('resize',resize);
+resize();
+/* starter garden */
+setTimeout(()=>{
+  [.28,.5,.72].forEach((f,i)=>{
+    const p=makePlant(W*f,1);
+    p.born=performance.now()+i*600;
+    plants.push(p);
+  });
+  animate();
+},600);
+
+/* ————— specimen cards ————— */
+const grid=document.getElementById('specgrid');
+SPECIES.forEach((sp,i)=>{
+  const card=document.createElement('div');
+  card.className='spec';
+  card.innerHTML=`<div class="pin"></div><canvas></canvas>
+    <div class="tag"><b>${sp.name}</b><span>${sp.common} · ${sp.n} iterations</span></div>`;
+  grid.appendChild(card);
+  const c=card.querySelector('canvas');
+  const cx=c.getContext('2d');
+  requestAnimationFrame(()=>{
+    const w=c.clientWidth,h=c.clientHeight;
+    c.width=w*2;c.height=h*2;cx.setTransform(2,0,0,2,0,0);
+    const s=expand(sp.axiom,sp.rules,sp.n);
+    const segs=segments(s,{ang:sp.ang,len:sp.len*(h/300),jitter:.15});
+    cx.translate(w/2,h-16);
+    for(const g of segs){
+      if(g.leaf){
+        if(g.d>1){cx.fillStyle=sp.leafC+'cc';cx.beginPath();cx.ellipse(g.x1,g.y1,2.4,1.3,g.x1*.1,0,7);cx.fill()}
+        continue;
+      }
+      cx.strokeStyle=g.d<2?'#3d3a2e':'#2d4a2a';
+      cx.lineWidth=Math.max(.4,2.6-g.d*.6);
+      cx.beginPath();cx.moveTo(g.x1,g.y1);cx.lineTo(g.x2,g.y2);cx.stroke();
+    }
+  });
+  /* regrow on hover */
+  card.addEventListener('mouseenter',()=>{
+    const w=c.clientWidth,h=c.clientHeight;
+    cx.setTransform(2,0,0,2,0,0);
+    cx.clearRect(0,0,w,h);
+    const s=expand(sp.axiom,sp.rules,sp.n);
+    const segs=segments(s,{ang:sp.ang,len:sp.len*(h/300),jitter:.3});
+    const t0=performance.now(),dur=1400;
+    (function f(){
+      const t=Math.min(1,(performance.now()-t0)/dur);
+      cx.setTransform(2,0,0,2,0,0);
+      cx.clearRect(0,0,w,h);
+      cx.translate(w/2,h-16);
+      const n=Math.floor(segs.length*t*t*(3-2*t));
+      for(let i2=0;i2<n;i2++){
+        const g=segs[i2];
+        if(g.leaf){
+          if(g.d>1){cx.fillStyle=sp.leafC+'cc';cx.beginPath();cx.ellipse(g.x1,g.y1,2.4,1.3,g.x1*.1,0,7);cx.fill()}
+          continue;
+        }
+        cx.strokeStyle=g.d<2?'#3d3a2e':'#2d4a2a';
+        cx.lineWidth=Math.max(.4,2.6-g.d*.6);
+        cx.beginPath();cx.moveTo(g.x1,g.y1);cx.lineTo(g.x2,g.y2);cx.stroke();
+      }
+      if(t<1)requestAnimationFrame(f);
+    })();
+  });
+});
+</script>
+</body>
+</html>

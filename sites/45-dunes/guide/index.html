@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How DUNES was made — guide</title>
+<meta name="description" content="How the DUNES site was designed and built: techniques, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #d98f3b; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#101014; color:#e9e9ee;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9a9aa6; text-decoration:none; border-bottom:1px solid #2a2a33; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#9a9aa6; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #232329;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#b9b9c4;
+    background:#16161c; border:1px solid #232329; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #232329;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a8a96; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#101014; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to DUNES</a>
+    <a href="../../">all 50 sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 45 of 50 · how it was made</div>
+  <h1>DUNES</h1>
+  <p class="sub">Ridges that shift as you scroll</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>One Higgsfield-generated hero photograph — warm desert dunes at long-shadow hour — becomes the only texture a WebGL fragment shader ever samples. Four ridge bands are cut from that single image at different scroll speeds and vertical offsets, so scrolling separates one photo into a sense of real depth: the horizon barely moves, the near ridge rushes past underneath it.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>A single full-screen triangle carries a fragment shader; <code>assets/hero.jpg</code> is loaded as its only texture, with a 1×1 solid-color texture bound first so the scene never flashes untextured</li>
+    <li>Sky gradient (top/mid/bottom stops) is mixed procedurally in the shader; the four sand bands sit on top of it</li>
+    <li>Each band's upper edge is a ridge silhouette from 1D value noise (<code>hash</code> → smoothstep-interpolated <code>noise</code> → two octaves combined), not a straight cut — the noise phase per band is driven by scroll position times that band's own speed multiplier plus a slow time term</li>
+    <li>Where a fragment sits below a band's ridge line, its color is sampled from the same source photo at a texture coordinate that shifts with that band's scroll speed, then blended toward a fixed tint per band for cohesion</li>
+    <li>Scroll progress (0–1 across the page's scrollable height) drives all four bands' phases in a single <code>u_scroll</code> uniform, so the parallax is scroll-locked rather than time-locked</li>
+    <li>A lightweight 2D canvas layered on top adds drifting sand-particle dots, independent of the WebGL layer, gated to zero particles under <code>prefers-reduced-motion</code></li>
+    <li>If WebGL context creation or shader compilation throws, the scene falls back to a static CSS <code>linear-gradient</code> sky in the same four-stop palette</li>
+    <li>Under reduced motion, the shader still renders — scroll still moves the ridges — but there's no continuous animation loop; a frame is redrawn only on scroll events, and the sand canvas stops spawning particles entirely</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Fraunces (display serif) + Inter (body) + Space Mono (labels) · dusk gradient — cream #f5ead9, ochre #d98f3b, rose #e2645a, violet #4b2b53</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Load one photo as a WebGL texture; bind a solid-color placeholder texture first to avoid a flash of black</li>
+    <li>Build ridge silhouettes from cheap 1D value noise, not a straight horizon — vary frequency and amplitude per band</li>
+    <li>Drive each band's texture-sample offset and noise phase from a single normalized scroll fraction, at a different speed multiplier per band, back layer slowest</li>
+    <li>Wrap all WebGL setup in try/catch and swap to a CSS gradient class on failure — never let a shader error blank the page</li>
+  </ol>
+
+  <h2><span class="no">05</span> Wing II, asset pipeline</h2>
+  <p>DUNES is Wing II (sites 26–50): rather than Wing I's zero-binary-asset rule, it leans fully on one Higgsfield <code>nano_banana_pro</code> still as the shader's only source material — every band, every ridge, every color you see traces back to that single photograph, resampled four different ways.</p>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 5), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    one Higgsfield-generated hero image driving a hand-written WebGL shader ·
+    3+ iteration passes in a real browser before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

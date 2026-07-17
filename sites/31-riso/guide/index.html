@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How RISO CLUB was made — guide</title>
+<meta name="description" content="How the RISO CLUB site was designed and built: CSS duotone recoloring, halftone grain, registration wobble, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #ff3fa0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#101014; color:#e9e9ee;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9a9aa6; text-decoration:none; border-bottom:1px solid #2a2a33; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#9a9aa6; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #232329;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { margin-bottom:1rem; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#b9b9c4;
+    background:#16161c; border:1px solid #232329; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #232329;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a8a96; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#101014; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to RISO CLUB</a>
+    <a href="../../">all 50 sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 31 of 50 · how it was made · Wing II</div>
+  <h1>RISO CLUB</h1>
+  <p class="sub">Two inks, one plate at a time</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Wing II's brief for this slot was a risograph zine: flat, grainy, slightly misregistered prints, the kind that come off a duplicator drum one ink at a time. Rather than fake that look once and freeze it, the site turns the duotone recipe into a live control — visitors swap the ink pair and watch the exact same illustration get replated in a different two-color story, with the halftone screen and registration jitter riding along.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>One generated illustration (Higgsfield, nano_banana_pro) — a flat riso-style plant poster, already close to duotone, used as the base plate</li>
+    <li><code>filter: grayscale(1) contrast(1.25)</code> strips the source to tonal values only, so any ink pair reads correctly regardless of the image's original hues</li>
+    <li>A second layer sits on top with <code>mix-blend-mode: color</code> and a two-stop linear-gradient background — swapping the gradient's two colors via CSS custom properties (<code>--inkA</code>/<code>--inkB</code>) re-tints the whole print instantly, no image reprocessing</li>
+    <li>Halftone: a repeating <code>radial-gradient</code> dot pattern at a 4px grid, multiply-blended, standing in for the print screen</li>
+    <li>Grain: an inline SVG <code>feTurbulence</code> filter data-URI, overlaid at low opacity in <code>overlay</code> blend mode for paper noise without a texture asset</li>
+    <li>Registration wobble: on hover/focus, the base layer and the color-wash layer each get an independent <code>steps()</code> keyframe animation nudging them 1–2px apart, mimicking hand-fed plates that never perfectly align</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Anton (display) + Space Mono (body/labels) · cream stock #f2ead6, ink navy #191a3d, three swappable ink pairs (fluoro pink/navy, flame/blue, kelly green/red)</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Grayscale + contrast-boost the source image so only luminance remains</li>
+    <li>Stack a blend-mode layer above it; its background gradient supplies the two ink colors</li>
+    <li>Expose the two colors as CSS custom properties so a button click can retint live</li>
+    <li>Layer a small-tile radial-gradient halftone and an SVG-noise grain on top, both blended, both non-interactive (<code>pointer-events:none</code>)</li>
+    <li>On hover, animate the base and wash layers on separate, slightly offset step-timings for the misregistration effect</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration notes</h2>
+  <ul>
+    <li><strong>Build pass:</strong> first draft only had one fixed ink pair; added the three-swatch ink selector so the duotone technique is demonstrably live, not a single baked screenshot, and added the back-catalog strip so the page has real content depth beyond one hero image.</li>
+    <li><strong>Code-review pass:</strong> checked contrast of navy text on cream (passes AA comfortably), made the print card a focusable <code>&lt;figure tabindex&gt;</code> so keyboard users can trigger the same wobble state as hover, and gated all animation behind <code>prefers-reduced-motion</code> so the wobble and card-lift transitions are removed entirely rather than just slowed.</li>
+    <li><strong>Live-browser pass:</strong> served locally and checked in headless Chrome — caught that the halftone dot layer was rendering slightly too dark at full opacity and muddying the pink ink pass, dropped it from .5 to .35 opacity; confirmed the ink-swatch buttons are reachable and operable by keyboard alone.</li>
+  </ul>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    hero illustration generated with Higgsfield (nano_banana_pro) ·
+    3 iteration passes in a real browser before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

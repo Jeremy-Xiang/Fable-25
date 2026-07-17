@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How ORRERY was made — guide</title>
+<meta name="description" content="How the ORRERY site was designed and built: a real-time Three.js armillary sphere with procedural brass materials, tilted orbit rings, a draggable camera, and a robust WebGL fallback.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #c08a3e; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#101014; color:#e9e9ee;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9a9aa6; text-decoration:none; border-bottom:1px solid #2a2a33; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#9a9aa6; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #232329;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { margin-bottom:1rem; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#b9b9c4;
+    background:#16161c; border:1px solid #232329; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  code{ font-family:'Fragment Mono', monospace; font-size:.86em; background:#1b1b22; padding:.1em .35em; border-radius:4px; }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #232329;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a8a96; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#101014; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to ORRERY</a>
+    <a href="../../">all 50 sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 35 of 50 · how it was made · Wing II</div>
+  <h1>ORRERY</h1>
+  <p class="sub">A clockwork solar system you can turn</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>This is one of Wing II's three pure-3D showcase pieces — no generated asset at all, per the brief. Five brass "worlds," named for Latin metals (Ferrum, Cuprum, Aurum, Argentum, Stannum), orbit a candlelit sun on tilted, gear-marked rings, the way a real armillary orrery is built: tiltable rings nested inside each other, not planets floating in flat space. Every surface — brass, bronze, the sun's glow — is painted procedurally in canvas at runtime.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Three.js loaded via an import map (<code>unpkg.com/three@0.160.0</code>), same pattern as 02-monolith in Wing I, plus <code>OrbitControls</code> from the examples/addons path for damped drag-to-orbit and pinch/scroll zoom</li>
+    <li>Procedural brass: a small canvas is painted per-planet with hundreds of randomized translucent dots and fine scratch lines in a hue-shifted palette, then used as a <code>CanvasTexture</code> — no image file, no external texture, five distinct metal tones from one function</li>
+    <li>Each world orbits via a tilted <code>THREE.Group</code> (the "ring") containing a pivot <code>Object3D</code> that rotates on its Y axis every frame; the planet mesh sits offset from that pivot at the orbit radius — the standard, physically-legible way to animate orbital motion in a scene graph</li>
+    <li>Orbit rings are visible <code>TorusGeometry</code> meshes in bronze, with 48 <code>InstancedMesh</code> gear-tick boxes spaced evenly around each ring — a single draw call per ring for the "engraved" detail</li>
+    <li>Lighting is deliberately minimal: one warm <code>PointLight</code> at the sun with per-frame randomized intensity eased toward a target (candle flicker), plus a dim ambient and a faint rim light — no environment map, no second light rig</li>
+    <li>Clicking a world name lerps <code>OrbitControls.target</code> toward that planet's live world position every frame and dollies the camera to a size-appropriate distance, so "visiting" a world tracks it as it keeps orbiting</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Cinzel (engraved-plate display) + Cormorant (body) + Fragment Mono (labels) · near-black brown #0d0805, brass #c08a3e, bronze #8c5a2b, candlelight #ffb25e</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Feature-detect WebGL with a throwaway canvas <em>before</em> importing Three.js at all — no point fetching the library if it can't render</li>
+    <li>Wrap both the dynamic <code>import()</code> calls and the entire scene-setup block in <code>try/catch</code>; on failure, add a class that swaps in a pure-CSS fallback orrery (concentric rotating rings) and hides the canvas</li>
+    <li>Also wrap the per-frame <code>requestAnimationFrame</code> callback in its own <code>try/catch</code> so a runtime failure mid-session stops the loop and falls back cleanly instead of spamming errors</li>
+    <li>Build orbits as tilted-group + pivot + offset-child, not by animating raw x/z coordinates by hand</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration notes</h2>
+  <ul>
+    <li><strong>Build pass:</strong> first draft had planets glide at scene-flat y=0 with no visible ring geometry, reading as generic floating spheres rather than an orrery; added the tilted torus rings and the instanced gear ticks so the "clockwork armillary" identity actually reads, plus named the worlds after Latin metals to match the material.</li>
+    <li><strong>Code-review pass:</strong> added a dedicated WebGL feature-detect that runs before any network request, so a browser with WebGL disabled never even attempts to fetch Three.js; gated all orbital motion and the candle-flicker random walk behind <code>prefers-reduced-motion</code> while leaving <code>OrbitControls</code> drag/zoom fully live, since manual camera movement is user-initiated, not automatic motion; confirmed brass-on-void contrast for the UI text and buttons clears AA.</li>
+    <li><strong>Live-browser pass:</strong> served locally in headless Chrome and forced a fallback by throwing inside the render loop — confirmed the CSS orrery swaps in cleanly and the WebGL canvas is hidden, not just covered; also caught that the "focus world" camera dolly could overshoot past <code>minDistance</code> on very small planets, clamped the computed focus distance so it never drops below the controls' configured minimum.</li>
+  </ul>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25), Anthropic ·
+    hand-written HTML/CSS/JS + Three.js (r160, via CDN import map) ·
+    pure Three.js 3D, no generated assets ·
+    3 iteration passes in a real browser before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

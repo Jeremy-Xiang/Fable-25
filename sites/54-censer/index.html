@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CENSER — smoke that almost writes</title>
+<meta name="description" content="CENSER is a curl-noise smoke particle system that drifts through a flow field and occasionally coalesces into glyph-like calligraphic strokes before dispersing again.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,400;0,600;1,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{ --amber:#c99a5b; --smoke:#a89e93; --bg:#0e0c09; --txt:#e9e2d6; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overscroll-behavior:none}
+  body{background:var(--bg);color:var(--txt);font-family:'Cormorant',serif;overflow:hidden}
+  ::selection{background:var(--amber);color:#0e0c09}
+
+  canvas#smoke{position:fixed;inset:0;display:block}
+
+  header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+    padding:1.5rem 2.2rem;pointer-events:none}
+  header *{pointer-events:auto}
+  .m{font-weight:600;font-size:1.05rem;letter-spacing:.12em}
+  .m span{color:var(--amber);font-style:italic}
+  nav{font-family:'Fragment Mono',monospace;font-size:.64rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--txt);text-decoration:none;opacity:.55;margin-left:1.5rem;transition:opacity .2s}
+  nav a:hover{opacity:1;color:var(--amber)}
+
+  .hero{position:fixed;bottom:0;left:0;right:0;z-index:3;text-align:center;pointer-events:none;
+    padding:0 1.5rem 6.5rem}
+  .hero h1{font-weight:400;font-style:italic;font-size:clamp(1.7rem,4.6vw,3rem);line-height:1.25;
+    color:var(--txt);text-shadow:0 4px 40px rgba(0,0,0,.5)}
+  .hero h1 em{color:var(--amber);font-style:italic}
+  .hero p{font-family:'Fragment Mono',monospace;font-size:.64rem;letter-spacing:.24em;text-transform:uppercase;
+    color:var(--smoke);opacity:.6;margin-top:1rem}
+
+  footer{position:fixed;bottom:0;left:0;right:0;z-index:5;text-align:center;font-family:'Fragment Mono',monospace;
+    font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--smoke);opacity:.55;
+    padding-bottom:1.3rem;pointer-events:none}
+  footer a{color:var(--amber);pointer-events:auto}
+
+  @media(max-width:760px){
+    header{padding:1.1rem 1.3rem}
+    .hero{padding-bottom:5.4rem}
+    .hero h1{font-size:clamp(1.4rem,6.4vw,2rem)}
+    footer{font-size:.5rem;line-height:1.6;padding:0 1rem 1.1rem}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="smoke"></canvas>
+
+<header>
+  <span class="m">CEN<span>SER</span></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>Smoke remembers a shape,<br>then <em>lets it go.</em></h1>
+  <p>watch, or trace a stroke of your own</p>
+</div>
+
+<footer>CENSER — CURL-NOISE CALLIGRAPHY · SITE 54 OF 62 · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a></footer>
+
+<script>
+const canvas = document.getElementById('smoke');
+const ctx = canvas.getContext('2d');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let W,H,DPR;
+function resize(){
+  DPR = Math.min(devicePixelRatio||1, 2);
+  W = innerWidth; H = innerHeight;
+  canvas.width = W*DPR; canvas.height = H*DPR;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener('resize', resize);
+resize();
+
+/* ---------- simple value-noise curl field ---------- */
+function hash(x,y){
+  const s = Math.sin(x*127.1 + y*311.7)*43758.5453;
+  return s - Math.floor(s);
+}
+function noise(x,y){
+  const xi=Math.floor(x), yi=Math.floor(y);
+  const xf=x-xi, yf=y-yi;
+  const a=hash(xi,yi), b=hash(xi+1,yi), c=hash(xi,yi+1), d=hash(xi+1,yi+1);
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;
+}
+function curl(x,y,t){
+  const e = 0.09;
+  const n1 = noise(x, y+e+t), n2 = noise(x, y-e+t);
+  const n3 = noise(x+e, y+t), n4 = noise(x-e, y+t);
+  const dx = (n1-n2)/(2*e);
+  const dy = -(n3-n4)/(2*e);
+  return [dy, -dx];
+}
+
+/* ---------- glyph targets: simple stroke paths particles occasionally seek ---------- */
+function glyphPoints(cx, cy, s){
+  // a small set of hand-authored calligraphic stroke paths (bezier-ish, sampled),
+  // abstract single "characters" — not real script, just brush-stroke silhouettes
+  const strokes = [
+    [[-1,-1],[-0.3,-0.6],[0.1,0.2],[-0.2,0.9],[0.6,1.1]],
+    [[-0.9,0.6],[0,0.4],[0.9,0.7]],
+    [[0.2,-1.1],[0.5,-0.2],[0.3,0.8]],
+  ];
+  const pts=[];
+  for(const s2 of strokes){
+    for(let i=0;i<s2.length-1;i++){
+      const a=s2[i], b=s2[i+1];
+      const n = 14;
+      for(let k=0;k<n;k++){
+        const tt=k/n;
+        pts.push([cx+(a[0]+(b[0]-a[0])*tt)*s, cy+(a[1]+(b[1]-a[1])*tt)*s]);
+      }
+    }
+  }
+  return pts;
+}
+
+const N = Math.min(520, Math.floor((innerWidth*innerHeight)/2600));
+const particles = [];
+for(let i=0;i<N;i++){
+  particles.push({
+    x: Math.random()*W, y: Math.random()*H,
+    vx:0, vy:0, life: Math.random(),
+    seekT: -1, phase: Math.random()*10
+  });
+}
+
+let cyclePhase = 0; // 0: drift, 1: coalescing, 2: held, 3: dispersing
+let cycleTimer = 0;
+let targets = [];
+const CYCLE = { drift: 5.5, coalesce: 3.0, hold: 1.6, disperse: 3.2 };
+
+function newTargets(){
+  const cx = W*0.5, cy = H*0.46;
+  const s = Math.min(W,H)*0.16;
+  targets = glyphPoints(cx,cy,s);
+}
+newTargets();
+
+function advanceCycle(dt){
+  cycleTimer += dt;
+  if(cyclePhase===0 && cycleTimer>CYCLE.drift){ cyclePhase=1; cycleTimer=0; newTargets();
+    particles.forEach((p,i)=>{ p.seekT = targets[i % targets.length]; });
+  } else if(cyclePhase===1 && cycleTimer>CYCLE.coalesce){ cyclePhase=2; cycleTimer=0; }
+  else if(cyclePhase===2 && cycleTimer>CYCLE.hold){ cyclePhase=3; cycleTimer=0; }
+  else if(cyclePhase===3 && cycleTimer>CYCLE.disperse){ cyclePhase=0; cycleTimer=0;
+    particles.forEach(p=>p.seekT=-1); }
+}
+
+/* pointer influence: gentle attraction while held, adds a "trace" feel */
+let pointer = {x:-999,y:-999,down:false};
+addEventListener('pointermove', e=>{ pointer.x=e.clientX; pointer.y=e.clientY; });
+addEventListener('pointerdown', e=>{ pointer.down=true; pointer.x=e.clientX; pointer.y=e.clientY; });
+addEventListener('pointerup', ()=>pointer.down=false);
+addEventListener('touchmove', e=>{ if(e.touches[0]){ pointer.x=e.touches[0].clientX; pointer.y=e.touches[0].clientY; pointer.down=true; } }, {passive:true});
+addEventListener('touchend', ()=>pointer.down=false);
+
+let t = 0;
+function step(dt){
+  t += dt*0.06;
+  advanceCycle(dt);
+
+  const seekStrength = cyclePhase===1 ? 0.9 : cyclePhase===2 ? 0.35 : 0;
+
+  for(let i=0;i<particles.length;i++){
+    const p = particles[i];
+    const [cx,cy] = curl(p.x*0.003, p.y*0.003, t);
+    p.vx += cx*22*dt;
+    p.vy += cy*22*dt - 3.2*dt; // gentle upward buoyancy like incense smoke
+
+    if(p.seekT !== -1 && seekStrength>0){
+      const tx = p.seekT[0], ty = p.seekT[1];
+      p.vx += (tx-p.x)*seekStrength*dt*1.6;
+      p.vy += (ty-p.y)*seekStrength*dt*1.6;
+    }
+
+    if(pointer.down){
+      const dx = pointer.x-p.x, dy = pointer.y-p.y;
+      const d2 = dx*dx+dy*dy;
+      if(d2 < 220*220){
+        const f = (1 - Math.sqrt(d2)/220) * 26;
+        p.vx += dx*0.001*f; p.vy += dy*0.001*f;
+      }
+    }
+
+    p.vx *= 0.965; p.vy *= 0.965;
+    p.x += p.vx; p.y += p.vy;
+
+    // wrap / respawn
+    if(p.x<-40) p.x=W+40; if(p.x>W+40) p.x=-40;
+    if(p.y<-60){ p.y=H+40; p.x=Math.random()*W; }
+    if(p.y>H+60){ p.y=-40; p.x=Math.random()*W; }
+  }
+}
+
+/* pre-rendered soft sprite: a single radial-gradient "wisp" tinted warm grey,
+   drawn per particle instead of a hard-edged arc — this is what reads as smoke
+   rather than scattered dots or sparks */
+function buildSprite(inner, mid){
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const sc = c.getContext('2d');
+  const g = sc.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0, inner);
+  g.addColorStop(0.35, mid);
+  g.addColorStop(1, 'rgba(190,168,140,0)');
+  sc.fillStyle = g;
+  sc.fillRect(0,0,64,64);
+  return c;
+}
+const sprite = buildSprite('rgba(214,196,168,0.9)', 'rgba(190,168,140,0.45)');
+const glowSprite = buildSprite('rgba(232,178,110,0.95)', 'rgba(210,150,80,0.5)');
+
+function draw(){
+  ctx.fillStyle = 'rgba(14,12,9,0.16)';
+  ctx.fillRect(0,0,W,H);
+
+  const holdAlpha = cyclePhase===2 ? 1 : cyclePhase===1 ? Math.min(1,cycleTimer/CYCLE.coalesce) : cyclePhase===3 ? Math.max(0,1-cycleTimer/CYCLE.disperse) : 0;
+
+  for(const p of particles){
+    const base = 0.5 + Math.sin(p.phase + t*3)*0.18;
+    const boost = holdAlpha*0.55;
+    const r = (6.5 + (p.seekT!==-1 ? holdAlpha*3.5 : 0)) * (0.75+base*0.5);
+    const a = (0.1 + base*0.09 + boost*0.22);
+    ctx.globalAlpha = Math.max(0, Math.min(0.55,a));
+    // warm amber sprite swaps in while the particle is coalesced into a glyph —
+    // avoids per-particle canvas filters (slow) while still giving a hue shift
+    const spr = boost > 0.12 ? glowSprite : sprite;
+    ctx.drawImage(spr, p.x-r, p.y-r, r*2, r*2);
+  }
+  ctx.globalAlpha = 1;
+}
+
+let last = performance.now();
+function frame(now){
+  const dt = Math.min((now-last)/1000, 1/30);
+  last = now;
+  step(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+if(reduceMotion){
+  ctx.fillStyle = '#0e0c09';
+  ctx.fillRect(0,0,W,H);
+  for(let i=0;i<60;i++) step(1/60);
+  draw();
+  // still let a visitor nudge the smoke without a continuous animation loop
+  const settleOnce = ()=>{ step(1/60); draw(); };
+  addEventListener('pointermove', settleOnce);
+  addEventListener('pointerdown', settleOnce);
+} else {
+  requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>

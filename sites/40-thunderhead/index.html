@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THUNDERHEAD — the storm keeps its own time</title>
+<meta name="description" content="THUNDERHEAD is a generated storm-cell backdrop with a real-time procedural lightning generator: recursive branching, mid-point displacement, a screen flash, and a delayed rumble.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500&family=Overpass+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --black:#0a0912;
+    --storm:#55506a;
+    --lavender:#a49dd9;
+    --flash:#eef0ff;
+    --ink:#e9e6f2;
+    --dim:rgba(233,230,242,.66);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--black);color:var(--ink);
+    font-family:'Barlow',sans-serif;overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--lavender);color:var(--black)}
+  .disp{font-family:'Anton',sans-serif;text-transform:uppercase;letter-spacing:.01em}
+  .mono{font-family:'Overpass Mono',monospace}
+
+  #bg{position:fixed;inset:0;z-index:0;background-image:url('assets/hero.jpg');background-size:cover;
+    background-position:center 55%;filter:saturate(.9) brightness(.8)}
+  #bolt{position:fixed;inset:0;z-index:2;pointer-events:none}
+  .scrim{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:linear-gradient(180deg,rgba(10,9,18,.25) 0%,rgba(10,9,18,.15) 35%,rgba(10,9,18,.75) 100%)}
+  #flash{position:fixed;inset:0;z-index:5;pointer-events:none;background:var(--flash);opacity:0}
+  #shakewrap{position:relative;z-index:3}
+
+  nav.top{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;
+    align-items:center;padding:1.5rem 2.2rem}
+  .mark{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:1.15rem;letter-spacing:.03em}
+  .mark i{font-style:normal;color:var(--lavender)}
+  .links{font-family:'Overpass Mono',monospace;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase}
+  .links a{color:var(--ink);text-decoration:none;opacity:.72;margin-left:1.6rem;transition:opacity .25s,color .25s}
+  .links a:hover{opacity:1;color:var(--lavender)}
+
+  .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+    padding:0 6vw;max-width:900px;cursor:crosshair}
+  .hero .kicker{font-family:'Overpass Mono',monospace;font-size:.68rem;letter-spacing:.3em;
+    text-transform:uppercase;color:var(--lavender);margin-bottom:1.6rem}
+  .hero h1{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:clamp(2.6rem,8vw,6.4rem);
+    line-height:.96;text-shadow:0 4px 40px rgba(0,0,0,.6)}
+  .hero p{margin-top:1.8rem;font-size:1.05rem;line-height:1.7;color:var(--dim);max-width:46ch}
+  .hint{margin-top:2.4rem;font-family:'Overpass Mono',monospace;font-size:.64rem;letter-spacing:.22em;
+    text-transform:uppercase;opacity:.6}
+  .counter{margin-top:1rem;font-family:'Overpass Mono',monospace;font-size:.7rem;letter-spacing:.1em;opacity:.75}
+
+  .panel{min-height:70vh;display:flex;align-items:center;padding:10vh 6vw;background:rgba(10,9,18,.42)}
+  .panel .inner{max-width:600px;opacity:0;transform:translateY(32px);
+    transition:opacity 1s ease,transform 1s cubic-bezier(.2,.7,.2,1)}
+  .panel .inner.in{opacity:1;transform:none}
+  .panel .no{font-family:'Overpass Mono',monospace;font-size:.66rem;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--lavender);display:block;margin-bottom:1.1rem}
+  .panel h2{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:clamp(1.8rem,3.6vw,2.6rem);
+    line-height:1.02;margin-bottom:1.1rem}
+  .panel p{color:var(--dim);line-height:1.85;font-size:1rem}
+
+  footer{position:relative;z-index:3;padding:9vh 6vw 6vh;background:rgba(10,9,18,.6);
+    display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.4rem;font-family:'Overpass Mono',monospace;
+    font-size:.68rem;letter-spacing:.08em;text-transform:uppercase}
+  footer a{color:var(--lavender);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  @media(max-width:760px){
+    nav.top{padding:1.2rem 1.4rem}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .hint{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="bg" role="img" aria-label="Dramatic dark storm cell with a lightning strike over open farmland"></div>
+<canvas id="bolt" aria-hidden="true"></canvas>
+<div class="scrim" aria-hidden="true"></div>
+<div id="flash" aria-hidden="true"></div>
+
+<div id="shakewrap">
+<main>
+  <nav class="top">
+    <span class="mark">THUNDER<i>HEAD</i></span>
+    <span class="links"><a href="guide/">Guide</a><a href="../">Index</a></span>
+  </nav>
+
+  <section class="hero" id="strikeZone" tabindex="0" role="button" aria-label="Click or press Enter anywhere in this area to strike lightning">
+    <span class="kicker">Procedural lightning · click to strike</span>
+    <h1 class="disp">The storm keeps<br>its own time.</h1>
+    <p>A supercell photograph, generated once — everything that moves across it is math. Every bolt below is built live from recursive branching and mid-point displacement, no two strikes ever the same shape. Click anywhere. The rumble always arrives late.</p>
+    <span class="hint mono">click / tap / press enter to strike · auto-strikes every 6–14s</span>
+    <span class="counter mono" id="strikeCount">STRIKES: 0</span>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="no">01 — The branch</span>
+      <h2 class="disp">Nature doesn't draw straight lines.</h2>
+      <p>Each bolt starts as one straight segment from cloud to ground. The generator splits it at the midpoint, nudges that point sideways by a random amount, and repeats on both halves — a dozen or so times — until a jagged, unrepeatable path falls out the other end. It's the same mid-point displacement trick used for procedural coastlines and mountain ranges, aimed straight down instead.</p>
+    </div>
+  </section>
+
+  <section class="panel" style="justify-content:flex-end;text-align:right">
+    <div class="inner">
+      <span class="no">02 — The fork</span>
+      <h2 class="disp">Some branches don't make it down.</h2>
+      <p>At a few points along the main channel, the generator rolls the dice on spawning a side branch — shorter, fainter, dying out a few subdivisions later. Real lightning does the same thing for the same reason: the path of least resistance forks constantly, and most forks lose.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="no">03 — The delay</span>
+      <h2 class="disp">Light first. Then the rest.</h2>
+      <p>The strike flashes the screen white immediately. A beat later — timed, not audio, this page makes no sound — a faint pulse moves through the frame like a shockwave arriving after the light already has. It's a visual stand-in for the gap between seeing a strike and feeling the thunder.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>THUNDERHEAD — recursive canvas lightning generator, storm image by Higgsfield<br>Wing II · Site 40 of 50 · designed &amp; built by Claude</span>
+    <span><a href="guide/">How it was made →</a><br><a href="../">All sites</a></span>
+  </footer>
+</main>
+</div>
+
+<script>
+const reducedQuery = matchMedia('(prefers-reduced-motion: reduce)');
+let reduced = reducedQuery.matches;
+
+const cv = document.getElementById('bolt'), ctx = cv.getContext('2d');
+let W,H,DPR;
+function resize(){
+  DPR = Math.min(devicePixelRatio,2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W*DPR; cv.height = H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener('resize', resize); resize();
+
+/* recursive midpoint-displacement lightning bolt */
+function buildBolt(x1,y1,x2,y2,disp,depth,segs,branchChance){
+  if(depth<=0 || disp<2){
+    segs.push({x1,y1,x2,y2,w:Math.max(.6,depth*.4)});
+    return;
+  }
+  const mx=(x1+x2)/2, my=(y1+y2)/2;
+  const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy)||1;
+  const nx=-dy/len, ny=dx/len;
+  const off=(Math.random()*2-1)*disp;
+  const px=mx+nx*off, py=my+ny*off;
+
+  buildBolt(x1,y1,px,py,disp*0.55,depth-1,segs,branchChance);
+  buildBolt(px,py,x2,y2,disp*0.55,depth-1,segs,branchChance);
+
+  if(Math.random()<branchChance && depth>2){
+    const bAngle = Math.atan2(dy,dx) + (Math.random()*1.1-0.55) + Math.PI/2*(Math.random()<.5?1:-1)*0;
+    const bLen = len*0.35*(0.5+Math.random()*0.6);
+    const bx = px + Math.cos(Math.atan2(dy,dx) + (Math.random()<.5?1:-1)*(0.5+Math.random()*0.5))*bLen;
+    const by = py + Math.sin(Math.atan2(dy,dx))*bLen + bLen*0.6;
+    buildBolt(px,py,bx,by,disp*0.5,depth-2,segs,branchChance*0.5);
+  }
+}
+
+function strikeAt(tx){
+  const startX = tx!==undefined ? tx : W*(0.2+Math.random()*0.6);
+  const startY = -20;
+  const endX = startX + (Math.random()*2-1)*W*0.12;
+  const endY = H*(0.55+Math.random()*0.3);
+  const segs=[];
+  buildBolt(startX,startY,endX,endY,W*0.06,9,segs,0.35);
+  return segs;
+}
+
+let activeStrike = null, strikeT = 0, strikeLife = 0;
+let flickers = [];
+function fireStrike(tx){
+  activeStrike = strikeAt(tx);
+  strikeT = 0;
+  strikeLife = reduced ? 500 : 260;
+  flickers = reduced ? [0] : [0, 70, 140];
+  flashScreen();
+  scheduleRumble();
+  strikeCountEl.textContent = 'STRIKES: ' + (++strikeCount);
+}
+
+function drawBolt(segs, alpha){
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = `rgba(238,240,255,${alpha})`;
+  ctx.shadowColor = 'rgba(180,180,255,0.9)';
+  ctx.shadowBlur = 18;
+  ctx.lineCap = 'round';
+  for(const s of segs){
+    ctx.lineWidth = s.w;
+    ctx.beginPath();
+    ctx.moveTo(s.x1,s.y1);
+    ctx.lineTo(s.x2,s.y2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function frame(dt){
+  ctx.clearRect(0,0,W,H);
+  if(activeStrike){
+    strikeT += dt;
+    if(strikeT > strikeLife){
+      activeStrike = null;
+    }else{
+      const p = strikeT/strikeLife;
+      /* quick flicker profile: bright, dim, bright, fade */
+      const flick = Math.sin(p*Math.PI*3) * (1-p);
+      const alpha = Math.max(0, 0.35 + flick*0.65);
+      drawBolt(activeStrike, alpha);
+    }
+  }
+}
+
+const flashEl = document.getElementById('flash');
+function flashScreen(){
+  if(reduced){
+    flashEl.style.transition = 'opacity .3s ease';
+    flashEl.style.opacity = '0.35';
+    requestAnimationFrame(()=>{ flashEl.style.opacity='0'; });
+    return;
+  }
+  flashEl.style.transition = 'none';
+  flashEl.style.opacity = '0.85';
+  requestAnimationFrame(()=>{
+    flashEl.style.transition = 'opacity .5s ease-out';
+    flashEl.style.opacity = '0';
+  });
+}
+
+const shakeWrap = document.getElementById('shakewrap');
+function scheduleRumble(){
+  const delay = 350 + Math.random()*500;
+  setTimeout(()=>{
+    if(reduced){
+      shakeWrap.style.transition = 'filter .6s ease';
+      shakeWrap.style.filter = 'brightness(1.06)';
+      setTimeout(()=>{ shakeWrap.style.filter = 'brightness(1)'; }, 300);
+      return;
+    }
+    shakeWrap.style.transition = 'transform .08s ease';
+    let n=0;
+    const shakes = [[3,-2],[-4,2],[2,3],[-2,-2],[1,0],[0,0]];
+    const tick=()=>{
+      if(n>=shakes.length){ shakeWrap.style.transform='none'; return; }
+      const [x,y]=shakes[n++];
+      shakeWrap.style.transform = `translate(${x}px,${y}px)`;
+      setTimeout(tick, 55);
+    };
+    tick();
+  }, delay);
+}
+
+let strikeCount = 0;
+const strikeCountEl = document.getElementById('strikeCount');
+
+let last = performance.now();
+function loop(now){
+  const dt = now-last; last = now;
+  frame(dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* interaction */
+const zone = document.getElementById('strikeZone');
+zone.addEventListener('click', e=>{ fireStrike(e.clientX); });
+zone.addEventListener('keydown', e=>{
+  if(e.key==='Enter' || e.key===' '){ e.preventDefault(); fireStrike(); }
+});
+
+function scheduleAuto(){
+  const wait = reduced ? 12000 : (6000 + Math.random()*8000);
+  setTimeout(()=>{
+    fireStrike();
+    scheduleAuto();
+  }, wait);
+}
+scheduleAuto();
+
+reducedQuery.addEventListener('change', e=>{ reduced = e.matches; });
+
+/* scroll reveal */
+const io = new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+}), {threshold:.2});
+document.querySelectorAll('.panel .inner').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

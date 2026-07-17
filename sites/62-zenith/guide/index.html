@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How ZENITH was made — guide</title>
+<meta name="description" content="How the ZENITH site was designed and built: layered light-shaft shaders, curl-drifted dust, a tuned bloom pass — and how it closes Wave 3.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fira+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #a97c1f; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#161208; color:#eee6d4;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fira Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#a99b78; text-decoration:none; border-bottom:1px solid #2c2415; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fira Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#a99b78; font-size:1.15rem; margin-bottom:3.6rem; }
+  p { max-width:60ch; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #241d10;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fira Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; max-width:58ch; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fira Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fira Mono', monospace; font-size:.8rem; line-height:1.9; color:#d6cbaf;
+    background:#1c1710; border:1px solid #241d10; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  code{ font-family:'Fira Mono', monospace; font-size:.92em; background:#1c1710; padding:.1em .35em; border-radius:3px; }
+  .wave3box {
+    background:#1c1710; border:1px solid #241d10; border-radius:8px; padding:1.3rem 1.4rem; margin-top:1.2rem;
+  }
+  .wave3box h3 {
+    font-family:'Fira Mono', monospace; font-size:.68rem; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:.7rem; font-weight:600;
+  }
+  .wave3box p { font-size:.98rem; max-width:none; }
+  .wave3box + .wave3box { margin-top:.9rem; }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #241d10;
+    font-family:'Fira Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#a99b78; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  em { font-style:italic; color:var(--accent); }
+  ::selection { background:var(--accent); color:#1c1710; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to ZENITH</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 62 of 62 · how it was made · Wave 3 finale</div>
+  <h1>ZENITH</h1>
+  <p class="sub">Light at its highest point — and the close of Wave 3</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Solar noon, dust motes crossing a shaft of light — the collection's brightest site, deliberately, after sixty-one sites that mostly lean dark. ZENITH is also a deliberate synthesis: it's the one site built to combine every major technique Wave 3 practiced — shader-driven light shafts (this wave's answer to 51-mercury's raymarching), thousands of drifting GPU-friendly particles (in the spirit of 53-salvo and 58-revenant), and a real post-processing bloom pass — inside one frame, as its closing statement.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Seven translucent planes, each anchored at its top edge to the sun's position and fanned at slightly different angles, carry a hand-written fragment shader: a cheap value-noise function drives per-pixel dust turbulence, a center-weighted falloff shapes each shaft's edge, and a length-based fade brightens everything nearer the sun — additively blended so overlapping shafts brighten each other exactly the way real light does</li>
+    <li>Roughly two thousand points drift on a cheap curl-like field — offset sine terms rather than a full 3D simplex implementation — recycling to the top once they fall out of frame, so the dust reads as continuous without ever being simulated at full scale</li>
+    <li>Post-processing is a real <code>UnrealBloomPass</code> through Three.js's ES-module addons (loaded via an import map, since the bundled non-module examples aren't published past a certain three.js version) tuned to a high luminance threshold, so only the sun's core and the brightest shaft intersections bleed light — the pale gold backdrop underneath stays untouched</li>
+    <li>A gentle pointer-driven parallax offsets the camera by a damped fraction of cursor position, and a "release dust" control temporarily boosts drift speed — small, discoverable gestures rather than a heavy interaction model, appropriate for a piece meant to be looked at as much as touched</li>
+  </ul>
+
+  <h2><span class="no">03</span> The complexity upgrade</h2>
+  <p>A set of five lens-flare "ghosts" ride along the optical line through screen center, directly opposite wherever the sun currently projects — real anamorphic-lens behavior, not a decorative sprite trail. Every frame, the sun's world position is projected into normalized device coordinates, each ghost's target position is computed along that line and un-projected back into world space, and its scale and opacity are derived from its position along the line. Move the cursor and the whole flare rig subtly repositions with the parallax, exactly as it would through a real lens. It's a detail most visitors will never consciously register — which is the point of a deliberate complexity pass.</p>
+
+  <h2><span class="no">04</span> Type &amp; color</h2>
+  <p class="meta">Cardo + Fira Mono · paper #faf5ea, ink #2b2418, gold #a97c1f, sky gradient #f5e3b8 → #e0ba96</p>
+
+  <h2><span class="no">05</span> Reproduce it</h2>
+  <ol>
+    <li>Keep the backdrop mid-value, not near-white — additive light drawn over an already-white surface has nothing left to add, so the "brightest site" needs the most headroom, not the least</li>
+    <li>Anchor beam geometry at the light source and let it extend away, rather than centering geometry on the light and letting it straddle in both directions</li>
+    <li>Tune bloom threshold to sit above your backdrop's own luminance, so bloom isolates true highlights instead of blooming the whole frame</li>
+    <li>For any screen-space effect (flares, UI reticles) tied to a 3D point, project that point to NDC every frame and either work directly in screen space or un-project back into world space — don't try to fake it with a fixed offset</li>
+  </ol>
+
+  <h2><span class="no">06</span> Screenshot pass</h2>
+  <p>The first render was almost entirely blown out: a sun sprite scaled far too large, combined with bloom strength tuned for a dark scene, produced a solid white wall with no visible structure at all — and separately, the light-shaft geometry was centered on the sun rather than anchored to it, so half of each shaft pointed the wrong way and got swallowed by the sun sprite. Both were only obvious once actually looked at; the fix was shrinking the sun, lowering bloom strength and radius, raising the bloom threshold, and re-anchoring the beam geometry to extend from the light source instead of through it.</p>
+
+  <h2><span class="no">07</span> Closing Wave 3</h2>
+  <p>Jeremy pointed at a larger, separate 105-site collection and said parts of it read as more polished than ours. The gap wasn't paid assets — Wave 3 was told explicitly not to spend Higgsfield credits — it was <em>process</em>: that collection renders every site headless, actually looks at the screenshot, and fixes what's visually wrong, plus forces one deliberate complexity upgrade per site so nothing settles for merely competent.</p>
+  <div class="wave3box">
+    <h3>The loop, every site, 51 through 62</h3>
+    <p>Build pass → code-review pass (contrast, breakpoints, animation performance, reduced-motion) → an actual screenshot pass: render the site headless, open the PNGs, look at them as a design director would, fix what's genuinely wrong, and re-shoot until it holds up. ZENITH alone went through five full render-and-look cycles before the light shafts read correctly — every fix in this guide's craft section came from looking at a real screenshot, not from re-reading the source.</p>
+  </div>
+  <div class="wave3box">
+    <h3>What it cost</h3>
+    <p>Nothing beyond the time to look. Zero Higgsfield calls, zero binary assets, across all twelve sites — the same zero-asset discipline Wing I proved at 1–25, now paired with a rendering-and-critique habit borrowed from noticing someone else's process was better than ours. The polish gap was never about budget.</p>
+  </div>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 5), Anthropic ·
+    hand-written HTML/CSS/JS, Three.js + a real bloom pass, no frameworks, no build step ·
+    build → code review → live screenshot critique, five iterations on this site alone ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

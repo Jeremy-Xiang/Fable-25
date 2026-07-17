@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23e5378a%22/></svg>">
+<title>How PRESSWORK was made — guide</title>
+<meta name="description" content="How the PRESSWORK site was designed and built: A live CMYK halftone press: four rotated dot screens print the poster, and your cursor shoves the plates out of register">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#e5378a; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0c; color:#f3efe9; font-family:'Bricolage Grotesque', sans-serif; font-size:1.05rem; line-height:1.72; padding:0 1.5rem}
+  .wrap{max-width:680px; margin:0 auto; padding:9vh 0 12vh}
+  .crumb{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem}
+  .crumb a{color:#8f8b8d; text-decoration:none; border-bottom:1px solid #262327; padding-bottom:2px}
+  .crumb a:hover{color:var(--accent); border-color:var(--accent)}
+  .kicker{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem}
+  h1{font-weight:800; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.08; margin-bottom:.6rem; letter-spacing:-.01em}
+  .sub{color:#a19c9d; font-size:1.12rem; margin-bottom:3.6rem}
+  h2{font-size:1.05rem; font-weight:800; letter-spacing:.01em; margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #211d20; display:flex; align-items:baseline; gap:.75rem}
+  h2 .no{font-family:'JetBrains Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none; margin-bottom:1rem}
+  ul li{padding-left:1.6rem; position:relative; margin-bottom:.85rem}
+  ul li::before{content:'—'; position:absolute; left:0; color:var(--accent)}
+  code{font-family:'JetBrains Mono', monospace; font-size:.88em; background:#17141a; padding:.1em .4em; border-radius:4px}
+  .meta{font-family:'JetBrains Mono', monospace; font-size:.8rem; line-height:1.9; color:#cfc9cb; background:#141216; border:1px solid #211d20; border-left:3px solid var(--accent); padding:1.1rem 1.4rem; border-radius:6px}
+  .foot{margin-top:5rem; padding-top:2.4rem; border-top:1px solid #211d20; font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:#7a757a; line-height:2.4}
+  .foot a{color:var(--accent); text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent); color:#111}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to PRESSWORK</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 94 · Wave 6 · how it was made</div>
+  <h1>PRESSWORK</h1>
+  <p class="sub">A live CMYK halftone press: four rotated dot screens print the poster, and your cursor shoves the plates out of register</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Print production as an interaction: the poster is separated into real C/M/Y/K halftone screens at authentic angles (15°/75°/0°/45°), dot radius ∝ ink density, composited with multiply. Moving your cursor displaces each plate along a different vector — the misprint fringing every print nerd recognizes.</p>
+
+  <h2><span class="no">02</span> How it works</h2>
+  <ul>
+    <li>A hidden canvas holds the source art; <code>cmykAt()</code> converts RGB per sampled point.</li>
+    <li>Each plate walks its own rotated grid (the screen angle), drawing dots sized <code>pitch·0.62·√ink</code> — the sqrt is what makes midtones read correctly.</li>
+    <li>K stays registered while C/M/Y take scaled cursor offsets plus a slow breathing wobble; multiply blending does the ink math.</li>
+    <li>Three procedural posters rotate via NEXT POSTER; pitch and wobble are live sliders.</li></ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <ul>
+    <li>Anton for poster type (halftones beautifully), Courier Prime for the shop floor.</li>
+    <li>Warm print paper; the CMYK primaries are the palette.</li></ul>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <ul>
+    <li>Verified rosette formation at rest (correct screen angles produce the classic pattern), fringe direction under cursor, and legible type at 9px pitch; checked slider extremes for dot overlap collapse.</li></ul>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <ul>
+    <li><code>plate()</code> + <code>cmykAt()</code> convert any canvas into halftone separations — photos included.</li>
+    <li>Screen angles matter: keep K at 45° and ~30° separation or you get moiré instead of rosettes.</li>
+    <li>The whole effect is O(dots); at 6px pitch full-screen, render to an offscreen and reuse.</li></ul>
+
+  <div class="meta">stack — one HTML file · canvas 2D · real CMYK separation + screen angles · multiply compositing<br>signature — misregistration as a pointer effect</div>
+
+  <div class="foot">
+    site 94 / fable 25 · built by claude (fable 5), commissioned by jeremy xiang<br>
+    <a href="../">launch PRESSWORK</a> · <a href="../../">the other sites</a>
+  </div>
+</div>
+</body>
+</html>

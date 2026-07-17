@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%233ee6d8%22/></svg>">
+<title>How SPLASH was made — guide</title>
+<meta name="description" content="How the SPLASH site was designed and built: a hand-rolled, WebGL-free approximation of a stable-fluids dye trail — semi-Lagrangian advection, curl noise and additive splats.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #3ee6d8; --accent2:#7c8cff; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#05080a; color:#dfeceb;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:1rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:700px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-size:.7rem; letter-spacing:.2em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#7f9793; text-decoration:none; border-bottom:1px solid #17211f; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-family:'Space Grotesk',sans-serif; font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:700; line-height:1.1; margin-bottom:.6rem; }
+  .sub { color:#7f9793; font-size:1.05rem; margin-bottom:3.6rem; }
+  h2 {
+    font-family:'Space Grotesk',sans-serif;
+    font-size:1.05rem; font-weight:700; letter-spacing:.01em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #131c1a;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'IBM Plex Mono',monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { color:#c3d6d3; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; color:#c3d6d3; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; color:#c3d6d3; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-family:'IBM Plex Mono',monospace;font-size:.9em;background:#0e1615;padding:.1em .4em;border-radius:4px;color:#9fe8e0}
+  .meta {
+    font-size:.82rem; line-height:1.9; color:#b7c9c6;
+    background:#0b1211; border:1px solid #131c1a; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .warn {
+    font-size:.85rem; line-height:1.85; color:#c9d8d6;
+    background:#0b1211; border:1px solid #2a1f14; border-left:3px solid var(--accent2);
+    padding:1.1rem 1.4rem; border-radius:6px; margin-top:1.2rem;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #131c1a;
+    font-size:.72rem; letter-spacing:.14em;
+    text-transform:uppercase; color:#5f7573; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#04100e; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to SPLASH</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 63 of 72 · how it was made</div>
+  <h1>SPLASH</h1>
+  <p class="sub">A hand-rolled dye-splash cursor trail — no WebGL, no fluid library, staged as a portfolio hero</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>React Bits' "Splash Cursor" is one of the most-copied premium interactions in creative portfolios: a fluid, ink-like trail that blooms and swirls behind the pointer. Most implementations lean on a full WebGL stable-fluids solver (Pavel Dobryakov's classic <code>webgl-fluid-simulation</code>). SPLASH gets the same visual language — advecting dye, curling turbulence, additive glow, gradual dissipation — from a coarse 2D-canvas grid simulation instead, so it can drop into any page without a shader pipeline.</p>
+
+  <h2><span class="no">02</span> How the effect works</h2>
+  <p>The simulation runs on a low-resolution grid (110 cells wide, height derived from the hero's aspect ratio and clamped to 50–160 cells) holding two fields as flat <code>Float32Array</code>s: velocity (<code>vx</code>, <code>vy</code>) and dye density (<code>dr</code>, <code>dg</code>, <code>db</code>). Every animation frame runs five steps in <code>stepSim(dt)</code>:</p>
+  <ul>
+    <li><strong>Curl-noise turbulence:</strong> a scalar potential <code>noiseP(x,y,t) = sin(0.09x+0.8t)·cos(0.07y−0.6t) + 0.6·sin(0.05(x−y)+0.35t)</code> is differentiated with a central finite difference (step 0.6) to get its perpendicular gradient — <code>curlX = ∂noiseP/∂y</code>, <code>curlY = −∂noiseP/∂x</code>. That's the standard curl-noise construction: because it's built from a gradient rotated 90°, the resulting force field is divergence-free by definition, which is what makes the flow swirl instead of just pushing dye outward.</li>
+    <li><strong>Semi-Lagrangian advection:</strong> instead of pushing dye forward (which is unstable at large steps), each cell asks "where did my content come from?" — it steps backward along the velocity field (<code>x − vx·dt·5.2</code>) and bilinearly samples the field at that point via <code>sample()</code>. Velocity is advected through itself first, then dye is advected through the freshly-updated velocity.</li>
+    <li><strong>Viscosity:</strong> a cheap 4-neighbor blur (86% self / 14% neighbor average) is blended into the velocity field each step, which is what keeps the swirls smooth rather than noisy.</li>
+    <li><strong>Dissipation:</strong> both fields are multiplied by a decay factor every step — velocity by a fixed 0.985, dye by <code>1 − (0.0004 + (dissipation/100)² · 0.05)</code>, a quadratic map chosen so the default setting lingers for several seconds while the top of the slider wipes the canvas in about a second.</li>
+    <li><strong>Splats:</strong> pointer/touch movement calls <code>addSplat(px, py, vdx, vdy, strength, hueDeg)</code>, which adds velocity and an HSL-derived color into every grid cell within the splat radius, weighted by a Gaussian falloff <code>exp(−d²/(r²·0.5))</code>.</li>
+  </ul>
+  <p>The dye grid is written into a tiny offscreen canvas via <code>putImageData</code>, then drawn scaled up onto a full-size offscreen buffer with <code>globalCompositeOperation = 'lighter'</code> (additive blending — overlapping splats brighten rather than occlude, like real light/dye) plus a second, blurred, half-opacity pass for bloom. That buffer is pushed to the visible canvas with one <code>drawImage</code> call per frame.</p>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Space Grotesk (display) + IBM Plex Mono (labels/nav/footer) · near-black #05080a stage · teal/cyan accent #3ee6d8 · soft violet-blue secondary #7c8cff for the prompt dot and slider glow</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>The first headless render came back solid black — the canvas was there, the JS was running, but no dye was visible. Digging in with an instrumented copy of the screenshot harness (reading the canvas back with <code>getImageData</code> right before capture) found a real, specific bug: the intro demo only fired six widely-scattered splats, and the default dissipation curve decayed them to near-zero within about 1.5 seconds — while the idle "ambient replenishment" splat was keyed off <code>lastMoveTime = 0</code>, so its first fire didn't land until roughly 2.6 seconds of page life. That left a genuine dead window between "intro splash gone" and "ambient splash not yet born" — and a ~1.7–1.8s post-load capture (the harness's fixed wait plus its full-page scroll pass) landed squarely inside it. Fixed by clustering nine intro splats centrally so they reinforce each other, slowing the dissipation curve (see §02), and giving the ambient timer an early first fire at 1.1s instead of 2.6s.</p>
+  <p>A second, separate finding surfaced while chasing residual flakiness: repeated identical runs against this repo's real path (which contains a literal space, "Claude Sites") intermittently still screenshotted black, even though <code>getImageData</code> confirmed bright pixels were present in the canvas at the exact instant of capture. A controlled test — the same file, byte-for-byte, served from a path with no space and from the same real path with the space percent-encoded (<code>%20</code>) — rendered correctly on every run; the raw, unencoded space was the reproducible variable. That's a headless Chrome/puppeteer <code>file://</code>-URL quirk external to this page's code (verified with disposable test pages containing no simulation logic at all), not something fixable from within <code>sites/63-splash/index.html</code>. The frame is still double-buffered (see §02) as sound practice regardless, since a canvas that's only ever updated with one atomic <code>drawImage</code> is easier to reason about than one built from several draws in sequence.</p>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <p>Everything needed lives between the <code>&lt;canvas id="splash"&gt;</code> element and the closing <code>&lt;/script&gt;</code> — copy that whole block plus the CSS on <code>canvas#splash</code> (it must be <code>position:absolute;inset:0</code> inside a <code>position:relative</code> parent that defines the stage's size, plus <code>touch-action:none</code>).</p>
+  <ul>
+    <li><strong>Functions to copy as a unit:</strong> <code>allocSim</code>, <code>resize</code>, <code>noiseP</code>/<code>curlX</code>/<code>curlY</code>, <code>sample</code>, <code>hslToRgb</code>, <code>addSplat</code>, <code>stepSim</code>, <code>renderSim</code>, plus the pointer listeners and the <code>reduceMotion</code> branch at the bottom. They share module-level state (<code>vx/vy/dr/dg/db</code>, <code>CFG</code>), so they aren't independently separable.</li>
+    <li><strong>The staged copy is fake:</strong> "Arden Cole" is a fictional placeholder persona invented to make the hero look like a real portfolio — no reference to any real person. Swap the name, role line, and links for your own when you lift the block.</li>
+    <li><strong>DOM contract:</strong> one <code>&lt;canvas&gt;</code> inside a sized, positioned container (<code>heroWrap</code> in the code — rename the <code>document.querySelector('.hero-wrap')</code> line to match your container).</li>
+    <li><strong>Tunable surface:</strong> the <code>CFG</code> object (<code>dissipation</code>, <code>splatRadius</code>, <code>hue</code>, <code>curlForce</code>) — wire your own controls to it, or hardcode values and delete the panel. <code>SIM_W</code> (default 110) trades resolution for performance; the bloom blur radius (<code>9px</code> in <code>renderSim</code>) is the next thing to turn down on low-power devices.</li>
+    <li><strong>Gotchas:</strong> canvas needs <code>touch-action:none</code> or touch drags will scroll the page instead of painting; always resize and reallocate the sim grid together (<code>resize()</code> calls <code>allocSim()</code>) — resizing the canvas without rebuilding the arrays will misalign every index; respect <code>prefers-reduced-motion</code> by settling to one rendered frame and driving further updates only from direct pointer events, not a free-running <code>requestAnimationFrame</code> loop (see the <code>reduceMotion</code> branch); and if you screenshot-test this from a script, know that an unencoded space anywhere in the page's <code>file://</code> path can make headless Chrome intermittently serve a stale compositor frame — percent-encode the path (<code>%20</code>) if you hit unexplained blank captures.</li>
+  </ul>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Allocate a coarse grid (velocity + dye, as flat typed arrays) sized to your stage's aspect ratio</li>
+    <li>Each frame: add a curl-noise force (perpendicular gradient of a smooth potential function) to velocity</li>
+    <li>Advect velocity through itself, then dye through velocity, via semi-Lagrangian backtrace + bilinear sampling</li>
+    <li>Dissipate both fields by a per-frame decay factor; blend a touch of neighbor-averaging into velocity for stability</li>
+    <li>On pointer/touch move, inject a Gaussian-falloff splat of velocity + color into the grid</li>
+    <li>Render the low-res dye grid to an offscreen buffer, additive-blend it (plus a blurred pass for bloom), then push one complete frame to the visible canvas</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 4), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step, no WebGL, no fluid library ·
+    build → real screenshot critique → fix → re-screenshot before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

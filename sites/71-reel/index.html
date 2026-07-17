@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23e0c05a%22/></svg>">
+<title>REEL — draggable inertia gallery</title>
+<meta name="description" content="REEL is a hand-rolled draggable horizontal gallery with real momentum physics, infinite loop wrap, snap-to-item and arrow-key navigation — no framework.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0908; --bg2:#131110;
+    --gold:#e0c05a; --gold-dim:#8a7842;
+    --ink:#f2ece0; --dim:#8d8577; --line:#242019;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:'IBM Plex Mono',monospace;
+    display:flex;flex-direction:column;min-height:100%;overflow-x:hidden;
+  }
+  ::selection{background:var(--gold);color:#141008}
+
+  header{display:flex;justify-content:space-between;align-items:center;padding:1.4rem 2rem}
+  .logo{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:1.15rem;letter-spacing:.02em}
+  .logo em{color:var(--gold);font-style:normal}
+  nav{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--ink);text-decoration:none;opacity:.6;margin-left:1.6rem}
+  nav a:hover{opacity:1;color:var(--gold)}
+
+  .hero{padding:2.2rem 1.5rem .8rem;text-align:center}
+  .hero h1{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(2rem,6vw,3.6rem);
+    letter-spacing:-.01em;line-height:1.02}
+  .hero h1 span{color:var(--gold)}
+  .hero p{font-size:.78rem;letter-spacing:.1em;color:var(--dim);margin-top:.9rem;text-transform:uppercase}
+
+  .reel-outer{position:relative;padding:2.6rem 0;flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0}
+  .reel{
+    overflow:hidden;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+    outline:none;
+  }
+  .reel.dragging{cursor:grabbing}
+  .reel:focus-visible{box-shadow:inset 0 0 0 2px var(--gold)}
+  .track{display:flex;gap:1.6rem;padding:0 4vw;will-change:transform;}
+
+  .tile{
+    flex:0 0 auto;width:220px;height:290px;border-radius:10px;position:relative;overflow:hidden;
+    background:var(--bg2);box-shadow:0 14px 34px rgba(0,0,0,.5), inset 0 0 0 1px var(--line);
+    transition:transform .25s ease, box-shadow .25s ease;
+  }
+  .tile .art{position:absolute;inset:0}
+  .tile .meta{
+    position:absolute;left:0;right:0;bottom:0;padding:.85rem 1rem 1rem;
+    background:linear-gradient(180deg,rgba(10,9,8,0) 0%,rgba(10,9,8,.88) 55%,rgba(10,9,8,.96) 100%);
+  }
+  .tile .no{display:block;font-size:.62rem;letter-spacing:.16em;color:var(--tc,var(--gold));opacity:.85;margin-bottom:.3rem}
+  .tile h3{font-family:'Bricolage Grotesque',sans-serif;font-weight:600;font-size:1rem;letter-spacing:.01em;color:var(--ink)}
+  .tile .cat{display:block;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:.25rem}
+
+  /* --- CSS-drawn placeholder art, 8 distinct compositions --- */
+  .art.s0{background:linear-gradient(135deg,#1c1710,#0a0908 70%);}
+  .art.s0::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 70% 30%, var(--tc) 0%, transparent 45%);opacity:.55}
+  .art.s0::after{content:'';position:absolute;left:-20%;right:-20%;top:60%;height:2px;background:var(--tc);opacity:.4;transform:rotate(-8deg)}
+
+  .art.s1{background:linear-gradient(160deg,#171310,#0a0908 65%);}
+  .art.s1::before{content:'';position:absolute;width:140%;height:140%;left:-20%;top:-20%;
+    background:repeating-linear-gradient(45deg, var(--tc) 0 2px, transparent 2px 18px);opacity:.32}
+  .art.s1::after{content:'';position:absolute;left:20%;top:22%;width:50%;height:50%;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--tc), transparent 70%);opacity:.5}
+
+  .art.s2{background:linear-gradient(200deg,#151210,#0a0908 70%);}
+  .art.s2::before{content:'';position:absolute;inset:0;
+    background:conic-gradient(from 200deg at 30% 70%, var(--tc), transparent 55%);opacity:.45}
+  .art.s2::after{content:'';position:absolute;right:8%;top:10%;bottom:10%;width:32%;
+    background:linear-gradient(180deg, var(--tc), transparent);opacity:.28;border-radius:6px}
+
+  .art.s3{background:linear-gradient(125deg,#191410,#0a0908 60%);}
+  .art.s3::before{content:'';position:absolute;left:10%;right:10%;top:14%;bottom:14%;border:2px solid var(--tc);
+    opacity:.5;border-radius:2px;transform:rotate(4deg)}
+  .art.s3::after{content:'';position:absolute;left:22%;right:22%;top:26%;bottom:26%;background:var(--tc);
+    opacity:.22;border-radius:2px;transform:rotate(4deg)}
+
+  .art.s4{background:linear-gradient(150deg,#161211,#0a0908 65%);}
+  .art.s4::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 85%, var(--tc), transparent 60%);opacity:.5}
+  .art.s4::after{content:'';position:absolute;width:3px;height:3px;box-shadow:
+    18px 22px 0 1px var(--tc), 60px 40px 0 1px var(--tc), 30px 90px 0 1px var(--tc),
+    90px 130px 0 1px var(--tc), 130px 60px 0 1px var(--tc), 150px 150px 0 1px var(--tc);
+    opacity:.7;left:20px;top:20px;border-radius:50%}
+
+  .art.s5{background:linear-gradient(170deg,#181410,#0a0908 68%);}
+  .art.s5::before{content:'';position:absolute;left:-10%;top:40%;right:-10%;height:60%;
+    background:linear-gradient(180deg, var(--tc), transparent);opacity:.28;transform:skewY(-6deg)}
+  .art.s5::after{content:'';position:absolute;left:15%;top:15%;width:35%;height:35%;border-radius:50%;
+    border:2px solid var(--tc);opacity:.6}
+
+  .art.s6{background:linear-gradient(140deg,#151110,#0a0908 62%);}
+  .art.s6::before{content:'';position:absolute;inset:0;
+    background:repeating-radial-gradient(circle at 75% 25%, var(--tc) 0 1px, transparent 1px 14px);opacity:.4}
+  .art.s6::after{content:'';position:absolute;left:8%;right:38%;bottom:10%;top:55%;background:var(--tc);opacity:.3;border-radius:4px}
+
+  .art.s7{background:linear-gradient(190deg,#171310,#0a0908 66%);}
+  .art.s7::before{content:'';position:absolute;inset:0;background:conic-gradient(from 40deg at 50% 50%, transparent, var(--tc), transparent 65%);opacity:.4}
+  .art.s7::after{content:'';position:absolute;left:50%;top:50%;width:70%;height:70%;transform:translate(-50%,-50%) rotate(45deg);
+    border:1px solid var(--tc);opacity:.45}
+
+  .tile.active{transform:translateY(-6px) scale(1.03);box-shadow:0 22px 46px rgba(0,0,0,.6), 0 0 0 1px var(--tc), 0 0 26px -4px var(--tc)}
+
+  .edge{position:absolute;top:0;bottom:0;width:8vw;min-width:40px;pointer-events:none;z-index:2}
+  .edge.l{left:0;background:linear-gradient(90deg,var(--bg),transparent)}
+  .edge.r{right:0;background:linear-gradient(270deg,var(--bg),transparent)}
+
+  .hint{text-align:center;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:1.2rem}
+  .hint kbd{font-family:inherit;color:var(--gold);border:1px solid var(--line);border-radius:3px;padding:.05em .4em;margin:0 .15em}
+
+  .dots{display:flex;justify-content:center;gap:.5rem;margin-top:1.1rem}
+  .dots i{width:5px;height:5px;border-radius:50%;background:var(--line);transition:background .2s,transform .2s,box-shadow .2s}
+  .dots i.on{background:var(--gold);transform:scale(1.6);box-shadow:0 0 8px rgba(224,192,90,.6)}
+
+  .panel{display:flex;flex-wrap:wrap;gap:1.6rem;align-items:center;justify-content:center;padding:1.6rem 1.5rem 2rem}
+  .grp{display:flex;flex-direction:column;align-items:center;gap:.45rem}
+  .grp .lab{font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  input[type=range]{-webkit-appearance:none;width:130px;background:transparent;cursor:ew-resize}
+  input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--gold);margin-top:-5.5px;box-shadow:0 0 8px rgba(224,192,90,.5)}
+  input[type=range]::-moz-range-track{height:2px;background:var(--line)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:none;border-radius:50%;background:var(--gold)}
+
+  .switch{position:relative;display:inline-block;width:38px;height:20px}
+  .switch input{opacity:0;width:0;height:0}
+  .switch .track2{position:absolute;inset:0;background:var(--line);border-radius:99px;transition:.2s;cursor:pointer}
+  .switch .track2::before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;border-radius:50%;
+    background:var(--dim);transition:.2s}
+  .switch input:checked + .track2{background:rgba(224,192,90,.25)}
+  .switch input:checked + .track2::before{transform:translateX(18px);background:var(--gold)}
+
+  footer{text-align:center;font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+    padding:0 1.5rem 1.5rem}
+  footer a{color:var(--gold);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+
+  @media(max-width:640px){
+    header{padding:1.1rem 1.2rem}
+    .tile{width:170px;height:230px}
+    .track{gap:1.1rem}
+    .panel{gap:1rem}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .tile{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo"><em>REEL</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>Drag it. <span>Let go.</span></h1>
+  <p>a draggable project reel with real momentum — grab, throw, watch it coast</p>
+</div>
+
+<div class="reel-outer">
+  <div class="reel" id="reel" tabindex="0" aria-label="Project thumbnail reel. Drag with mouse or touch to browse, or use left and right arrow keys.">
+    <div class="track" id="track" role="list"></div>
+  </div>
+  <div class="edge l" aria-hidden="true"></div>
+  <div class="edge r" aria-hidden="true"></div>
+  <p class="hint">drag to spin the reel &nbsp;·&nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> to step &nbsp;·&nbsp; release for momentum</p>
+  <div class="dots" id="dots" aria-hidden="true"></div>
+</div>
+
+<div class="panel">
+  <div class="grp">
+    <span class="lab">Momentum</span>
+    <input type="range" id="friction" min="70" max="98" value="92" aria-label="Momentum amount">
+  </div>
+  <div class="grp">
+    <span class="lab">Snap to item</span>
+    <label class="switch">
+      <input type="checkbox" id="snapToggle">
+      <span class="track2"></span>
+    </label>
+  </div>
+  <div class="grp">
+    <span class="lab">Reset</span>
+    <button id="resetBtn" style="font-family:inherit;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;
+      background:none;border:1px solid var(--line);color:var(--ink);padding:.5rem .95rem;border-radius:99px;cursor:pointer">Center</button>
+  </div>
+</div>
+
+<footer>
+  REEL — draggable inertia gallery · SITE 71 OF 72 · WAVE 4 · BUILT BY CLAUDE (FABLE 25) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+/* ============================================================
+   Hand-rolled draggable inertia reel — no framework.
+   Pointer Events API for unified mouse+touch drag, a hand-timed
+   velocity sample -> exponential-decay momentum integrator,
+   modulo-based infinite wrap over a duplicated tile set, optional
+   ease-to-nearest snap, and keyboard step navigation.
+   ============================================================ */
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const PROJECTS = [
+  { title:'Night Market',    cat:'Branding / 2025',   s:'s0' },
+  { title:'Field Recorder',  cat:'Product / 2024',    s:'s1' },
+  { title:'Glass Atlas',     cat:'Editorial / 2025',  s:'s2' },
+  { title:'Signal House',    cat:'Identity / 2023',   s:'s3' },
+  { title:'Paper Circuit',   cat:'Web / 2025',        s:'s4' },
+  { title:'Salt Line',       cat:'Packaging / 2024',  s:'s5' },
+  { title:'Echo Bureau',     cat:'Motion / 2025',      s:'s6' },
+  { title:'Quiet Machine',   cat:'Interactive / 2024',s:'s7' },
+];
+const TILE_COLORS = ['#e0c05a','#7fa8d9','#c9806a','#8fbf9f','#a68bd1','#d98ea3','#6fc2c9','#c9a86a'];
+
+const track = document.getElementById('track');
+const reel = document.getElementById('reel');
+
+function buildTile(p, i, copy){
+  const el = document.createElement('div');
+  el.className = 'tile';
+  el.setAttribute('role','listitem');
+  el.style.setProperty('--tc', TILE_COLORS[i % TILE_COLORS.length]);
+  el.dataset.idx = i;
+  el.dataset.copy = copy;
+  el.innerHTML = `
+    <div class="art ${p.s}" aria-hidden="true"></div>
+    <div class="meta">
+      <span class="no">${String(i+1).padStart(2,'0')} / ${String(PROJECTS.length).padStart(2,'0')}</span>
+      <h3>${p.title}</h3>
+      <span class="cat">${p.cat}</span>
+    </div>`;
+  return el;
+}
+// two consecutive copies of the set -> seamless modulo wrap
+PROJECTS.forEach((p,i)=> track.appendChild(buildTile(p,i,0)));
+PROJECTS.forEach((p,i)=> track.appendChild(buildTile(p,i,1)));
+
+let tileStep = 0, singleSetWidth = 0;
+function measure(){
+  const tiles = track.children;
+  tileStep = tiles[1].offsetLeft - tiles[0].offsetLeft;
+  singleSetWidth = tiles[PROJECTS.length].offsetLeft - tiles[0].offsetLeft;
+}
+
+// --- state ---
+let offset = 0;          // current translateX, kept in (-singleSetWidth, 0]
+let velocity = 0;         // px/ms
+let mode = 'idle';        // idle | drag | momentum | snap
+let snapEnabled = false;
+let frictionSlider = 0.92; // per-16.67ms retained fraction
+let dragStartX = 0, dragStartOffset = 0;
+let samples = [];          // {t,x} recent pointer samples for velocity calc
+let snapFrom = 0, snapTo = 0, snapStart = 0, snapDur = 260;
+
+function normalize(){
+  while(offset > 0) offset -= singleSetWidth;
+  while(offset <= -singleSetWidth) offset += singleSetWidth;
+}
+function render(){
+  track.style.transform = `translateX(${offset}px)`;
+  markActive();
+}
+const dotsEl = document.getElementById('dots');
+PROJECTS.forEach(()=> dotsEl.appendChild(document.createElement('i')));
+
+function markActive(){
+  const center = reel.getBoundingClientRect().left + reel.getBoundingClientRect().width/2;
+  let best = null, bestD = Infinity;
+  for(const t of track.children){
+    const r = t.getBoundingClientRect();
+    const c = r.left + r.width/2;
+    const d = Math.abs(c-center);
+    if(d < bestD){ bestD = d; best = t; }
+  }
+  for(const t of track.children) t.classList.toggle('active', t===best);
+  if(best){
+    const idx = +best.dataset.idx;
+    for(let i=0;i<dotsEl.children.length;i++) dotsEl.children[i].classList.toggle('on', i===idx);
+  }
+}
+
+function nearestStep(v){ return Math.round(v/tileStep)*tileStep; }
+
+function startSnap(){
+  mode = 'snap';
+  snapFrom = offset;
+  snapTo = nearestStep(offset);
+  snapStart = performance.now();
+}
+
+function easeOutCubic(t){ return 1-Math.pow(1-t,3); }
+
+let lastFrame = performance.now();
+function tick(now){
+  const dt = Math.min(48, now-lastFrame); lastFrame = now;
+
+  if(mode==='momentum'){
+    const decay = Math.pow(frictionSlider, dt/16.67);
+    velocity *= decay;
+    offset += velocity*dt;
+    normalize();
+    if(Math.abs(velocity) < 0.02){
+      velocity = 0;
+      if(snapEnabled) startSnap(); else mode='idle';
+    }
+  } else if(mode==='snap'){
+    const t = Math.min(1, (now-snapStart)/snapDur);
+    offset = snapFrom + (snapTo-snapFrom)*easeOutCubic(t);
+    if(t>=1){ offset = snapTo; normalize(); mode='idle'; }
+  }
+  render();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// --- pointer drag ---
+reel.addEventListener('pointerdown', e=>{
+  mode = 'drag';
+  reel.classList.add('dragging');
+  reel.setPointerCapture(e.pointerId);
+  dragStartX = e.clientX;
+  dragStartOffset = offset;
+  samples = [{t:performance.now(), x:e.clientX}];
+});
+reel.addEventListener('pointermove', e=>{
+  if(mode!=='drag') return;
+  const dx = e.clientX - dragStartX;
+  offset = dragStartOffset + dx;
+  normalize();
+  render();
+  samples.push({t:performance.now(), x:e.clientX});
+  if(samples.length>8) samples.shift();
+});
+function endDrag(e){
+  if(mode!=='drag') return;
+  reel.classList.remove('dragging');
+  // velocity from oldest vs newest sample within the trailing window
+  const now = performance.now();
+  const recent = samples.filter(s=> now-s.t < 120);
+  let v = 0;
+  if(recent.length>=2){
+    const a = recent[0], b = recent[recent.length-1];
+    const dt = b.t-a.t;
+    if(dt>0) v = (b.x-a.x)/dt;
+  }
+  velocity = reduceMotion ? 0 : v;
+  if(Math.abs(velocity) > 0.02){
+    mode = 'momentum';
+  } else if(snapEnabled){
+    startSnap();
+  } else {
+    mode = 'idle';
+  }
+}
+reel.addEventListener('pointerup', endDrag);
+reel.addEventListener('pointercancel', endDrag);
+
+// --- keyboard nav ---
+reel.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight' || e.key==='ArrowLeft'){
+    e.preventDefault();
+    const dir = e.key==='ArrowRight' ? -1 : 1;
+    velocity = 0;
+    if(reduceMotion){
+      offset = nearestStep(offset) + dir*tileStep;
+      normalize(); render(); mode='idle';
+    } else {
+      snapFrom = offset;
+      snapTo = nearestStep(offset) + dir*tileStep;
+      snapStart = performance.now();
+      snapDur = 260;
+      mode = 'snap';
+    }
+  }
+});
+
+document.getElementById('friction').addEventListener('input', e=>{
+  // map 70..98 -> 0.86..0.995 retained-per-frame fraction
+  const v = +e.target.value;
+  frictionSlider = 0.86 + (v-70)/(98-70) * (0.995-0.86);
+});
+document.getElementById('snapToggle').addEventListener('change', e=>{
+  snapEnabled = e.target.checked;
+  if(snapEnabled && mode==='idle') startSnap();
+});
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  velocity = 0;
+  snapFrom = offset; snapTo = 0; snapStart = performance.now(); snapDur = reduceMotion?1:420;
+  mode = 'snap';
+});
+
+function boot(){
+  measure();
+  offset = 0;
+  render();
+  // seed initial friction from slider default
+  document.getElementById('friction').dispatchEvent(new Event('input'));
+}
+addEventListener('resize', measure);
+// run once now (layout is already valid for fixed-px tiles); re-measure
+// after full load in case font metrics shift anything downstream.
+boot();
+addEventListener('load', measure);
+</script>
+</body>
+</html>

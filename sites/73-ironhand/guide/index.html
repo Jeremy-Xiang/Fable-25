@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%2366e0ff%22/></svg>">
+<title>How IRONHAND was made — guide</title>
+<meta name="description" content="How the IRONHAND site was designed and built: MediaPipe hand tracking driving a gesture-controlled desktop — point, fist to carry, sharp pinch to click.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#66e0ff; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:#0a0a0c; color:#f3efe9;
+    font-family:'Bricolage Grotesque', sans-serif;
+    font-size:1.05rem; line-height:1.72;
+    padding:0 1.5rem;
+  }
+  .wrap{max-width:680px; margin:0 auto; padding:9vh 0 12vh}
+  .crumb{
+    font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.2em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a{color:#8f8b8d; text-decoration:none; border-bottom:1px solid #262327; padding-bottom:2px}
+  .crumb a:hover{color:var(--accent); border-color:var(--accent)}
+  .kicker{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem}
+  h1{font-weight:800; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.08; margin-bottom:.6rem; letter-spacing:-.01em}
+  .sub{color:#a19c9d; font-size:1.12rem; margin-bottom:3.6rem}
+  h2{
+    font-size:1.05rem; font-weight:800; letter-spacing:.01em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #211d20;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no{font-family:'JetBrains Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none; margin-bottom:1rem}
+  ul li{padding-left:1.6rem; position:relative; margin-bottom:.85rem}
+  ul li::before{content:'—'; position:absolute; left:0; color:var(--accent)}
+  ol{counter-reset:step; list-style:none}
+  ol li{counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem}
+  ol li::before{
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'JetBrains Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-family:'JetBrains Mono', monospace; font-size:.88em; background:#17141a; padding:.1em .4em; border-radius:4px}
+  .meta{
+    font-family:'JetBrains Mono', monospace; font-size:.8rem; line-height:1.9; color:#cfc9cb;
+    background:#141216; border:1px solid #211d20; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot{
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #211d20;
+    font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.16em;
+    text-transform:uppercase; color:#7a757a; line-height:2.4;
+  }
+  .foot a{color:var(--accent); text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent); color:#08222b}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to IRONHAND</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 73 · Wave 5 · how it was made</div>
+  <h1>IRONHAND</h1>
+  <p class="sub">A desktop you operate with your hand — MediaPipe hand tracking, three gestures, no framework</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Commissioned from a reel: a developer controlling his portfolio "Iron Man mode" style — hand in the air, moving app chips around the screen, fist to collect them, sharp pinch to click. The staging here is a desk of launcher chips (a mini portfolio homescreen) so every gesture has something real to act on. The whole thing is one HTML file; the only dependency is MediaPipe's <code>tasks-vision</code> hand landmarker, loaded from a CDN <em>only when the visitor opts into the camera</em> — the page costs nothing extra until then.</p>
+
+  <h2><span class="no">02</span> How the gestures work</h2>
+  <p>MediaPipe returns 21 landmarks per hand per video frame. Every gesture is derived from those points, normalized by hand size so distance from the camera doesn't change the thresholds:</p>
+  <ul>
+    <li><strong>Hand size reference:</strong> <code>hs = dist(wrist, middle-MCP)</code> (landmarks 0 → 9). Every other measurement divides by this, so "pinch" means the same thing at arm's length and up close.</li>
+    <li><strong>Cursor:</strong> the middle-finger MCP (landmark 9), not the fingertip — knuckles barely move when fingers curl, so pointing stays stable through a grab. X is mirrored (<code>1 − x</code>) to match the mirrored preview.</li>
+    <li><strong>Fist:</strong> average distance of the four fingertips (8, 12, 16, 20) from the palm centroid, over <code>hs</code>. Open hand reads ~1.6–2.0, fist ~0.7–1.0; the trigger is <code>&lt; 1.05</code>.</li>
+    <li><strong>Sharp pinch:</strong> thumb-tip↔index-tip distance over <code>hs</code>. A click fires only on the <em>crossing</em> from open to closed, and only if the hand was clearly open (<code>&gt; 1.5×</code> threshold) within the last 450 ms — that's the "sharp" part. A slow drift into pinch range does nothing, and a fist (where thumb and index are also close) suppresses it.</li>
+    <li><strong>Carrying:</strong> while fisted, any chip within the grab radius joins a held stack with a small per-chip offset (a 3-wide grid), and each held chip lerps toward cursor+offset at 0.3/frame. On release every chip gets a random velocity kick and damps out at 0.9/frame — the drop scatters like objects, not files.</li>
+  </ul>
+  <p>Input and rendering are decoupled through one shared state object (<code>S = {tx, ty, fist, pinchNow, seen}</code>). The mouse writes it, or the hand loop writes it; a single <code>requestAnimationFrame</code> tick consumes it either way. That's why mouse mode is a first-class fallback rather than a stub — it exercises the identical grab/click/physics code.</p>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <ul>
+    <li><strong>Chakra Petch</strong> for display — a squared-off Thai techno face that reads "HUD" without cosplaying sci-fi; <strong>JetBrains Mono</strong> for labels and readouts.</li>
+    <li>Workshop palette from the source reel: near-black cabin (<code>#0c0909</code>) with a red rim-light wash top-right (<code>#ff4b3e</code> at 13%), arc-reactor cyan (<code>#66e0ff</code>) as the interaction color. Cyan = pointing, red = holding — the reticle and the chip borders both switch, so the current gesture is legible from any distance.</li>
+    <li>The desk is a 44px graph-paper grid over a faint red floor glow; chips are frosted tiles with emoji glyphs (text, not images — the zero-binary-asset rule holds).</li>
+  </ul>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>Two real bugs surfaced and were fixed during the critique pass:</p>
+  <ul>
+    <li><strong>Phantom hover:</strong> the shared gesture state initialized with <code>seen: true</code>, so before any input arrived the chip nearest the stage center rendered pre-highlighted in the very first frame — visible in the desktop screenshot as one glowing chip nobody was pointing at. Fixed by starting <code>seen: false</code>; the hover ring now exists only when a pointer or a hand does.</li>
+    <li><strong>Mobile row squash:</strong> the stage had a fixed <code>min-height</code>, but the chip grid is laid out by count — on a 3-column phone layout the fourth row landed below the stage floor, and the per-frame position clamp dragged those chips up into row three, overlapping them. Fixed by sizing the stage from the grid itself (<code>minHeight = top + rows×gap + margin</code>) at layout time.</li>
+    <li>The camera path was verified headlessly with Chrome's <code>--use-fake-device-for-media-stream</code>: model loads from CDN, stream plays, status flips to hand mode, zero console errors. Gesture math was then exercised through mouse mode, which drives the same state machine: hover ring ✓, fist collected 4 chips and carried them ✓, release dropped all ✓, sharp pinch opened the chip under the reticle ✓.</li>
+  </ul>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <ul>
+    <li><strong>What to copy:</strong> the whole <code>&lt;script type="module"&gt;</code> block. The load-bearing parts are the shared state object <code>S</code>, the <code>handLoop()</code> (landmarks → gestures), and the <code>tick()</code> loop (state → cursor/grab/click). The chips are demo furniture — replace them with whatever your interface manipulates.</li>
+    <li><strong>Keep the camera opt-in.</strong> Never request <code>getUserMedia</code> on page load — gate it behind a click, import the ~10 MB of WASM + model lazily inside that handler (as here), and leave a pointer path that works without it. On a portfolio, make it an easter-egg toggle, not the default input.</li>
+    <li><strong>DOM contract:</strong> a positioned stage container, a reticle element, a <code>&lt;video muted playsinline&gt;</code> + overlay canvas for the preview. Rename the selectors and it drops into any page — React users: mount once inside a <code>useEffect</code> with empty deps and return the stream/RAF teardown.</li>
+    <li><strong>Tunable surface:</strong> <code>CFG.smooth</code> (cursor lag vs jitter), <code>CFG.pinch</code> (click sensitivity), <code>CFG.grab</code> (fist reach), the fist threshold (1.05), and the sharp-pinch arm window (450 ms). The live panel wires straight to <code>CFG</code>; hardcode your values and delete it.</li>
+    <li><strong>Gotchas:</strong> mirror X once and only once (mirrored <code>&lt;video&gt;</code> via CSS + mirrored cursor via <code>1−x</code> must agree); normalize every threshold by hand size or the UI only works at one distance from the laptop; suppress pinch-clicks during a fist or every grab fires a click; and don't drive the cursor from the index fingertip — it curls during grabs and the cursor lurches.</li>
+  </ul>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Stage a desk: absolutely-positioned chip tiles inside a bordered container, one <code>requestAnimationFrame</code> loop moving them via <code>transform</code>.</li>
+    <li>Build mouse mode first: pointer position → smoothed cursor, hold → fist, quick click → pinch. Get grab/carry/drop and click feeling right with zero ML in the loop.</li>
+    <li>Add MediaPipe behind the opt-in button: <code>HandLandmarker</code> in <code>VIDEO</code> mode, one hand, GPU delegate.</li>
+    <li>Map landmarks to the same state object mouse mode writes. If step 2 was clean, the hand just works.</li>
+    <li>Tune thresholds against your own hand at two distances from the camera; expose them as sliders while you do.</li>
+  </ol>
+
+  <div class="meta">
+    stack — one HTML file · MediaPipe tasks-vision 0.10 (lazy CDN import) · hand-rolled gesture derivation · no framework, no build, no binary assets<br>
+    input — hand landmarks or pointer events, same state machine<br>
+    a11y — full mouse/touch fallback · reduced-motion honored · status line announces the active mode
+  </div>
+
+  <div class="foot">
+    site 73 / fable 25 · built by claude (fable 5), commissioned by jeremy xiang<br>
+    <a href="../">launch IRONHAND</a> · <a href="../../">the other sites</a>
+  </div>
+</div>
+</body>
+</html>

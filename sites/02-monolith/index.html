@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MONOLITH — Spatial Design Studio</title>
+<meta name="description" content="MONOLITH is a fictional spatial design studio. One object, infinite patience: a real-time 3D monolith rendered in Three.js.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0b0b0e;
+    --bone:#e8e4dc;
+    --brass:#c9a86a;
+    --line:rgba(232,228,220,.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--void);color:var(--bone);
+    font-family:'IBM Plex Mono',monospace;overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--brass);color:var(--void)}
+  #scene{position:fixed;inset:0;z-index:0}
+  .vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 55%,rgba(11,11,14,.85) 100%)}
+
+  main{position:relative;z-index:2}
+  nav{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;
+    padding:1.6rem 2.4rem;font-size:.7rem;letter-spacing:.3em;text-transform:uppercase}
+  nav a{color:var(--bone);text-decoration:none;opacity:.7;transition:opacity .3s,color .3s;margin-left:1.6rem}
+  nav a:hover{opacity:1;color:var(--brass)}
+  nav .mark{opacity:.9}
+  nav .mark::before{content:"◼";color:var(--brass);margin-right:.7em;font-size:.8em}
+
+  .panel{min-height:100vh;display:flex;align-items:center;padding:0 6vw;pointer-events:none}
+  .panel > *{pointer-events:auto}
+  .panel.right{justify-content:flex-end}
+  .panel.center{justify-content:center;text-align:center}
+
+  h1{
+    font-family:'Cormorant Garamond',serif;font-weight:300;
+    font-size:clamp(3.4rem,11vw,10.5rem);line-height:.95;letter-spacing:.02em;
+  }
+  h1 em{font-style:italic;color:var(--brass)}
+  .kicker{font-size:.68rem;letter-spacing:.42em;text-transform:uppercase;color:var(--brass);margin-bottom:2rem;display:block}
+  .body-copy{max-width:36ch;font-size:.86rem;line-height:2;opacity:.8;margin-top:2.4rem;font-weight:300}
+
+  .card{
+    max-width:430px;background:rgba(11,11,14,.55);backdrop-filter:blur(14px);
+    border:1px solid var(--line);padding:3rem;
+  }
+  .card h2{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:2.4rem;line-height:1.1;margin-bottom:1.4rem}
+  .card .idx{color:var(--brass);font-size:.7rem;letter-spacing:.3em;display:block;margin-bottom:1.6rem}
+  .card p{font-size:.82rem;line-height:1.95;opacity:.75;font-weight:300}
+
+  .ledger{padding:16vh 6vw;border-top:1px solid var(--line);background:rgba(11,11,14,.72);backdrop-filter:blur(10px)}
+  .ledger h3{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(2rem,5vw,4rem);margin-bottom:5rem}
+  .row{display:grid;grid-template-columns:5rem 1fr auto;gap:2rem;padding:1.7rem 0;border-bottom:1px solid var(--line);
+    align-items:baseline;transition:background .35s,padding-left .35s;cursor:default}
+  .row:hover{background:rgba(201,168,106,.06);padding-left:1rem}
+  .row .no{color:var(--brass);font-size:.72rem;letter-spacing:.2em}
+  .row .title{font-family:'Cormorant Garamond',serif;font-size:clamp(1.3rem,2.6vw,2rem);font-weight:300}
+  .row .year{font-size:.72rem;opacity:.55;letter-spacing:.2em}
+
+  footer{padding:9vh 6vw;border-top:1px solid var(--line);background:var(--void);
+    display:flex;flex-wrap:wrap;gap:2rem;justify-content:space-between;align-items:baseline;
+    font-size:.68rem;letter-spacing:.26em;text-transform:uppercase}
+  footer .word{font-family:'Cormorant Garamond',serif;font-size:2rem;letter-spacing:.06em;text-transform:none}
+  footer a{color:var(--brass);text-decoration:none}
+  footer .cols{line-height:2.4;opacity:.7}
+
+  .fade{opacity:0;transform:translateY(34px);transition:opacity 1.1s ease,transform 1.1s cubic-bezier(.16,.84,.28,1)}
+  .fade.in{opacity:1;transform:none}
+  .row.fade:nth-child(2){transition-delay:.08s}
+  .row.fade:nth-child(3){transition-delay:.16s}
+  .row.fade:nth-child(4){transition-delay:.24s}
+  .row.fade:nth-child(5){transition-delay:.32s}
+  .row.fade:nth-child(6){transition-delay:.4s}
+
+  .coords{position:fixed;bottom:1.6rem;left:2.4rem;z-index:20;font-size:.62rem;letter-spacing:.24em;opacity:.5}
+
+  @media (max-width:720px){
+    .card{padding:2rem}
+    nav{padding:1.2rem 1.2rem;font-size:.62rem;letter-spacing:.2em}
+    nav a{margin-left:.9rem}
+    .panel{padding:0 7vw}
+  }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div class="vignette"></div>
+<div class="coords" id="coords">θ 0.000 — φ 0.000</div>
+
+<main>
+  <nav>
+    <span class="mark">MONOLITH</span>
+    <span>
+      <a href="#work">Works</a>
+      <a href="#studio">Studio</a>
+      <a href="guide/">Guide</a>
+      <a href="../">Index</a>
+    </span>
+  </nav>
+
+  <section class="panel">
+    <div>
+      <span class="kicker fade">Spatial Design Studio — Kyoto / Oslo</span>
+      <h1 class="fade">We build<br><em>silence</em><br>you can enter.</h1>
+      <p class="body-copy fade">The object turning behind this text is our only manifesto. Scroll, and walk around it.</p>
+    </div>
+  </section>
+
+  <section class="panel right">
+    <div class="card fade">
+      <span class="idx">I — MATERIAL</span>
+      <h2>Nothing precious, everything considered.</h2>
+      <p>Basalt, brass, pressed air. We choose materials the way composers choose rests — for what they refuse to say. The monolith's skin is a single shader: metal remembering it was once light.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="card fade">
+      <span class="idx">II — GRAVITY</span>
+      <h2>Weight is a rumor we decline to confirm.</h2>
+      <p>Every piece we make floats a few millimeters above expectation. The dust in this room drifts on real physics — slow Brownian arcs, indifferent to deadlines.</p>
+    </div>
+  </section>
+
+  <section class="panel center">
+    <div>
+      <span class="kicker fade">III — LIGHT</span>
+      <h1 class="fade" style="font-size:clamp(2.6rem,7vw,6.5rem)">It reflects a room<br><em>that does not exist.</em></h1>
+      <p class="body-copy fade" style="margin-inline:auto">The environment mapped onto the stone is procedural — a cathedral of gradients computed each frame. No photographs were harmed.</p>
+    </div>
+  </section>
+
+  <section class="ledger" id="work">
+    <h3 class="fade">Selected works, 2019 — 2026</h3>
+    <div class="row fade"><span class="no">001</span><span class="title">Pavilion for a Single Cloud</span><span class="year">2026</span></div>
+    <div class="row fade"><span class="no">002</span><span class="title">Subtraction House</span><span class="year">2025</span></div>
+    <div class="row fade"><span class="no">003</span><span class="title">The Brass Interval — chapel acoustics</span><span class="year">2024</span></div>
+    <div class="row fade"><span class="no">004</span><span class="title">Museum of Weightlessness, Oslo</span><span class="year">2022</span></div>
+    <div class="row fade"><span class="no">005</span><span class="title">Teahouse with No North Wall</span><span class="year">2019</span></div>
+  </section>
+
+  <footer id="studio">
+    <span class="word">Monolith<em style="color:var(--brass)">.</em></span>
+    <span class="cols">A fictional studio<br>designed &amp; built by Claude (Fable 5)</span>
+    <span class="cols"><a href="guide/">How it was made →</a><br><a href="../">All 25 sites</a></span>
+  </footer>
+</main>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const canvas=document.getElementById('scene');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x0b0b0e);
+scene.fog=new THREE.FogExp2(0x0b0b0e,0.055);
+
+const camera=new THREE.PerspectiveCamera(38,1,0.1,100);
+camera.position.set(0,0.4,7.5);
+
+/* Procedural environment: a gradient "cathedral" rendered into a cube target */
+const envScene=new THREE.Scene();
+const envGeo=new THREE.SphereGeometry(50,32,32);
+const envMat=new THREE.ShaderMaterial({
+  side:THREE.BackSide,
+  uniforms:{},
+  vertexShader:`varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader:`
+    varying vec3 vP;
+    void main(){
+      vec3 d=normalize(vP);
+      float y=d.y*.5+.5;
+      vec3 low=vec3(.02,.02,.03);
+      vec3 mid=vec3(.35,.28,.18);
+      vec3 high=vec3(.9,.85,.75);
+      vec3 col=mix(low,mid,smoothstep(.15,.55,y));
+      col=mix(col,high,smoothstep(.72,.98,y));
+      /* tall bright "windows" */
+      float win=step(.92,sin(atan(d.z,d.x)*7.)) * smoothstep(.1,.4,y)*smoothstep(.9,.55,y);
+      col+=vec3(1.,.92,.7)*win*1.6;
+      gl_FragColor=vec4(col,1.);
+    }`
+});
+envScene.add(new THREE.Mesh(envGeo,envMat));
+const cubeRT=new THREE.WebGLCubeRenderTarget(256);
+const cubeCam=new THREE.CubeCamera(0.1,100,cubeRT);
+cubeCam.update(renderer,envScene);
+
+/* The monolith */
+const mono=new THREE.Mesh(
+  new THREE.BoxGeometry(1.4,3.6,0.5,1,1,1),
+  new THREE.MeshPhysicalMaterial({
+    color:0x2a2a30,metalness:1,roughness:.18,
+    envMap:cubeRT.texture,envMapIntensity:1.6,
+    clearcoat:.6,clearcoatRoughness:.3
+  })
+);
+scene.add(mono);
+
+/* Brass ring */
+const ring=new THREE.Mesh(
+  new THREE.TorusGeometry(2.35,0.014,16,200),
+  new THREE.MeshStandardMaterial({color:0xc9a86a,metalness:1,roughness:.35,envMap:cubeRT.texture,envMapIntensity:1.2})
+);
+ring.rotation.x=Math.PI/2.25;
+scene.add(ring);
+
+/* Ground shadow disc */
+const ground=new THREE.Mesh(
+  new THREE.CircleGeometry(4,64),
+  new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.5})
+);
+ground.rotation.x=-Math.PI/2;ground.position.y=-2.4;
+scene.add(ground);
+
+/* Dust */
+const N=900;
+const pos=new Float32Array(N*3),vel=new Float32Array(N*3);
+for(let i=0;i<N;i++){
+  pos[i*3]=(Math.random()-.5)*16;
+  pos[i*3+1]=(Math.random()-.5)*10;
+  pos[i*3+2]=(Math.random()-.5)*10;
+  vel[i*3]=(Math.random()-.5)*.0016;
+  vel[i*3+1]=(Math.random()-.5)*.0012;
+  vel[i*3+2]=(Math.random()-.5)*.0016;
+}
+const dustGeo=new THREE.BufferGeometry();
+dustGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+const dust=new THREE.Points(dustGeo,new THREE.PointsMaterial({color:0xe8e4dc,size:.016,transparent:true,opacity:.55,sizeAttenuation:true}));
+scene.add(dust);
+
+/* Lights */
+scene.add(new THREE.AmbientLight(0x404048,1.2));
+const key=new THREE.DirectionalLight(0xfff2dd,2.2);key.position.set(4,6,3);scene.add(key);
+const rim=new THREE.DirectionalLight(0x6a78ff,1.1);rim.position.set(-5,-2,-4);scene.add(rim);
+
+/* Interaction state */
+let mx=0,my=0,tmx=0,tmy=0,scrollP=0;
+addEventListener('pointermove',e=>{
+  tmx=(e.clientX/innerWidth-.5)*2;
+  tmy=(e.clientY/innerHeight-.5)*2;
+});
+addEventListener('scroll',()=>{
+  scrollP=scrollY/(document.body.scrollHeight-innerHeight);
+},{passive:true});
+
+function resize(){
+  renderer.setSize(innerWidth,innerHeight,false);
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize',resize);resize();
+
+const coords=document.getElementById('coords');
+const clock=new THREE.Clock();
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+renderer.setAnimationLoop(()=>{
+  const t=reduced?0:clock.getElapsedTime();
+  mx+=(tmx-mx)*.045;my+=(tmy-my)*.045;
+
+  const theta=scrollP*Math.PI*2 + t*.08 + mx*.55;
+  camera.position.x=Math.sin(theta)*7.5;
+  camera.position.z=Math.cos(theta)*7.5;
+  camera.position.y=.4 - my*.9 + Math.sin(scrollP*Math.PI)*1.4;
+  camera.lookAt(0,0,0);
+
+  mono.rotation.y=t*.12;
+  mono.position.y=Math.sin(t*.7)*.14;
+  ring.rotation.z=t*.05;
+
+  const p=dustGeo.attributes.position.array;
+  for(let i=0;i<N;i++){
+    p[i*3]+=vel[i*3];p[i*3+1]+=vel[i*3+1];p[i*3+2]+=vel[i*3+2];
+    if(Math.abs(p[i*3])>8)vel[i*3]*=-1;
+    if(Math.abs(p[i*3+1])>5)vel[i*3+1]*=-1;
+    if(Math.abs(p[i*3+2])>5)vel[i*3+2]*=-1;
+  }
+  dustGeo.attributes.position.needsUpdate=true;
+
+  coords.textContent=`θ ${theta.toFixed(3)} — φ ${camera.position.y.toFixed(3)}`;
+  renderer.render(scene,camera);
+});
+
+/* Scroll reveals */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting||e.boundingClientRect.top<0){e.target.classList.add('in');io.unobserve(e.target);}
+}),{threshold:.2});
+document.querySelectorAll('.fade').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

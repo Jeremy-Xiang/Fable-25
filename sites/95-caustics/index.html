@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NATATORIUM — read from the bottom of the pool</title>
+<meta name="description" content="A page set on the floor of a swimming pool: WebGL caustic light webs ripple over sunken typography, and your cursor drags a refracting swell across the water.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23062e3e'/%3E%3Cpath d='M4 12 Q10 8 16 12 T28 12 M4 20 Q10 16 16 20 T28 20' fill='none' stroke='%237fe6ff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prata&family=Overpass+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{ --deep:#062e3e; --ink:#eafcff; --dim:#7fb4c4; --dim2:#3c6e80; --aqua:#7fe6ff; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--deep); color:var(--ink); font-family:'Prata',serif; height:100vh; overflow:hidden}
+::selection{background:var(--aqua); color:#03222e}
+a:focus-visible{outline:2px solid var(--aqua); outline-offset:3px}
+
+#pool{position:fixed; inset:0; width:100%; height:100%}
+
+header{position:fixed; top:0; left:0; right:0; z-index:5; display:flex; justify-content:space-between;
+  padding:1.3rem 1.6rem; pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-size:1rem; letter-spacing:.2em; text-transform:uppercase}
+.mark em{font-style:normal; color:var(--aqua)}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'Overpass Mono',monospace; font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--aqua)}
+
+.plate{position:fixed; left:1.6rem; bottom:1.4rem; z-index:5; pointer-events:none}
+.plate p{font-family:'Overpass Mono',monospace; font-size:.58rem; letter-spacing:.2em; text-transform:uppercase; color:#bfe9f5; line-height:1.9; text-shadow:0 1px 8px rgba(3,30,42,.95), 0 0 3px rgba(3,30,42,.9)}
+.plate p b{color:var(--dim); font-weight:600}
+.depth{position:fixed; right:1.6rem; bottom:1.4rem; z-index:5; text-align:right; pointer-events:none;
+  font-family:'Overpass Mono',monospace; font-size:.6rem; letter-spacing:.18em; text-transform:uppercase; color:#bfe9f5; line-height:2; text-shadow:0 1px 8px rgba(3,30,42,.95)}
+.depth b{color:var(--aqua); font-weight:600}
+@media(max-width:640px){.depth{display:none}}
+</style>
+</head>
+<body>
+
+<canvas id="pool" aria-label="Pool-floor scene with animated caustic light and refracted type"></canvas>
+
+<header>
+  <span class="mark">NATA<em>TORIUM</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="plate" aria-hidden="true">
+  <p>procedural caustics · refracted type<br><b>move</b> to drag a swell across the water</p>
+</div>
+<div class="depth" aria-hidden="true">pool floor · depth <b>2.4 m</b><br>water temp <b>27°c</b></div>
+
+<script>
+/* ═════ NATATORIUM — pool-floor caustics ═════
+   The page text is drawn to a texture. A fragment shader distorts its
+   UVs with layered sine "waves" (refraction), then adds a caustic web:
+   the classic voronoi-ish interference bright lines, animated. The
+   cursor carries a local swell that bulges the refraction. */
+
+const cv = document.getElementById('pool');
+const gl = cv.getContext('webgl');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* type texture */
+const tex = document.createElement('canvas');
+tex.width = 2048; tex.height = 1280;
+const tx = tex.getContext('2d');
+function paint(){
+  tx.fillStyle = '#0a3a4d';
+  tx.fillRect(0,0,tex.width,tex.height);
+  // pool tiles
+  tx.strokeStyle = 'rgba(6,46,62,.85)';
+  tx.lineWidth = 5;
+  for (let gx=0; gx<=tex.width; gx+=128){ tx.beginPath(); tx.moveTo(gx,0); tx.lineTo(gx,tex.height); tx.stroke(); }
+  for (let gy=0; gy<=tex.height; gy+=128){ tx.beginPath(); tx.moveTo(0,gy); tx.lineTo(tex.width,gy); tx.stroke(); }
+  // lane line
+  tx.fillStyle = '#0d5871';
+  tx.fillRect(0, tex.height*.78, tex.width, 54);
+  // sunken headline
+  tx.fillStyle = '#eafcff';
+  tx.font = '340px Prata, serif';
+  tx.textAlign = 'center';
+  tx.fillText('DIVE', tex.width/2, 560);
+  tx.font = 'italic 96px Prata, serif';
+  tx.fillText('the shallow end of the internet', tex.width/2, 760);
+  tx.font = '600 44px "Overpass Mono", monospace';
+  tx.fillStyle = '#7fb4c4';
+  tx.fillText('DEPTH 2.4M — NO RUNNING ON THE DECK', tex.width/2, 1150);
+}
+
+const VS=`attribute vec2 p; varying vec2 uv; void main(){ uv=vec2(p.x*.5+.5, .5-p.y*.5); gl_Position=vec4(p,0.,1.); }`;
+const FS=`precision highp float;
+varying vec2 uv;
+uniform sampler2D floorTex;
+uniform vec2 res; uniform float t; uniform vec2 mouse;
+
+/* layered directional waves for refraction */
+vec2 waveDisp(vec2 u, float tt){
+  float d = 0.0;
+  vec2 disp = vec2(0.);
+  disp += vec2(sin(u.y*22. + tt*1.3), cos(u.x*18. - tt*1.1)) * .006;
+  disp += vec2(sin(u.y*47. - tt*2.1 + 2.), cos(u.x*39. + tt*1.7)) * .003;
+  // cursor swell
+  float md = distance(u, mouse);
+  float swell = exp(-md*md*26.) * .045;
+  disp += normalize(u - mouse + .0001) * swell * sin(tt*4.);
+  return disp;
+}
+/* cheap caustic web: interference of moving cosine fields, sharpened */
+float caustic(vec2 u, float tt){
+  vec2 p1 = u*10. + vec2(tt*.5, tt*.3);
+  vec2 p2 = u*11. - vec2(tt*.4, -tt*.45);
+  float a = cos(p1.x + cos(p1.y + tt)) ;
+  float b = cos(p2.y + cos(p2.x - tt*.8));
+  float c = cos((u.x+u.y)*9. + tt*1.1);
+  float v = a + b + c;
+  return pow(clamp(1. - abs(v)*.45, 0., 1.), 6.);
+}
+void main(){
+  float asp = res.x/res.y;
+  vec2 u = uv;
+  vec2 disp = waveDisp(vec2(u.x*asp, u.y), t);
+  vec3 col = texture2D(floorTex, u + disp).rgb;
+  // depth tint toward bottom
+  col = mix(col, vec3(.02,.16,.22), (1.-u.y)*.12 + .08);
+  // caustics, doubled at slightly different scales for richness
+  float ca = caustic(vec2(u.x*asp, u.y) + disp*2., t);
+  float cb = caustic(vec2(u.x*asp, u.y)*1.4 + 3.1 - disp*1.5, t*.8);
+  col += vec3(.5,.9,1.) * ca * .5;
+  col += vec3(.35,.7,.85) * cb * .28;
+  // gentle surface godrays
+  col += vec3(.25,.6,.75) * .06 * (0.5 + .5*sin(u.x*30. + t*.6)) * (1.-u.y);
+  gl_FragColor = vec4(col, 1.);
+}`;
+
+function sh(t_,s){const o=gl.createShader(t_);gl.shaderSource(o,s);gl.compileShader(o);
+  if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(o));return o;}
+const pr=gl.createProgram();
+gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));
+gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));
+gl.linkProgram(pr); gl.useProgram(pr);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const al=gl.getAttribLocation(pr,'p');
+gl.enableVertexAttribArray(al); gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+const uRes=gl.getUniformLocation(pr,'res'), uT=gl.getUniformLocation(pr,'t'), uM=gl.getUniformLocation(pr,'mouse');
+
+const glTex = gl.createTexture();
+function upload(){
+  paint();
+  gl.bindTexture(gl.TEXTURE_2D, glTex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,tex);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+}
+function resize(){
+  cv.width=innerWidth; cv.height=innerHeight;
+  gl.viewport(0,0,cv.width,cv.height);
+  gl.uniform2f(uRes,cv.width,cv.height);
+}
+addEventListener('resize',resize);
+resize(); upload();
+if (document.fonts) document.fonts.ready.then(upload);
+
+let mx=.5, my=.5, smx=.5, smy=.5;
+addEventListener('pointermove', e=>{
+  mx = e.clientX/innerWidth * (innerWidth/innerHeight);
+  my = e.clientY/innerHeight;
+});
+
+const t0=performance.now();
+(function loop(){
+  requestAnimationFrame(loop);
+  smx += (mx-smx)*.06; smy += (my-smy)*.06;
+  gl.uniform1f(uT, reduce ? 8 : (performance.now()-t0)/1000);
+  gl.uniform2f(uM, smx, smy);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+})();
+</script>
+</body>
+</html>

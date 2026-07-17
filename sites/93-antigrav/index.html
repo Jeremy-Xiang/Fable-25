@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZERO-G — a headline off its leash</title>
+<meta name="description" content="Every letter on this page is a physics body drifting in zero gravity. Your cursor is a gravity well — attract the type, fling it, flip to repel, or call it all home.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0e14'/%3E%3Ctext x='11' y='15' font-size='11' fill='%23e8f1ff' font-family='sans-serif' font-weight='800'%3EZ%3C/text%3E%3Ctext x='17' y='25' font-size='11' fill='%2366ffd1' font-family='sans-serif' font-weight='800' transform='rotate(18 20 20)'%3EG%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#0b0e14; --ink:#e8f1ff; --dim:#7a8598; --dim2:#454e5e; --mint:#66ffd1; --line:rgba(232,241,255,.1); }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:
+    radial-gradient(70% 55% at 50% 8%, rgba(102,255,209,.05), transparent 60%),
+    var(--bg);
+  color:var(--ink); font-family:'Space Grotesk',sans-serif; height:100vh; overflow:hidden}
+::selection{background:var(--mint); color:#032018}
+a:focus-visible,button:focus-visible{outline:2px solid var(--mint); outline-offset:3px}
+
+#space{position:fixed; inset:0; width:100%; height:100%; cursor:none}
+
+header{position:fixed; top:0; left:0; right:0; z-index:5; display:flex; justify-content:space-between;
+  padding:1.3rem 1.6rem; pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Archivo Black',sans-serif; font-size:.95rem; letter-spacing:.12em}
+.mark em{font-style:normal; color:var(--mint)}
+nav{display:flex; gap:1.5rem}
+nav a{font-size:.62rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--mint)}
+
+.plate{position:fixed; left:1.6rem; bottom:1.4rem; z-index:5; pointer-events:none; max-width:20rem}
+.plate p{font-size:.62rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim2); line-height:1.9; font-family:'Space Grotesk',sans-serif}
+.plate p b{color:var(--dim); font-weight:500}
+
+.deck{position:fixed; right:1.6rem; bottom:1.4rem; z-index:5; display:flex; gap:.6rem; flex-wrap:wrap; justify-content:flex-end}
+.deck button{
+  font:inherit; font-size:.62rem; letter-spacing:.16em; text-transform:uppercase;
+  background:rgba(11,14,20,.8); border:1px solid var(--line); color:var(--ink); border-radius:999px;
+  padding:.6rem 1.1rem; cursor:pointer; transition:.15s;
+}
+.deck button:hover{border-color:var(--mint); color:var(--mint)}
+.deck button.on{background:var(--mint); border-color:var(--mint); color:#032018}
+</style>
+</head>
+<body>
+
+<canvas id="space" aria-label="Letters floating in zero gravity; move the cursor to attract them"></canvas>
+
+<header>
+  <span class="mark">ZERO<em>-G</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="plate" aria-hidden="true">
+  <p><b>cursor</b> = gravity well · letters have mass,<br>
+  drag &amp; momentum · walls are bouncy</p>
+</div>
+
+<div class="deck" role="group" aria-label="Physics controls">
+  <button id="bPull" class="on">attract</button>
+  <button id="bPush">repel</button>
+  <button id="bHome">⌂ re-typeset</button>
+</div>
+
+<script>
+/* ═════ ZERO-G — letter physics with a cursor gravity well ═════
+   Each glyph of the headline is a body: position, velocity, spin.
+   Cursor applies inverse-square force (attract or repel). Letters
+   drift, tumble, bounce softly off the viewport, and "re-typeset"
+   springs every glyph back to its home slot. */
+
+const cv = document.getElementById('space');
+const x = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H;
+function resize(){ W=cv.width=innerWidth; H=cv.height=innerHeight; layoutHomes(); }
+addEventListener('resize', resize);
+
+const LINES = ['GRAVITY','IS A','SUGGESTION'];
+const bodies = [];
+
+function layoutHomes(){
+  // measure and place headline centered; store home slots
+  const size = Math.min(W*.14, 150);
+  x.font = `900 ${size}px "Archivo Black", sans-serif`;
+  let idx = 0;
+  LINES.forEach((line, li)=>{
+    const lw = x.measureText(line).width;
+    let cx = (W - lw)/2;
+    const cy = H/2 + (li - (LINES.length-1)/2) * size * 1.04;
+    for (const ch of line){
+      const w = x.measureText(ch).width;
+      if (ch !== ' '){
+        if (!bodies[idx]) bodies[idx] = {
+          x: Math.random()*W, y: Math.random()*H,
+          vx:(Math.random()-.5)*1.5, vy:(Math.random()-.5)*1.5,
+          a: Math.random()*6.3, va:(Math.random()-.5)*.02,
+        };
+        Object.assign(bodies[idx], { ch, hx: cx+w/2, hy: cy, size, m: .6 + w/size });
+        idx++;
+      }
+      cx += w;
+    }
+  });
+  bodies.length = idx;
+}
+resize();
+
+let mx=-9999, my=-9999, mode=1;     // 1 attract, -1 repel
+let homing = false;
+addEventListener('pointermove', e=>{ mx=e.clientX; my=e.clientY; homing=false; });
+addEventListener('pointerleave', ()=>{ mx=my=-9999; });
+cv.addEventListener('pointerdown', ()=>{ // impulse burst on click
+  for (const b of bodies){
+    const dx=b.x-mx, dy=b.y-my, d=Math.hypot(dx,dy)+.001;
+    if (d < 260){ const f = (260-d)/260 * 22 / b.m;
+      b.vx += dx/d*f; b.vy += dy/d*f; b.va += (Math.random()-.5)*.2; }
+  }
+});
+
+function step(){
+  for (const b of bodies){
+    if (homing){
+      // spring home
+      b.vx += (b.hx-b.x)*.012/b.m; b.vy += (b.hy-b.y)*.012/b.m;
+      b.vx *= .88; b.vy *= .88;
+      const ta = ((b.a % 6.283)+6.283)%6.283;
+      b.va += (ta > 3.1415 ? 6.283-ta : -ta)*.02;
+      b.va *= .82;
+    } else if (mx > -999){
+      const dx=mx-b.x, dy=my-b.y;
+      const d2 = dx*dx+dy*dy;
+      const d = Math.sqrt(d2)+.001;
+      if (d < 460){
+        const f = mode * 3200 / Math.max(d2, 3600) / b.m;
+        b.vx += dx/d*f; b.vy += dy/d*f;
+      }
+    }
+    b.x += b.vx; b.y += b.vy; b.a += b.va;
+    // gentle drag + soft walls
+    b.vx *= .995; b.vy *= .995; b.va *= .999;
+    const pad = b.size*.45;
+    if (b.x < pad){ b.x=pad; b.vx = Math.abs(b.vx)*.7; }
+    if (b.x > W-pad){ b.x=W-pad; b.vx = -Math.abs(b.vx)*.7; }
+    if (b.y < pad){ b.y=pad; b.vy = Math.abs(b.vy)*.7; }
+    if (b.y > H-pad){ b.y=H-pad; b.vy = -Math.abs(b.vy)*.7; }
+  }
+}
+
+function draw(){
+  x.clearRect(0,0,W,H);
+  // faint home slots
+  x.strokeStyle = 'rgba(122,133,152,.14)';
+  x.lineWidth = 1;
+  for (const b of bodies){
+    x.strokeRect(b.hx-b.size*.32, b.hy-b.size*.42, b.size*.64, b.size*.84);
+  }
+  for (const b of bodies){
+    x.save();
+    x.translate(b.x, b.y);
+    x.rotate(b.a);
+    x.font = `900 ${b.size}px "Archivo Black", sans-serif`;
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    const speed = Math.hypot(b.vx, b.vy);
+    x.fillStyle = speed > 3.4 ? '#66ffd1' : '#e8f1ff';
+    x.fillText(b.ch, 0, 0);
+    x.restore();
+  }
+  // cursor well
+  if (mx > -999){
+    x.strokeStyle = mode===1 ? 'rgba(102,255,209,.7)' : 'rgba(255,120,120,.7)';
+    x.lineWidth = 1.5;
+    x.beginPath(); x.arc(mx,my,16,0,7); x.stroke();
+    x.beginPath(); x.arc(mx,my,3,0,7); x.stroke();
+  }
+}
+
+(function loop(){
+  requestAnimationFrame(loop);
+  if (!reduce) step();
+  else { homing = true; step(); }
+  draw();
+})();
+
+/* deck */
+const bPull=document.getElementById('bPull'), bPush=document.getElementById('bPush');
+bPull.addEventListener('click', ()=>{ mode=1; bPull.classList.add('on'); bPush.classList.remove('on'); });
+bPush.addEventListener('click', ()=>{ mode=-1; bPush.classList.add('on'); bPull.classList.remove('on'); });
+document.getElementById('bHome').addEventListener('click', ()=>{ homing=true; });
+</script>
+</body>
+</html>

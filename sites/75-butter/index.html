@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BUTTER — smooth scroll, hand-rolled</title>
+<meta name="description" content="The lenis effect from scratch: a lerped virtual scroll with per-element parallax, in ~60 lines of vanilla JS. Toggle native scrolling live to feel the difference.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fdf8ef'/%3E%3Cpath d='M7 20 Q16 10 25 20' fill='none' stroke='%23e0742c' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;700;900&family=Atkinson+Hyperlegible:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#fdf8ef; --ink:#241d15; --dim:#8d7f6c; --line:rgba(36,29,21,.12);
+  --butter:#e0742c; --butter2:#f0a44b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper); color:var(--ink); font-family:'Atkinson Hyperlegible',system-ui,sans-serif; overflow-x:hidden}
+::selection{background:var(--butter); color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid var(--butter); outline-offset:3px}
+
+/* When smooth mode is on, #view is fixed and translated; body height comes from a spacer. */
+#view{will-change:transform}
+body.smooth #view{position:fixed; inset:0 0 auto 0}
+
+header{position:fixed; top:0; left:0; right:0; z-index:20; display:flex; justify-content:space-between;
+  align-items:center; padding:1rem 1.6rem; background:linear-gradient(var(--paper) 55%, transparent)}
+.mark{font-family:'Gabarito',sans-serif; font-weight:900; font-size:1.05rem; letter-spacing:-.01em}
+.mark i{color:var(--butter); font-style:normal}
+nav{display:flex; gap:1.4rem; align-items:center}
+nav a{font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--butter)}
+
+/* progress bar */
+#prog{position:fixed; top:0; left:0; height:3px; background:var(--butter); z-index:30; width:0}
+
+.sec{min-height:92vh; display:flex; flex-direction:column; justify-content:center;
+  padding:14vh 6vw; position:relative; border-bottom:1px solid var(--line)}
+.kick{font-size:.68rem; letter-spacing:.28em; text-transform:uppercase; color:var(--butter); margin-bottom:1.1rem; font-weight:700}
+h1,h2{font-family:'Gabarito',sans-serif; font-weight:900; letter-spacing:-.03em; line-height:.96}
+h1{font-size:clamp(3rem,11vw,8.4rem)}
+h2{font-size:clamp(2rem,6.4vw,4.6rem); max-width:14ch}
+.sec p{max-width:34rem; margin-top:1.4rem; font-size:1.06rem; line-height:1.75; color:#4c4234}
+.sec p em{color:var(--butter); font-style:normal; font-weight:700}
+
+/* parallax ornaments */
+.orb{position:absolute; border-radius:50%; pointer-events:none; z-index:-1}
+.o1{width:34vmin; height:34vmin; right:8vw; top:16vh; background:radial-gradient(circle at 35% 30%, var(--butter2), var(--butter))}
+.o2{width:22vmin; height:22vmin; left:6vw; bottom:10vh; border:2px solid var(--butter); background:none}
+.o3{width:16vmin; height:16vmin; right:16vw; top:10vh; background:var(--ink)}
+.big-word{position:absolute; right:-2vw; bottom:4vh; font-family:'Gabarito',sans-serif; font-weight:900;
+  font-size:clamp(4rem,16vw,12rem); color:rgba(224,116,44,.1); letter-spacing:-.04em; pointer-events:none; z-index:-1}
+
+/* comparison cards */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1rem; margin-top:2.6rem; max-width:60rem}
+.card{border:1.5px solid var(--ink); border-radius:14px; padding:1.3rem 1.4rem; background:#fff8}
+.card b{font-family:'Gabarito',sans-serif; font-weight:700; display:block; margin-bottom:.4rem}
+.card p{font-size:.9rem; margin-top:0; line-height:1.6}
+
+/* control dock */
+.dock{
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:25;
+  display:flex; gap:1.1rem; align-items:center; flex-wrap:wrap; justify-content:center;
+  background:#fffdf8; border:1.5px solid var(--ink); border-radius:999px;
+  padding:.7rem 1.3rem; box-shadow:0 10px 30px rgba(36,29,21,.14);
+}
+.dock .grp{display:flex; align-items:center; gap:.55rem}
+.dock label{font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); font-weight:700}
+.dock label b{color:var(--butter)}
+input[type=range]{-webkit-appearance:none; appearance:none; width:110px; height:3px; background:var(--line); border-radius:2px; cursor:ew-resize}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--butter); border:2px solid #fff}
+input[type=range]::-moz-range-thumb{width:12px; height:12px; border:2px solid #fff; border-radius:50%; background:var(--butter)}
+.dock button{
+  font:inherit; font-size:.62rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+  border:1.5px solid var(--ink); background:none; color:var(--ink); border-radius:999px;
+  padding:.5rem 1rem; cursor:pointer; transition:.15s;
+}
+.dock button.on{background:var(--butter); border-color:var(--butter); color:#fff}
+
+footer{padding:2.2rem 6vw 12vh; font-size:.66rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim);
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem}
+footer a{color:var(--butter); text-decoration:none}
+
+@media(max-width:640px){ .dock{width:calc(100% - 24px); border-radius:20px} }
+</style>
+</head>
+<body>
+
+<div id="prog" aria-hidden="true"></div>
+<header>
+  <span class="mark">BUTTER<i>.</i></span>
+  <nav><a href="#how">How</a><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div id="spacer" aria-hidden="true"></div>
+<main id="view">
+
+  <section class="sec">
+    <div class="orb o1" data-speed="-0.18"></div>
+    <span class="kick">the lenis effect · hand-rolled</span>
+    <h1>Scroll like<br>melted butter.</h1>
+    <p>This page is scrolling through a <em>lerped virtual scroll</em> — the wheel writes a target,
+    an animation loop eases the page toward it, and everything on screen inherits the glide.
+    Hit <em>native</em> in the dock to feel the difference.</p>
+    <span class="big-word" data-speed="0.12" aria-hidden="true">BUTTER</span>
+  </section>
+
+  <section class="sec" id="how">
+    <div class="orb o2" data-speed="0.15"></div>
+    <span class="kick">the whole trick</span>
+    <h2>Sixty lines. No library.</h2>
+    <p>The content wrapper is <em>position: fixed</em>; a spacer div gives the document its real height
+    so the native scrollbar still works. Every frame: <em>current += (target − current) × lerp</em>,
+    then one transform. Parallax falls out for free — each ornament just multiplies the same
+    scroll value by its own <em>data-speed</em>.</p>
+    <div class="cards">
+      <div class="card"><b>Keyboard &amp; a11y safe</b><p>Space, PgDn, arrows, and anchor links all work — the page listens to real document scroll, not hijacked wheel events.</p></div>
+      <div class="card"><b>Reduced motion</b><p>prefers-reduced-motion (and touch devices) get untouched native scrolling. Smoothing is a garnish, never a gate.</p></div>
+      <div class="card"><b>When to use lenis</b><p>This is the concept. In production, lenis adds nested-scroll handling, touch inertia, and years of edge cases — the guide says so plainly.</p></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="orb o3" data-speed="-0.22"></div>
+    <span class="kick">feel it</span>
+    <h2>Parallax is just multiplication.</h2>
+    <p>The dark orb above drifts against the scroll at <em>−0.22×</em>; the outlined one earlier moves with it
+    at <em>0.15×</em>. No scroll listeners on the elements, no IntersectionObserver — one number each,
+    applied in the same loop that already knows where the page is.</p>
+  </section>
+
+  <footer>
+    <span>site 75 / fable 25 · built by claude (fable 5)</span>
+    <span><a href="guide/">how it was made</a></span>
+  </footer>
+
+</main>
+
+<div class="dock" role="group" aria-label="Scroll engine controls">
+  <div class="grp"><label>Mode</label><button id="mSmooth" class="on">smooth</button><button id="mNative">native</button></div>
+  <div class="grp"><label>Lerp <b id="vLerp">0.09</b></label><input type="range" id="rLerp" min="3" max="25" value="9"></div>
+  <div class="grp"><label>Parallax</label><button id="tPar" class="on">on</button></div>
+</div>
+
+<script>
+/* ═════ BUTTER — a lerped virtual scroll in ~60 lines ═════ */
+const view   = document.getElementById('view');
+const spacer = document.getElementById('spacer');
+const prog   = document.getElementById('prog');
+const CFG = { lerp:.09, parallax:true };
+
+const touch  = matchMedia('(pointer: coarse)').matches;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let smooth = !(touch || reduce);
+
+let cur = 0, raf = 0;
+const parEls = [...document.querySelectorAll('[data-speed]')];
+
+function setSpacer(){
+  spacer.style.height = smooth ? view.scrollHeight + 'px' : '0';
+}
+function apply(y){
+  view.style.transform = smooth ? `translate3d(0, ${-y.toFixed(2)}px, 0)` : '';
+  const max = document.documentElement.scrollHeight - innerHeight;
+  prog.style.width = (max > 0 ? (scrollY / max) * 100 : 0) + '%';
+  for (const el of parEls){
+    el.style.transform = CFG.parallax
+      ? `translate3d(0, ${(y * +el.dataset.speed).toFixed(2)}px, 0)`
+      : '';
+  }
+}
+function loop(){
+  const target = scrollY;
+  cur += (target - cur) * CFG.lerp;
+  if (Math.abs(target - cur) < .1) cur = target;
+  apply(cur);
+  raf = (smooth && cur !== target) ? requestAnimationFrame(loop) : 0;
+}
+const wake = () => { if (smooth && !raf) raf = requestAnimationFrame(loop); };
+
+addEventListener('scroll', () => { smooth ? wake() : apply(scrollY); }, { passive:true });
+addEventListener('resize', () => { setSpacer(); apply(cur); });
+
+function setMode(on){
+  smooth = on && !(touch || reduce);
+  document.body.classList.toggle('smooth', smooth);
+  setSpacer();
+  cur = scrollY;
+  cancelAnimationFrame(raf); raf = 0;
+  apply(cur);
+  mSmooth.classList.toggle('on', smooth);
+  mNative.classList.toggle('on', !smooth);
+}
+
+/* dock */
+const mSmooth = document.getElementById('mSmooth');
+const mNative = document.getElementById('mNative');
+mSmooth.addEventListener('click', () => setMode(true));
+mNative.addEventListener('click', () => setMode(false));
+document.getElementById('rLerp').addEventListener('input', e => {
+  CFG.lerp = e.target.value / 100;
+  document.getElementById('vLerp').textContent = CFG.lerp.toFixed(2);
+});
+document.getElementById('tPar').addEventListener('click', e => {
+  CFG.parallax = !CFG.parallax;
+  e.target.classList.toggle('on', CFG.parallax);
+  e.target.textContent = CFG.parallax ? 'on' : 'off';
+  apply(cur);
+});
+
+/* anchor links: in smooth mode the target lives inside the fixed wrapper,
+   so native anchor jumps go nowhere — resolve them against the virtual page. */
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#"]');
+  if (!a || !smooth) return;
+  const el = document.querySelector(a.getAttribute('href'));
+  if (!el) return;
+  e.preventDefault();
+  const top = el.getBoundingClientRect().top - view.getBoundingClientRect().top;
+  scrollTo(0, Math.max(0, top - 70));
+  wake();
+});
+
+/* boot after fonts settle so scrollHeight is honest */
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setMode(smooth));
+setMode(smooth);
+</script>
+</body>
+</html>

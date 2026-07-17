@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAGNETO — the field you can't see, drawn live</title>
+<meta name="description" content="MAGNETO is a live canvas vector-field visualization of magnetic field lines between draggable poles — drag the poles, watch every line redraw in real time.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050608;
+    --cyan:#00f0ff;
+    --magenta:#ff2ec4;
+    --txt:#eef7f9;
+    --panel:rgba(8,12,16,.78);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--txt);font-family:'Space Grotesk',sans-serif;overflow:hidden}
+  ::selection{background:var(--cyan);color:#000}
+  a{color:inherit}
+  .mono{font-family:'IBM Plex Mono',monospace}
+
+  .bg{position:fixed;inset:0;z-index:0}
+  .bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.4;filter:saturate(1.15) contrast(1.05) brightness(.6)}
+  .bg::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(5,6,8,.15) 0%,rgba(5,6,8,.85) 72%,rgba(5,6,8,.97) 100%)}
+
+  canvas#field{position:fixed;inset:0;z-index:1;display:block;touch-action:none}
+
+  .ui{position:fixed;inset:0;pointer-events:none;z-index:2;display:flex;flex-direction:column;justify-content:space-between}
+  header{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 2rem;pointer-events:auto}
+  .m{font-weight:700;font-size:1.15rem;letter-spacing:.04em}
+  .m i{color:var(--cyan);font-style:normal}
+  nav{font-family:'IBM Plex Mono',monospace;font-size:.7rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--txt);text-decoration:none;opacity:.72;margin-left:1.6rem;border-bottom:1px solid transparent;padding-bottom:2px;transition:.2s}
+  nav a:hover,nav a:focus-visible{opacity:1;border-color:var(--cyan);color:var(--cyan)}
+
+  .titleblock{position:relative;pointer-events:none;padding:0 2rem;max-width:640px}
+  .kicker{font-family:'IBM Plex Mono',monospace;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--magenta);margin-bottom:.8rem}
+  h1{font-weight:700;font-size:clamp(1.9rem,5vw,3.4rem);line-height:1.1;letter-spacing:-.01em;
+    text-shadow:0 2px 30px rgba(0,240,255,.25)}
+  h1 em{font-style:normal;color:var(--cyan)}
+  .titleblock p{font-size:.98rem;line-height:1.6;margin-top:1rem;max-width:48ch;color:#b9c9cc}
+
+  .console{position:relative;pointer-events:auto;padding:0 1.4rem 1.6rem;z-index:3}
+  .panel{max-width:1080px;margin:0 auto;background:var(--panel);backdrop-filter:blur(10px);
+    border:1px solid rgba(0,240,255,.22);border-radius:14px;padding:1.1rem 1.3rem;
+    display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between}
+  .grp{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+  .lab{font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;opacity:.6}
+  button.act{font-family:'IBM Plex Mono',monospace;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
+    background:none;border:1px solid rgba(0,240,255,.35);color:var(--txt);padding:.5rem .9rem;
+    border-radius:99px;cursor:pointer;transition:.2s}
+  button.act:hover,button.act:focus-visible{border-color:var(--cyan);color:var(--cyan)}
+  button.act.on{background:var(--cyan);border-color:var(--cyan);color:#001217}
+  #readout{font-family:'IBM Plex Mono',monospace;font-size:.74rem;color:#9fd9df;min-width:180px;text-align:right}
+  #readout b{color:var(--cyan)}
+
+  .hint{position:absolute;bottom:1.1rem;left:50%;transform:translateX(-50%);pointer-events:none;
+    font-family:'IBM Plex Mono',monospace;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;
+    opacity:.55;white-space:nowrap;top:-2.4rem}
+
+  footer{position:relative;text-align:center;font-family:'IBM Plex Mono',monospace;
+    font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;opacity:.55;padding:.9rem 1rem 1.3rem;pointer-events:auto}
+  footer a{color:var(--cyan);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  @media(max-width:720px){
+    h1{font-size:clamp(1.5rem,6.5vw,2.2rem)}
+    .console .panel{flex-direction:column;align-items:stretch}
+    #readout{text-align:left}
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    canvas#field{filter:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg"><img src="assets/hero.jpg" alt="" aria-hidden="true"></div>
+<canvas id="field" tabindex="0" role="img" aria-label="Magnetic field line diagram with two draggable poles. Use arrow keys after Tab to select and move the active pole; press N to add a pole, R to reset."></canvas>
+
+<div class="ui">
+  <header>
+    <span class="m">MAGN<i>ETO</i></span>
+    <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+  </header>
+
+  <div class="titleblock">
+    <div class="kicker">Live vector field — drag the poles</div>
+    <h1>The field was always there.<br>Now you can <em>see it move.</em></h1>
+    <p>Every line on this screen is a field-line integration recomputed live, thirty-odd times a second, from wherever you've dragged the poles. Nothing is pre-rendered — pull a pole across the screen and the whole field redraws around it.</p>
+  </div>
+
+  <div class="console">
+    <div class="panel">
+      <div class="grp">
+        <span class="lab">Poles</span>
+        <button class="act" id="addPole" type="button">+ Add pole</button>
+        <button class="act" id="resetPoles" type="button">Reset</button>
+        <button class="act" id="toggleParticles" type="button">Flow: On</button>
+      </div>
+      <div id="readout" aria-live="polite">2 poles · drag to move</div>
+    </div>
+  </div>
+
+  <footer>
+    MAGNETO — LIVE FIELD-LINE VISUALIZATION · SITE 44 OF 50 · BUILT BY CLAUDE (FABLE 5) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+  </footer>
+</div>
+
+<script>
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canvas = document.getElementById('field');
+const ctx = canvas.getContext('2d');
+const readout = document.getElementById('readout');
+let W, H, DPR;
+
+function resize(){
+  DPR = Math.min(devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+addEventListener('resize', resize);
+resize();
+
+/* ---------- poles: {x, y, sign} sign = +1 or -1 ---------- */
+let poles = [
+  {x: () => W*0.36, y: () => H*0.5, sign: 1},
+  {x: () => W*0.64, y: () => H*0.5, sign: -1}
+];
+// convert to live mutable state after first layout
+poles = poles.map(p => ({x: p.x(), y: p.y(), sign: p.sign}));
+
+let activeIdx = 0;
+let particlesOn = true;
+let dragIdx = -1;
+
+function fieldAt(x, y){
+  let fx = 0, fy = 0;
+  for(const p of poles){
+    const dx = x - p.x, dy = y - p.y;
+    const d2 = dx*dx + dy*dy + 60; // softening to avoid singularity
+    const inv = p.sign / d2;
+    fx += dx * inv;
+    fy += dy * inv;
+  }
+  return [fx, fy];
+}
+
+function traceLine(x0, y0, steps, stepLen){
+  const pts = [[x0, y0]];
+  let x = x0, y = y0;
+  for(let i=0;i<steps;i++){
+    const [fx, fy] = fieldAt(x, y);
+    const mag = Math.hypot(fx, fy) || 1e-6;
+    x += (fx/mag) * stepLen;
+    y += (fy/mag) * stepLen;
+    pts.push([x, y]);
+    if(x < -60 || x > W+60 || y < -60 || y > H+60) break;
+    // stop if very close to a sink pole
+    for(const p of poles){
+      if(p.sign < 0 && Math.hypot(x-p.x, y-p.y) < 14){ return pts; }
+    }
+  }
+  return pts;
+}
+
+function drawArrow(x, y, angle, size, color){
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(-size, -size*0.55);
+  ctx.lineTo(size, 0);
+  ctx.lineTo(-size, size*0.55);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* particles that drift along the field for ambient motion */
+let particles = [];
+function seedParticles(){
+  particles = [];
+  if(reduced) return;
+  const n = Math.min(140, Math.floor((W*H)/9000));
+  for(let i=0;i<n;i++){
+    particles.push({x: Math.random()*W, y: Math.random()*H, life: Math.random()*200});
+  }
+}
+seedParticles();
+
+function drawFieldLines(){
+  const posPoles = poles.filter(p => p.sign > 0);
+  const linesPerPole = 20;
+  ctx.lineWidth = 1.3;
+  posPoles.forEach(pole=>{
+    for(let i=0;i<linesPerPole;i++){
+      const a = (i / linesPerPole) * Math.PI * 2;
+      const x0 = pole.x + Math.cos(a) * 16;
+      const y0 = pole.y + Math.sin(a) * 16;
+      const pts = traceLine(x0, y0, 260, 3.2);
+      ctx.beginPath();
+      const grad = ctx.createLinearGradient(pts[0][0], pts[0][1], pts[pts.length-1][0], pts[pts.length-1][1]);
+      grad.addColorStop(0, 'rgba(0,240,255,.85)');
+      grad.addColorStop(1, 'rgba(255,46,196,.55)');
+      ctx.strokeStyle = grad;
+      pts.forEach(([x,y], idx)=>{ idx===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y); });
+      ctx.stroke();
+      // direction arrow at midpoint
+      const mid = pts[Math.floor(pts.length*0.55)];
+      const next = pts[Math.min(pts.length-1, Math.floor(pts.length*0.55)+2)];
+      if(mid && next){
+        const ang = Math.atan2(next[1]-mid[1], next[0]-mid[0]);
+        drawArrow(mid[0], mid[1], ang, 4.5, 'rgba(238,247,249,.55)');
+      }
+    }
+  });
+}
+
+function drawPoles(){
+  poles.forEach((p, i)=>{
+    const isActive = i === activeIdx;
+    const r = 15;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+    const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r*2.4);
+    const col = p.sign > 0 ? '0,240,255' : '255,46,196';
+    g.addColorStop(0, `rgba(${col},.95)`);
+    g.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r*0.42, 0, Math.PI*2);
+    ctx.fillStyle = p.sign > 0 ? '#00f0ff' : '#ff2ec4';
+    ctx.fill();
+    if(isActive){
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r*0.42+6, 0, Math.PI*2);
+      ctx.strokeStyle = '#eef7f9';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#eef7f9';
+    ctx.font = '600 11px IBM Plex Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.sign > 0 ? 'N' : 'S', p.x, p.y+4);
+  });
+}
+
+function stepParticles(){
+  if(reduced) return;
+  particles.forEach(pt=>{
+    const [fx, fy] = fieldAt(pt.x, pt.y);
+    const mag = Math.hypot(fx, fy) || 1e-6;
+    pt.x += (fx/mag) * 1.6;
+    pt.y += (fy/mag) * 1.6;
+    pt.life -= 1;
+    if(pt.life <= 0 || pt.x < 0 || pt.x > W || pt.y < 0 || pt.y > H){
+      pt.x = Math.random()*W; pt.y = Math.random()*H; pt.life = 100 + Math.random()*150;
+    }
+  });
+}
+
+function drawParticles(){
+  if(reduced || !particlesOn) return;
+  ctx.fillStyle = 'rgba(255,255,255,.55)';
+  particles.forEach(pt=>{
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 1.1, 0, Math.PI*2);
+    ctx.fill();
+  });
+}
+
+function render(){
+  ctx.clearRect(0,0,W,H);
+  drawFieldLines();
+  if(particlesOn) drawParticles();
+  drawPoles();
+}
+
+function loop(){
+  if(particlesOn) stepParticles();
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- interaction: drag poles ---------- */
+function poleAt(x, y){
+  for(let i=poles.length-1;i>=0;i--){
+    if(Math.hypot(poles[i].x-x, poles[i].y-y) < 22) return i;
+  }
+  return -1;
+}
+
+canvas.addEventListener('pointerdown', e=>{
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const idx = poleAt(x, y);
+  if(idx >= 0){ dragIdx = idx; activeIdx = idx; canvas.setPointerCapture(e.pointerId); }
+});
+canvas.addEventListener('pointermove', e=>{
+  if(dragIdx < 0) return;
+  const rect = canvas.getBoundingClientRect();
+  poles[dragIdx].x = Math.max(20, Math.min(W-20, e.clientX - rect.left));
+  poles[dragIdx].y = Math.max(20, Math.min(H-20, e.clientY - rect.top));
+  updateReadout();
+});
+addEventListener('pointerup', ()=>{ dragIdx = -1; });
+
+canvas.addEventListener('keydown', e=>{
+  const step = 14;
+  const p = poles[activeIdx];
+  if(!p) return;
+  if(e.key === 'ArrowLeft'){ p.x = Math.max(20, p.x-step); e.preventDefault(); }
+  if(e.key === 'ArrowRight'){ p.x = Math.min(W-20, p.x+step); e.preventDefault(); }
+  if(e.key === 'ArrowUp'){ p.y = Math.max(20, p.y-step); e.preventDefault(); }
+  if(e.key === 'ArrowDown'){ p.y = Math.min(H-20, p.y+step); e.preventDefault(); }
+  if(e.key === 'Tab'){ /* let default tab work but also cycle with shift? no-op */ }
+  if(e.key.toLowerCase() === 'n'){ addPole(); e.preventDefault(); }
+  if(e.key.toLowerCase() === 'r'){ resetPoles(); e.preventDefault(); }
+  if(e.key === ' ' || e.key === 'Enter'){
+    activeIdx = (activeIdx + 1) % poles.length; e.preventDefault(); updateReadout();
+  }
+  updateReadout();
+});
+
+function addPole(){
+  if(poles.length >= 5) return;
+  const sign = poles.length % 2 === 0 ? 1 : -1;
+  poles.push({x: W*(0.2+Math.random()*0.6), y: H*(0.2+Math.random()*0.6), sign});
+  activeIdx = poles.length - 1;
+  updateReadout();
+}
+function resetPoles(){
+  poles = [
+    {x: W*0.36, y: H*0.5, sign: 1},
+    {x: W*0.64, y: H*0.5, sign: -1}
+  ];
+  activeIdx = 0;
+  updateReadout();
+}
+function updateReadout(){
+  readout.innerHTML = `<b>${poles.length}</b> poles · active: ${poles[activeIdx].sign>0?'N':'S'} · arrow keys move, space cycles, N adds, R resets`;
+}
+document.getElementById('addPole').addEventListener('click', addPole);
+document.getElementById('resetPoles').addEventListener('click', resetPoles);
+document.getElementById('toggleParticles').addEventListener('click', e=>{
+  particlesOn = !particlesOn;
+  e.target.textContent = 'Flow: ' + (particlesOn ? 'On' : 'Off');
+  e.target.classList.toggle('on', particlesOn);
+  render();
+});
+
+addEventListener('resize', ()=>{ seedParticles(); });
+
+updateReadout();
+if(reduced){
+  render(); // static single frame, no rAF loop, no particle drift
+} else {
+  loop();
+}
+</script>
+</body>
+</html>

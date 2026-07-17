@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%234dff88%22/></svg>">
+<title>DECODE — text scramble/decode reveal</title>
+<meta name="description" content="DECODE is a hand-rolled text scramble-to-decode reveal: headings cycle random glyphs before locking into real characters, triggered on scroll and re-triggerable on hover.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#060907; --bg1:#0c130f; --panel:#0a120d;
+    --accent:#4dff88; --accent-dim:#1f5c3a;
+    --scramble:#3a6b52;
+    --ink:#dff5e8; --dim:#7fa393; --amber:#f2c14d;
+    --line:#16261d;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -10%, rgba(77,255,136,.08), transparent 60%),
+      var(--bg);
+    color:var(--ink);font-family:'Inter',sans-serif;
+    min-height:100%;overflow-x:hidden;
+  }
+  ::selection{background:var(--accent);color:#04140a}
+  a{color:inherit}
+
+  header{display:flex;justify-content:space-between;align-items:center;
+    padding:1.4rem 2rem;position:relative;z-index:5;max-width:1180px;margin:0 auto}
+  .mark{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:1.05rem;
+    letter-spacing:.02em;color:var(--accent)}
+  .mark span{color:var(--dim)}
+  nav{font-family:'IBM Plex Mono',monospace;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--dim);text-decoration:none;margin-left:1.6rem;transition:color .2s}
+  nav a:hover{color:var(--accent)}
+
+  main{max-width:1180px;margin:0 auto;padding:0 2rem}
+
+  /* ---- hero ---- */
+  .hero{padding:9vh 0 8vh;text-align:center;position:relative}
+  .tag{display:inline-flex;align-items:center;gap:.5rem;font-family:'IBM Plex Mono',monospace;
+    font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);
+    border:1px solid rgba(242,193,77,.35);padding:.4rem .9rem;border-radius:99px;margin-bottom:2rem}
+  .tag .dot{width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber)}
+
+  h1.decode{font-family:'IBM Plex Mono',monospace;font-weight:700;
+    font-size:clamp(1.9rem,6vw,4.1rem);letter-spacing:-.01em;line-height:1.12;
+    max-width:900px;margin:0 auto;min-height:1.2em}
+  .hero p.sub{margin-top:1.5rem;font-size:1rem;color:var(--dim);letter-spacing:.01em}
+
+  .decode .ch{display:inline-block;white-space:pre;transition:color .08s linear, text-shadow .12s linear}
+  .decode .ch.scrambling{color:var(--scramble)}
+  .decode .ch.locked{color:var(--ink)}
+  h1.decode .ch.locked{color:var(--accent);text-shadow:0 0 14px rgba(77,255,136,.35)}
+  h2.decode .ch.locked{color:var(--ink)}
+  h2.decode .ch.locked::selection{background:var(--accent)}
+
+  .scrolldown{font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--dim);margin-top:3.2rem}
+
+  /* ---- sections ---- */
+  section{padding:6vh 0;border-top:1px solid var(--line)}
+  .sec-head{display:flex;align-items:baseline;gap:1rem;margin-bottom:2.4rem;cursor:pointer}
+  .sec-head .no{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--accent-dim);letter-spacing:.1em}
+  h2.decode{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:clamp(1.3rem,3.4vw,2rem);
+    letter-spacing:.01em;min-height:1.2em}
+  .sec-hint{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--dim);opacity:0;transition:opacity .2s}
+  .sec-head:hover .sec-hint{opacity:.8}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.4rem 1.3rem;
+    cursor:pointer;transition:border-color .2s, transform .2s}
+  .card:hover{border-color:var(--accent-dim);transform:translateY(-3px)}
+  .card .cno{font-family:'IBM Plex Mono',monospace;font-size:.66rem;color:var(--amber);letter-spacing:.1em;margin-bottom:.7rem;display:block}
+  .card h3.decode{font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:600;margin-bottom:.55rem;min-height:1.3em}
+  .card h3.decode .ch.locked{color:var(--ink)}
+  .card p{font-size:.82rem;color:var(--dim);line-height:1.5}
+
+  .about p{max-width:680px;font-size:1rem;line-height:1.75;color:var(--dim)}
+  .about p strong{color:var(--ink);font-weight:600}
+
+  .contact-row{display:flex;flex-wrap:wrap;gap:.8rem}
+  .contact-row a{font-family:'IBM Plex Mono',monospace;font-size:.78rem;letter-spacing:.04em;
+    border:1px solid var(--line);border-radius:99px;padding:.65rem 1.2rem;text-decoration:none;
+    color:var(--ink);transition:.2s}
+  .contact-row a:hover{border-color:var(--accent);color:var(--accent)}
+
+  footer{max-width:1180px;margin:0 auto;text-align:center;font-size:.6rem;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--dim);padding:3rem 1.5rem 2.4rem;font-family:'IBM Plex Mono',monospace}
+  footer a{color:var(--accent);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  /* ---- customize panel ---- */
+  .panel{position:fixed;right:1.2rem;bottom:1.2rem;z-index:20;width:250px;
+    background:rgba(6,9,7,.92);backdrop-filter:blur(8px);border:1px solid var(--line);
+    border-radius:12px;padding:1rem 1.1rem 1.1rem;box-shadow:0 20px 50px rgba(0,0,0,.45);
+    font-family:'IBM Plex Mono',monospace}
+  .panel .ptitle{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);
+    margin-bottom:.85rem;display:flex;align-items:center;justify-content:space-between}
+  .panel .ptitle button{background:none;border:none;color:var(--dim);font-family:inherit;font-size:.9rem;
+    cursor:pointer;line-height:1}
+  .panel .row{margin-bottom:.75rem}
+  .panel label{display:flex;justify-content:space-between;font-size:.62rem;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--dim);margin-bottom:.4rem}
+  .panel label b{color:var(--ink);font-weight:500}
+  .panel input[type=range]{-webkit-appearance:none;width:100%;height:2px;background:var(--line);
+    border-radius:2px;cursor:ew-resize}
+  .panel input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+    border-radius:50%;background:var(--accent);margin-top:-5px;box-shadow:0 0 6px rgba(77,255,136,.6)}
+  .panel select{width:100%;background:var(--bg1);color:var(--ink);border:1px solid var(--line);
+    border-radius:6px;padding:.4rem .5rem;font-family:inherit;font-size:.72rem}
+  .panel .toggle{display:flex;align-items:center;justify-content:space-between}
+  .switch{position:relative;width:34px;height:18px;background:var(--line);border-radius:99px;
+    border:none;cursor:pointer;flex:none}
+  .switch::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:var(--dim);transition:.2s}
+  .switch.on{background:var(--accent-dim)}
+  .switch.on::after{left:18px;background:var(--accent)}
+  .panel .replay{width:100%;margin-top:.3rem;background:transparent;border:1px solid var(--accent-dim);
+    color:var(--accent);border-radius:6px;padding:.5rem;font-family:inherit;font-size:.68rem;
+    letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:.2s}
+  .panel .replay:hover{background:rgba(77,255,136,.1)}
+  .panel.collapsed .body{display:none}
+  .panel-open-btn{display:none}
+
+  @media(max-width:760px){
+    .grid{grid-template-columns:1fr}
+    header{padding:1.1rem 1.3rem}
+    .panel{left:1rem;right:1rem;width:auto;bottom:.9rem}
+  }
+  @media(max-width:420px){
+    .hero{padding:7vh 0 6vh}
+  }
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .card{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">DECODE<span>_</span></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<main>
+  <div class="hero">
+    <span class="tag"><span class="dot"></span>SIGNAL ACQUIRED</span>
+    <h1 class="decode" data-text="ARIA VOSS — CREATIVE ENGINEER" aria-label="ARIA VOSS — CREATIVE ENGINEER"></h1>
+    <p class="sub">interfaces that feel alive · portfolio build, 2026</p>
+    <p class="scrolldown">scroll to decode ↓</p>
+  </div>
+
+  <section id="work">
+    <div class="sec-head"><span class="no">01</span>
+      <h2 class="decode" data-text="SELECTED WORK" aria-label="SELECTED WORK"></h2>
+      <span class="sec-hint">hover a card</span>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <span class="cno">P.01</span>
+        <h3 class="decode" data-text="ORBIT DASH" aria-label="ORBIT DASH"></h3>
+        <p>Realtime telemetry dashboard for a satellite ops team — 40ms tick, zero dropped frames.</p>
+      </div>
+      <div class="card">
+        <span class="cno">P.02</span>
+        <h3 class="decode" data-text="GHOST TYPE" aria-label="GHOST TYPE"></h3>
+        <p>Variable-font rendering engine used across three publishing products.</p>
+      </div>
+      <div class="card">
+        <span class="cno">P.03</span>
+        <h3 class="decode" data-text="LATTICE" aria-label="LATTICE"></h3>
+        <p>Procedural grid-layout system that reflows 200+ cards without a reflow jank.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="sec-head"><span class="no">02</span>
+      <h2 class="decode" data-text="ABOUT" aria-label="ABOUT"></h2>
+      <span class="sec-hint">hover heading</span>
+    </div>
+    <div class="about">
+      <p><strong>Nine years</strong> building interface layers most people never notice: the frame budget under a
+      hover state, the easing curve under a page transition, the exact millisecond a heading should stop lying
+      to you about what it says. Currently freelancing, based nowhere in particular, usually awake at 2am
+      staring at a requestAnimationFrame loop.</p>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="sec-head"><span class="no">03</span>
+      <h2 class="decode" data-text="GET IN TOUCH" aria-label="GET IN TOUCH"></h2>
+      <span class="sec-hint">hover heading</span>
+    </div>
+    <div class="contact-row">
+      <a href="#">aria@voss.dev</a>
+      <a href="#">@ariavoss</a>
+      <a href="#">read.cv/aria</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  DECODE — SCRAMBLE/DECODE TEXT REVEAL · SITE 68 OF 72 · WAVE 4 · BUILT BY CLAUDE (FABLE 25) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<div class="panel" id="panel">
+  <div class="ptitle">CUSTOMIZE <button id="panelToggle" aria-label="collapse panel">–</button></div>
+  <div class="body">
+    <div class="row">
+      <label>Scramble speed <b id="speedVal">45ms</b></label>
+      <input type="range" id="speed" min="15" max="120" value="45" step="5">
+    </div>
+    <div class="row">
+      <label>Charset</label>
+      <select id="charset">
+        <option value="letters" selected>Letters A–Z</option>
+        <option value="symbols">Symbols !@#$%</option>
+        <option value="binary">Binary 01</option>
+      </select>
+    </div>
+    <div class="row toggle">
+      <label style="margin-bottom:0">Hover retrigger</label>
+      <button class="switch on" id="hoverToggle" role="switch" aria-checked="true" aria-label="toggle hover retrigger"></button>
+    </div>
+    <button class="replay" id="replayBtn">▸ Replay all</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Hand-rolled scramble/decode text reveal — no library.
+   Each heading's characters are split into <span> nodes. A
+   staggered per-character "lock frame" is computed (index *
+   stagger + jitter); each tick (setTimeout loop, interval =
+   speed ms) every not-yet-locked span is assigned a random
+   glyph from the active charset, and once the running frame
+   counter passes that character's lock frame it snaps to the
+   real character and stays. Trigger sources: IntersectionObserver
+   (scroll-into-view, fires once per visibility) and mouseenter
+   (re-trigger), gated by a live "hover retrigger" toggle.
+   ============================================================ */
+
+const CHARSETS = {
+  letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  symbols: '!@#$%^&*<>{}[]/\\|~+=-_?',
+  binary: '01'
+};
+
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let SPEED = 45;        // ms between ticks
+let CHARSET = CHARSETS.letters;
+let HOVER_RETRIGGER = true;
+
+function randChar(){
+  return CHARSET[Math.floor(Math.random()*CHARSET.length)];
+}
+
+class Decoder{
+  constructor(el){
+    this.el = el;
+    this.text = el.dataset.text;
+    this.spans = [];
+    this.timer = null;
+    this.built = false;
+    this.build();
+  }
+  build(){
+    this.el.innerHTML = '';
+    this.el.setAttribute('aria-label', this.text);
+    for(const ch of this.text){
+      const s = document.createElement('span');
+      s.className = 'ch';
+      s.textContent = ch === ' ' ? ' ' : ch;
+      this.el.appendChild(s);
+      this.spans.push(s);
+    }
+    this.built = true;
+  }
+  run(){
+    if(this.timer) clearTimeout(this.timer);
+    if(reduceMotion){
+      // settle straight to final, readable state — no scramble loop
+      this.spans.forEach((s,i)=>{ s.textContent = this.text[i]===' '?' ':this.text[i]; s.className='ch locked'; });
+      return;
+    }
+    const n = this.text.length;
+    const stagger = 0.6;
+    const locks = [];
+    for(let i=0;i<n;i++){
+      locks.push(i*stagger + 3 + Math.random()*5);
+    }
+    const maxLock = Math.max(...locks, 0);
+    let frame = 0;
+    const tick = () => {
+      let allLocked = true;
+      for(let i=0;i<n;i++){
+        const ch = this.text[i];
+        const s = this.spans[i];
+        if(ch === ' '){ s.textContent=' '; s.className='ch locked'; continue; }
+        if(frame >= locks[i]){
+          s.textContent = ch;
+          s.className = 'ch locked';
+        } else {
+          s.textContent = randChar();
+          s.className = 'ch scrambling';
+          allLocked = false;
+        }
+      }
+      frame++;
+      if(!allLocked && frame <= maxLock+2){
+        this.timer = setTimeout(tick, SPEED);
+      }
+    };
+    tick();
+  }
+}
+
+const decoders = [...document.querySelectorAll('.decode')].map(el => new Decoder(el));
+
+// --- scroll-into-view trigger ---
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      const d = decoders.find(d => d.el === entry.target);
+      if(d){
+        d.run();
+        io.unobserve(entry.target); // scroll-trigger fires once; hover handles re-trigger
+      }
+    }
+  });
+}, { threshold: 0.4 });
+decoders.forEach(d => io.observe(d.el));
+
+// --- hover retrigger ---
+decoders.forEach(d=>{
+  d.el.style.cursor = 'default';
+  const trigger = d.el.closest('.sec-head') || d.el.closest('.card') || d.el;
+  trigger.addEventListener('mouseenter', ()=>{
+    if(HOVER_RETRIGGER) d.run();
+  });
+});
+
+// --- controls ---
+const speedInput = document.getElementById('speed');
+const speedVal = document.getElementById('speedVal');
+speedInput.addEventListener('input', e=>{
+  SPEED = +e.target.value;
+  speedVal.textContent = SPEED + 'ms';
+});
+
+document.getElementById('charset').addEventListener('change', e=>{
+  CHARSET = CHARSETS[e.target.value];
+});
+
+const hoverBtn = document.getElementById('hoverToggle');
+hoverBtn.addEventListener('click', ()=>{
+  HOVER_RETRIGGER = !HOVER_RETRIGGER;
+  hoverBtn.classList.toggle('on', HOVER_RETRIGGER);
+  hoverBtn.setAttribute('aria-checked', String(HOVER_RETRIGGER));
+});
+
+document.getElementById('replayBtn').addEventListener('click', ()=>{
+  decoders.forEach(d => d.run());
+});
+
+const panel = document.getElementById('panel');
+document.getElementById('panelToggle').addEventListener('click', ()=>{
+  panel.classList.toggle('collapsed');
+  const btn = document.getElementById('panelToggle');
+  btn.textContent = panel.classList.contains('collapsed') ? '+' : '–';
+});
+</script>
+</body>
+</html>

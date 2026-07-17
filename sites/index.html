@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FABLE 25 — one hundred websites built by Claude, six waves</title>
+<meta name="description" content="100 fundamentally different websites across six waves — zero-asset procedural, generated imagery + 3D, a screenshot-critique wave built at zero extra cost, and a fourth wave of ten reusable premium-site interaction patterns — designed and built end-to-end by Claude (Fable 5). Every one has a how-it-was-made guide.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;1,6..72,300;1,6..72,500&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root { --bg:#0c0c10; --ink:#ececef; --dim:#8f8f9c; --line:#232329; }
+  body { background:var(--bg); color:var(--ink); font-family:'Newsreader', Georgia, serif; overflow-x:hidden; }
+  ::selection { background:#f5c96b; color:#0c0c10; }
+
+  /* ————— hero ————— */
+  #field { position:fixed; inset:0; z-index:0; opacity:.5; }
+  .hero { position:relative; z-index:1; min-height:92vh; display:flex; flex-direction:column;
+    justify-content:center; padding:0 6vw; }
+  .hero .k { font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.34em;
+    text-transform:uppercase; color:var(--dim); margin-bottom:2rem; }
+  .hero h1 { font-weight:300; font-size:clamp(2.6rem,7.2vw,6.4rem); line-height:1.06; max-width:16ch; }
+  .hero h1 em { font-style:italic; font-weight:500;
+    background:linear-gradient(100deg,#f5c96b,#ff5ad1 34%,#5ce8c8 68%,#7b5bff);
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .hero p { margin-top:2.2rem; max-width:52ch; font-size:1.12rem; line-height:1.7; color:var(--dim); }
+  .hero .cta { margin-top:3rem; font-family:'Fragment Mono', monospace; font-size:.72rem;
+    letter-spacing:.26em; text-transform:uppercase; display:flex; gap:2.4rem; flex-wrap:wrap; }
+  .hero .cta a { color:var(--ink); text-decoration:none; border-bottom:1px solid #3a3a44; padding-bottom:4px; }
+  .hero .cta a:hover { border-color:#f5c96b; color:#f5c96b; }
+
+  /* ————— catalog ————— */
+  .catalog { position:relative; z-index:1; padding:4vh 6vw 14vh; background:linear-gradient(#0c0c1000, var(--bg) 12vh); }
+  .cat-head { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:1rem;
+    border-bottom:1px solid var(--line); padding-bottom:1.4rem; margin-bottom:0; }
+  .cat-head h2 { font-weight:300; font-style:italic; font-size:1.5rem; }
+  .cat-head span { font-family:'Fragment Mono', monospace; font-size:.68rem; letter-spacing:.26em;
+    text-transform:uppercase; color:var(--dim); }
+  .row { display:grid; grid-template-columns:5.5rem 1fr auto; align-items:baseline; gap:2rem;
+    padding:1.55rem 1rem 1.55rem 0; border-bottom:1px solid var(--line);
+    text-decoration:none; color:var(--ink); position:relative; transition:padding-left .35s cubic-bezier(.2,.8,.2,1); }
+  .row::before { content:''; position:absolute; left:0; top:0; bottom:0; width:0;
+    background:var(--a); opacity:.14; transition:width .35s cubic-bezier(.2,.8,.2,1); }
+  .row:hover { padding-left:1.4rem; }
+  .row:hover::before { width:100%; }
+  .row .no { font-family:'Fragment Mono', monospace; font-size:.78rem; color:var(--dim); letter-spacing:.14em; }
+  .row .t { display:flex; flex-direction:column; gap:.25rem; min-width:0; }
+  .row .t b { font-weight:500; font-size:clamp(1.3rem,2.6vw,1.9rem); line-height:1.15; }
+  .row .t b .dot { display:inline-block; width:.55em; height:.55em; border-radius:50%;
+    background:var(--a); box-shadow:0 0 14px var(--a); margin-right:.55em; vertical-align:.06em; }
+  .row .t i { font-style:italic; color:var(--dim); font-size:1rem; }
+  .row .tag { font-family:'Fragment Mono', monospace; font-size:.62rem; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--dim); text-align:right; line-height:2; white-space:nowrap; }
+  .row .tag em { font-style:normal; color:var(--a); }
+  @media (max-width:760px) {
+    .row { grid-template-columns:3rem 1fr; }
+    .row .tag { display:none; }
+  }
+
+  /* reveal */
+  .row { opacity:0; transform:translateY(14px); }
+  .row.in { opacity:1; transform:none; transition:opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1), padding-left .35s cubic-bezier(.2,.8,.2,1); }
+  @media (prefers-reduced-motion: reduce) { .row { opacity:1; transform:none; } }
+
+  footer { position:relative; z-index:1; padding:0 6vw 10vh; font-family:'Fragment Mono', monospace;
+    font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); line-height:2.6; }
+  footer a { color:#f5c96b; text-decoration:none; }
+  footer a:hover { text-decoration:underline; }
+
+  /* ————— wave 3 ————— */
+  .wave3 { position:relative; z-index:1; padding:2vh 6vw 10vh; border-top:1px solid var(--line); }
+  .w3-head { border-bottom:1px solid var(--line); padding-bottom:1.4rem; margin-bottom:2.6rem; }
+  .w3-head h2 { font-weight:300; font-style:italic; font-size:1.5rem; margin-bottom:.6rem; }
+  .w3-head p { max-width:62ch; color:var(--dim); font-size:1rem; line-height:1.7; }
+  .w3-head p b { color:var(--ink); font-weight:600; font-style:normal; }
+  .w3-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1.6rem; }
+  .w3-card { display:block; text-decoration:none; color:var(--ink); border:1px solid var(--line);
+    border-radius:10px; overflow:hidden; background:#101014;
+    opacity:0; transform:translateY(16px); transition:opacity .6s ease, transform .6s cubic-bezier(.2,.8,.2,1),
+    border-color .3s ease, transform .3s cubic-bezier(.2,.8,.2,1); }
+  .w3-card.in { opacity:1; transform:none; }
+  .w3-card:hover { border-color:var(--a); transform:translateY(-3px); }
+  .w3-card .shot { position:relative; aspect-ratio:16/10; overflow:hidden; background:#0a0a0d; }
+  .w3-card .shot img { width:100%; height:100%; object-fit:cover; display:block;
+    transition:transform .5s cubic-bezier(.2,.8,.2,1); }
+  .w3-card:hover .shot img { transform:scale(1.045); }
+  .w3-card .shot .no { position:absolute; top:.7rem; left:.8rem; font-family:'Fragment Mono', monospace;
+    font-size:.66rem; letter-spacing:.12em; color:#fff; background:rgba(10,10,13,.55);
+    padding:.25em .55em; border-radius:4px; backdrop-filter:blur(3px); }
+  .w3-card .body { padding:1.1rem 1.2rem 1.3rem; }
+  .w3-card .body h3 { font-weight:500; font-size:1.25rem; margin-bottom:.35rem; }
+  .w3-card .body h3 .dot { display:inline-block; width:.5em; height:.5em; border-radius:50%;
+    background:var(--a); box-shadow:0 0 12px var(--a); margin-right:.5em; vertical-align:.08em; }
+  .w3-card .body p { font-style:italic; color:var(--dim); font-size:.92rem; line-height:1.5; margin-bottom:.7rem; }
+  .w3-card .body .tag { font-family:'Fragment Mono', monospace; font-size:.62rem; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--a); }
+  @media (prefers-reduced-motion: reduce) { .w3-card { opacity:1; transform:none; } .w3-card .shot img { transition:none; } }
+
+  /* ————— wave 4 ————— */
+  .wave4 { position:relative; z-index:1; padding:2vh 6vw 10vh; border-top:1px solid var(--line); }
+  .w4-head { border-bottom:1px solid var(--line); padding-bottom:1.4rem; margin-bottom:2.6rem; }
+  .w4-head h2 { font-weight:300; font-style:italic; font-size:1.5rem; margin-bottom:.6rem; }
+  .w4-head p { max-width:62ch; color:var(--dim); font-size:1rem; line-height:1.7; }
+  .w4-head p b { color:var(--ink); font-weight:600; font-style:normal; }
+  .w4-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1.6rem; }
+  .w4-card { display:block; text-decoration:none; color:var(--ink); border:1px solid var(--line);
+    border-radius:10px; overflow:hidden; background:#101014;
+    opacity:0; transform:translateY(16px); transition:opacity .6s ease, transform .6s cubic-bezier(.2,.8,.2,1),
+    border-color .3s ease, transform .3s cubic-bezier(.2,.8,.2,1); }
+  .w4-card.in { opacity:1; transform:none; }
+  .w4-card:hover { border-color:var(--a); transform:translateY(-3px); }
+  .w4-card .shot { position:relative; aspect-ratio:16/10; overflow:hidden; background:#0a0a0d; }
+  .w4-card .shot img { width:100%; height:100%; object-fit:cover; display:block;
+    transition:transform .5s cubic-bezier(.2,.8,.2,1); }
+  .w4-card:hover .shot img { transform:scale(1.045); }
+  .w4-card .shot .no { position:absolute; top:.7rem; left:.8rem; font-family:'Fragment Mono', monospace;
+    font-size:.66rem; letter-spacing:.12em; color:#fff; background:rgba(10,10,13,.55);
+    padding:.25em .55em; border-radius:4px; backdrop-filter:blur(3px); }
+  .w4-card .body { padding:1.1rem 1.2rem 1.3rem; }
+  .w4-card .body h3 { font-weight:500; font-size:1.25rem; margin-bottom:.35rem; }
+  .w4-card .body h3 .dot { display:inline-block; width:.5em; height:.5em; border-radius:50%;
+    background:var(--a); box-shadow:0 0 12px var(--a); margin-right:.5em; vertical-align:.08em; }
+  .w4-card .body p { font-style:italic; color:var(--dim); font-size:.92rem; line-height:1.5; margin-bottom:.7rem; }
+  .w4-card .body .tag { font-family:'Fragment Mono', monospace; font-size:.62rem; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--a); }
+  @media (prefers-reduced-motion: reduce) { .w4-card { opacity:1; transform:none; } .w4-card .shot img { transition:none; } }
+</style>
+</head>
+<body>
+<canvas id="field" aria-hidden="true"></canvas>
+
+<header class="hero">
+  <div class="k">Fable 25 — an exhibition, two wings · built end-to-end by Claude (Fable 5)</div>
+  <h1>Fifty websites, <em>no two alike,</em> every pixel written by a model.</h1>
+  <p>Wing I (01–25): shaders, CSS 3D, generative gardens, playable synths, self-drafting
+     architecture, ASCII engines — zero binary assets, everything procedural. Wing II
+     (26–50): Higgsfield-generated imagery, animated video loops, and real Three.js 3D as
+     the counterpart flex. No frameworks, no build step outside that. Each site ships with
+     a <i>how-it-was-made</i> guide and survived at least three fine-toothed iteration
+     passes in a real browser.</p>
+  <nav class="cta">
+    <a href="#catalog">enter the exhibition ↓</a>
+    <a href="#wave3">see wave 3 ↓</a>
+    <a href="#wave4">see wave 4 ↓</a>
+    <a href="#wave6">see wave 6 ↓</a>
+    <a href="guide/">read the master guide</a>
+  </nav>
+</header>
+
+<main class="catalog" id="catalog">
+  <div class="cat-head"><h2>The catalog</h2><span>01 — 50 · every room is open</span></div>
+  <div id="rows"></div>
+</main>
+
+<section class="wave3" id="wave3">
+  <div class="w3-head">
+    <h2>Wave 3 — the screenshot wave</h2>
+    <p>Twelve sites, 51–62, each checked against real browser screenshots before sign-off:
+       <b>Mercury</b> (liquid-metal pool), <b>Marionette</b> (string physics),
+       <b>Salvo</b> (fireworks), <b>Censer</b> (shape-holding smoke),
+       <b>Automaton</b> (mechanical songbird), <b>Gloaming</b> (draggable dusk sky),
+       <b>Drape</b> (hand-rolled cloth), <b>Revenant</b> (point-cloud figure),
+       <b>Lathe</b> (throw a vessel), <b>Drift</b> (self-making ambient music),
+       <b>Observatory</b> (live sky dashboard), and <b>Zenith</b> (the finale).
+       Thumbnails are the actual screenshots.</p>
+  </div>
+  <div class="w3-grid" id="w3grid"></div>
+</section>
+
+<section class="wave4" id="wave4">
+  <div class="w4-head">
+    <h2>Wave 4 — the liftable wave</h2>
+    <p>Thirteen demos, 63–75 — each a single effect or genre you can copy into a real
+       site, with a live customize panel and a guide that shows exactly what to lift:
+       <b>Splash</b> (fluid cursor trail), <b>Flowmenu</b> (flowing nav),
+       <b>Curveloop</b> (text on a looping curve), <b>Magnetic</b> (buttons that
+       pull toward the cursor), <b>Tilt</b> (3D tilting cards), <b>Decode</b>
+       (scramble-in headlines), <b>Morph</b> (shape-shifting cursor),
+       <b>Shatter</b> (particle text), <b>Reel</b> (drag carousel with momentum),
+       and <b>Ripple</b> (WebGL hover ripple).</p>
+  </div>
+  <div class="w4-grid" id="w4grid"></div>
+</section>
+
+<section class="wave4" id="wave6">
+  <div class="w4-head">
+    <h2>Wave 6 — the road to one hundred</h2>
+    <p>Twenty-five sites, 76–100, researched from the current trend wave — velocity-driven
+       WebGL, motion-as-brand, variable-font physics, raymarched 3D — plus the classics the
+       collection still owed itself: a split-flap board, a photocopier, a living topo map,
+       an OS that never shipped, a CMYK press, a Rorschach machine, thirty years of web
+       design on one page, and a finale where all ninety-nine earlier sites take the bow.</p>
+  </div>
+  <div class="w4-grid" id="w6grid"></div>
+</section>
+
+<footer>
+  Designed &amp; built autonomously by Claude (Fable 5), Anthropic · commissioned by Jeremy Xiang ·
+  Wing I hand-written HTML/CSS/JS, Wing II adds Higgsfield-generated imagery + Three.js,
+  Wave 3 adds a real screenshot-critique loop at zero extra cost,
+  Wave 4 turns that same process on ten reusable interaction patterns ·
+  hosted on Netlify · <a href="guide/">how this was made →</a>
+</footer>
+
+<script>
+const SITES = [
+  ["01-lumen","LUMEN","a type foundry for light","GLSL · variable fonts"],
+  ["02-monolith","MONOLITH","spatial design studio","CSS 3D · scroll scenes"],
+  ["03-raw","RAW.WORK","an anti-design zine","brutalism · marquees"],
+  ["04-raster","RASTER 2026","congress of grid systems","swiss grid · kinetic type"],
+  ["05-celeste","CELESTE","atlas of unnamed constellations","generative canvas"],
+  ["06-orbital","ORBITAL","a scroll through the solar system","scrollytelling · parallax"],
+  ["07-phosphor","PHOSPHOR/1979","a terminal that remembers","CRT · command parser"],
+  ["08-gilded","THE GILDED MERIDIAN","a grand hotel, 1928","art deco · SVG ornament"],
+  ["09-ma","間 MA","a study in negative space","vertical type · restraint"],
+  ["10-chroma","CHROMA∞","a Y2K fever dream","chrome type · holo cube"],
+  ["11-goo","GOO LAB","tactile happiness research","SVG goo · squash & stretch"],
+  ["12-ascii","SIGNAL-3D","a renderer with no pixels","ASCII 3D · z-buffer"],
+  ["13-spielplatz","SPIELPLATZ","a Bauhaus composition machine","generative posters"],
+  ["14-obsidienne","MAISON OBSIDIENNE","couture for low light","film grain · CSS lighting"],
+  ["15-missionctrl","MISSION CTRL","flight ops console, est. 1972","live telemetry · dials"],
+  ["16-papier","PAPIER","an atelier of cut-outs","clip-path · draggable"],
+  ["17-nimbus","NIMBUS","weather for the interior life","glassmorphism · canvas rain"],
+  ["18-verba","VERBA","words that act","kinetic type · 4 axes"],
+  ["19-herbarium","HERBARIUM DIGITALIS","a garden of algorithms","L-systems · turtle draw"],
+  ["20-nightledger","THE NIGHT LEDGER","a year of sky, counted","data-viz · radial SVG"],
+  ["21-neondistrict","NEON DISTRICT","field guide to the night market","neon · parallax skyline"],
+  ["22-tekton","TEKTON","architecture in one line weight","self-drawing SVG"],
+  ["23-liquida","LIQUIDA","the oil-slick meditation","metaballs · one shader"],
+  ["24-meadow","THE MEADOW","a storybook you can poke","SVG scene · day/night"],
+  ["25-resonance","RESONANCE","an instrument, not a website","web audio · polysynth"],
+  ["26-aurora","AURORA","a sky that keeps painting itself","Higgsfield still · flow-field shader"],
+  ["27-terrazzo","TERRAZZO","a material study you can shake","generated texture · canvas scatter"],
+  ["28-kintsugi","KINTSUGI","the break is the record","generated image · SVG gold cracks"],
+  ["29-glacier","CREVASSE","light, refracted through a thousand years of ice","generated ice · WebGL refraction"],
+  ["30-mycelium","MYCELIUM","a network grows out of the photograph","generated macro · L-system growth"],
+  ["31-riso","RISO CLUB","two inks, one plate at a time","generated illustration · duotone blend"],
+  ["32-oscilloscope","MODULAR","an oscilloscope you can patch","Kling video loop · Web Audio scope"],
+  ["33-tessera","TESSERA","a mosaic that keeps tiling itself","generated mosaic · Truchet tiles"],
+  ["34-cartograph","CARTOGRAPH","a map that annotates itself","generated map · SVG route draw"],
+  ["35-orrery","ORRERY","a clockwork solar system you can turn","Three.js · pure 3D orbit"],
+  ["36-coral","ABYSSA","the reef that makes its own light","Three.js 3D · generated reef backdrop"],
+  ["37-murmuration","MURMURATION","a flock that thinks as one","generated sky · canvas boids"],
+  ["38-facet","FACET","one gem, cut by math","Three.js · pure 3D gem shader"],
+  ["39-manuscript","ILLUMINATED","a page kept the old way","generated manuscript · gold-leaf CSS"],
+  ["40-thunderhead","THUNDERHEAD","the storm keeps its own time","generated storm · procedural lightning"],
+  ["41-loom","LOOM","every thread remembers its crossing","generated weave · SVG pattern"],
+  ["42-inkwash","SUMI","ink finds a moment and holds it still","Kling video · canvas ink sim"],
+  ["43-holotype","HOLOTYPE","light that only exists at this angle","generated foil · CSS holo tilt"],
+  ["44-magneto","MAGNETO","the field you can't see, drawn live","generated filings · vector field"],
+  ["45-dunes","DUNES","ridges that shift as you scroll","generated dunes · WebGL parallax"],
+  ["46-cathedral","CATHEDRAL","light through lead","generated glass · SVG lead lines"],
+  ["47-cassette","CASSETTE-90","press play","generated hardware · CSS 3D deck"],
+  ["48-murano","MURANO","molten, never still","Three.js · pure 3D metaball glass"],
+  ["49-transit","TRANSIT","every route drawn straight","generated paper · SVG transit map"],
+  ["50-eclipse","ECLIPSE","two bodies, one line — the collection's closing piece","Three.js 3D · Kling corona · finale"],
+];
+const ACCENTS = ["#f5c96b","#c9c4ba","#ff2e00","#e03131","#9db8ff","#d98a4b","#33ff66","#d4af6a",
+  "#b8433a","#ff5ad1","#7bd94a","#e8e8e8","#2456d6","#8d7aa8","#ffb454","#e2503c","#5b8dd6",
+  "#3a36e0","#3f6d3a","#c9a227","#ff2e88","#c8372d","#5ce8c8","#e26aa0","#7b5bff",
+  "#4de8b0","#ff9a3c","#c99700","#7ec8e3","#00ffa2","#2f3b8f","#ffb000","#7a1f3d","#8b5a2b",
+  "#cd7f32","#1ec9e8","#6a5acd","#a020f0","#9b1c31","#4b3f72","#c1440e","#cc2936","#7c3aed",
+  "#ff00c8","#e8965a","#4169e1","#b0763c","#ff6f3c","#d62828","#f4d35e"];
+
+const rows = document.getElementById('rows');
+rows.innerHTML = SITES.map((s,i)=>`
+  <a class="row" href="${s[0]}/" style="--a:${ACCENTS[i]}">
+    <span class="no">N°${String(i+1).padStart(2,'0')}</span>
+    <span class="t"><b><span class="dot"></span>${s[1]}</b><i>${s[2]}</i></span>
+    <span class="tag"><em>${s[3]}</em><br>site + guide</span>
+  </a>`).join('');
+
+/* staggered reveal */
+const io = new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting) return;
+  e.target.classList.add('in');
+  io.unobserve(e.target);
+}),{threshold:.15});
+document.querySelectorAll('.row').forEach((r,i)=>{
+  r.style.transitionDelay = (i%6)*60+'ms';
+  io.observe(r);
+});
+
+/* ————— wave 3 grid ————— */
+const WAVE3 = [
+  ["51-mercury","MERCURY","A pool that answers to gravity","raymarched SDF · WebGL"],
+  ["52-marionette","MARIONETTE","Every string obeys gravity","verlet physics · hand-rolled"],
+  ["53-salvo","SALVO","Thousands of embers, one click","GPU instancing · 5.2k particles"],
+  ["54-censer","CENSER","Smoke remembers a shape, then lets it go","curl-noise · canvas smoke"],
+  ["55-automaton","AUTOMATON","A mechanical songbird, wound by hand","four-bar linkage · cam kinematics"],
+  ["56-gloaming","GLOAMING","A draggable dusk sky, built from real scattering physics","Rayleigh–Mie shader · atmospheric"],
+  ["57-drape","DRAPE","Cloth that answers to gravity — no physics library","mass-spring cloth · hand-rolled"],
+  ["58-revenant","REVENANT","A formation of thousands of points, briefly a person","point cloud · value noise"],
+  ["59-lathe","LATHE","Throw a vessel by hand — the profile is the whole vessel","Three.js LatheGeometry · live profile"],
+  ["60-drift","DRIFT","Ambient music that makes itself","Web Audio · FFT terrain"],
+  ["61-observatory","OBSERVATORY","A live control-room panel for the sky","real astronomy · canvas dashboard"],
+  ["62-zenith","ZENITH","Light at its highest point — the Wave 3 finale","raymarch + bloom · finale"],
+];
+const ACCENTS3 = ["#c8ccd4","#d4913c","#ff6b35","#9b8874","#8c6d1f","#c76b8f",
+  "#6b7a8f","#7ec3c9","#c1622e","#3fae8f","#4fd6e6","#f2c14e"];
+
+const w3grid = document.getElementById('w3grid');
+w3grid.innerHTML = WAVE3.map((s,i)=>`
+  <a class="w3-card" href="${s[0]}/" style="--a:${ACCENTS3[i]}">
+    <div class="shot">
+      <span class="no">№ ${String(i+51).padStart(2,'0')}</span>
+      <img loading="lazy" src="assets/thumbs/${s[0]}.jpg" alt="Screenshot of ${s[1]}">
+    </div>
+    <div class="body">
+      <h3><span class="dot"></span>${s[1]}</h3>
+      <p>${s[2]}</p>
+      <span class="tag">${s[3]}</span>
+    </div>
+  </a>`).join('');
+
+const io3 = new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting) return;
+  e.target.classList.add('in');
+  io3.unobserve(e.target);
+}),{threshold:.1});
+document.querySelectorAll('.w3-card').forEach((c,i)=>{
+  c.style.transitionDelay = (i%4)*70+'ms';
+  io3.observe(c);
+});
+
+/* ————— wave 4 grid ————— */
+const WAVE4 = [
+  ["63-splash","SPLASH","A dye-trail cursor effect, staged as a portfolio hero","stable-fluids-style advection · customize panel"],
+  ["64-flowmenu","FLOWMENU","A nav that flows when you touch it","marquee reveal nav · React-Bits-style"],
+  ["65-curveloop","CURVELOOP","Text that loops the curve, forever","SVG textPath marquee · spinning badge"],
+  ["66-magnetic","MAGNETIC","Buttons that lean in","spring-physics magnetic pull · icon dock"],
+  ["67-tilt","TILT","Work that leans toward you","pointer-driven 3D tilt · specular glare"],
+  ["68-decode","DECODE","Every headline decodes itself into place","scramble/decode text reveal · scroll + hover trigger"],
+  ["69-morph","MORPH","The cursor reads the page before you do","state-morphing custom cursor · four hover states"],
+  ["70-shatter","SHATTER","A hero word, pixel by pixel, until you touch it","canvas particle text · shatter & reassemble"],
+  ["71-reel","REEL","Drag it. Let go.","inertia-drag carousel · momentum + snap"],
+  ["72-ripple","RIPPLE","Hover to disturb the surface","WebGL ripple distortion · image hover"],
+  ["73-ironhand","IRONHAND","Point. Fist. Pinch.","MediaPipe hand tracking · gesture desktop"],
+  ["74-atelier","ATELIER OBSIDIAN","We design what darkness looks like","awards-style studio landing · no GSAP"],
+  ["75-butter","BUTTER","Scroll like melted butter","lenis-style lerped scroll · hand-rolled"],
+];
+const ACCENTS4 = ["#3ee6d8","#f2a33c","#b06bff","#ff5c6a","#6ec6ff","#4dff88","#ff4fd8","#ff7a3c","#e0c05a","#3fa9f5","#66e0ff","#d8ff3e","#e0742c"];
+
+
+const WAVE6 = [
+  ["76-chromatic","CHROMATIC","A gallery that smears with speed","scroll-velocity aberration · WebGL"],
+  ["77-unfold","UNFOLD","The mark becomes the site","motion-as-brand · SVG choreography"],
+  ["78-raymarch","SIGNED DISTANCE","3D with no geometry at all","SDF raymarching · soft shadows"],
+  ["79-flowfield","THE WIND ATLAS","Ten thousand particles reading the air","flow field · luminous trails"],
+  ["80-typestretch","ELASTIC","Type that feels your scroll","variable font axes · spring physics"],
+  ["81-departures","TERMINAL ∞","Departures to places that don't exist","split-flap board · full clatter"],
+  ["82-xerox","COPY OF A COPY","Generation loss, on purpose","photocopier degradation · ImageData"],
+  ["83-contour","ISOLINE","A map of a place still deciding","marching squares · living terrain"],
+  ["84-system9","SYSTEM 9.1","An OS that never shipped","draggable windows · Web Audio chimes"],
+  ["85-refract","LENSA","Type, read through glass","lens refraction · chromatic rims"],
+  ["86-pixelsort","SORT/ED","The darkroom where pixels obey","pixel sorting · luminance runs"],
+  ["87-tarot","ARCANA.DEV","Your sprint, foretold","holo foil cards · 3D flips"],
+  ["88-weave","LOOM ROOM","Cloth, computed thread by thread","weave drafts · live shuttle"],
+  ["89-zoom","POWERS OF TEN-ISH","Scroll to fall forever inward","infinite nested zoom · 4 scales"],
+  ["90-metamorph","METAMORPH","Squares become birds become squares","escher tiling · vertex morph"],
+  ["91-ledwall","MARQUEE HALL","Sixty thousand diodes, one message","LED wall · bloom + burn-in"],
+  ["92-origami","PLI","A letter that unfolds as you scroll","CSS 3D folds · wax seal"],
+  ["93-antigrav","ZERO-G","A headline off its leash","letter physics · gravity well"],
+  ["94-halftone","PRESSWORK","Four plates, slightly drunk","CMYK halftone · misregistration"],
+  ["95-caustics","NATATORIUM","Read from the bottom of the pool","caustic shader · refracted type"],
+  ["96-marquee","LOUD","A wall of type that never stops","marquee wall · velocity feed"],
+  ["97-diorama","THE STUDY","A room that follows your eyes","2.5D parallax · 11 SVG planes"],
+  ["98-inkblot","PLATE X","What do you see?","generative rorschach · mirrored ink"],
+  ["99-eras","THE LONG SCROLL","Thirty years of web design, one page","five period-correct eras"],
+  ["100-centenary","ONE HUNDRED","The collection takes its own bow","99 live links · particle finale"],
+];
+const ACCENTS6 = ["#ff3355","#1d4ed8","#ffb454","#6fe3c1","#ff6b9d","#ffd23e","#00b389","#bb4d2c","#669999","#bfe3ff",
+  "#ff9e3d","#c9a2ff","#a34a28","#7ba7ff","#b8562e","#ff9500","#c9b458","#66ffd1","#e5378a","#7fe6ff",
+  "#ede40e","#e8b45a","#c9a0ae","#6c5ce7","#ffd76a"];
+const w6grid = document.getElementById('w6grid');
+w6grid.innerHTML = WAVE6.map((s,i)=>`
+  <a class="w4-card" href="${s[0]}/" style="--a:${ACCENTS6[i]}">
+    <div class="shot">
+      <span class="no">№ ${i+76 === 100 ? '100' : String(i+76).padStart(2,'0')}</span>
+      <img loading="lazy" src="assets/thumbs/${s[0]}.jpg" alt="Screenshot of ${s[1]}">
+    </div>
+    <div class="body">
+      <h3><span class="dot"></span>${s[1]}</h3>
+      <p>${s[2]}</p>
+      <span class="tag">${s[3]}</span>
+    </div>
+  </a>`).join('');
+document.querySelectorAll('#w6grid .w4-card').forEach((c,i)=>{
+  new IntersectionObserver((es,o)=>es.forEach(e=>{ if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('in'), (i%3)*90); o.unobserve(e.target);} }),{threshold:.15}).observe(c);
+});
+
+const w4grid = document.getElementById('w4grid');
+w4grid.innerHTML = WAVE4.map((s,i)=>`
+  <a class="w4-card" href="${s[0]}/" style="--a:${ACCENTS4[i]}">
+    <div class="shot">
+      <span class="no">№ ${String(i+63).padStart(2,'0')}</span>
+      <img loading="lazy" src="assets/thumbs/${s[0]}.jpg" alt="Screenshot of ${s[1]}">
+    </div>
+    <div class="body">
+      <h3><span class="dot"></span>${s[1]}</h3>
+      <p>${s[2]}</p>
+      <span class="tag">${s[3]}</span>
+    </div>
+  </a>`).join('');
+
+const io4 = new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting) return;
+  e.target.classList.add('in');
+  io4.unobserve(e.target);
+}),{threshold:.1});
+document.querySelectorAll('.w4-card').forEach((c,i)=>{
+  c.style.transitionDelay = (i%4)*70+'ms';
+  io4.observe(c);
+});
+
+/* hero particle field — slow constellation drift in the 25 accent hues */
+const cv = document.getElementById('field');
+const ctx = cv.getContext('2d');
+let W,H,pts=[];
+function rs(){
+  W = cv.width = innerWidth * Math.min(devicePixelRatio,2);
+  H = cv.height = innerHeight * Math.min(devicePixelRatio,2);
+}
+addEventListener('resize', rs); rs();
+for(let i=0;i<ACCENTS.length;i++){
+  pts.push({x:Math.random(), y:Math.random(),
+    vx:(Math.random()-.5)*.00016, vy:(Math.random()-.5)*.00016,
+    c:ACCENTS[i], r:1.5+Math.random()*2.5});
+}
+(function tick(){
+  ctx.clearRect(0,0,W,H);
+  for(const p of pts){
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0||p.x>1)p.vx*=-1; if(p.y<0||p.y>1)p.vy*=-1;
+  }
+  /* faint links between neighbors */
+  ctx.lineWidth = 1;
+  for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+    const a=pts[i], b=pts[j];
+    const dx=(a.x-b.x)*W, dy=(a.y-b.y)*H, d=Math.hypot(dx,dy);
+    if(d < W*.13){
+      ctx.strokeStyle = `rgba(140,140,160,${(1-d/(W*.13))*.16})`;
+      ctx.beginPath(); ctx.moveTo(a.x*W,a.y*H); ctx.lineTo(b.x*W,b.y*H); ctx.stroke();
+    }
+  }
+  for(const p of pts){
+    ctx.fillStyle = p.c; ctx.globalAlpha=.85;
+    ctx.beginPath(); ctx.arc(p.x*W, p.y*H, p.r*Math.min(devicePixelRatio,2), 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNFOLD — a logo that builds the whole page</title>
+<meta name="description" content="Motion as brand identity: one square mark unfolds into the nav, the grid, the cards, and the footer. Every element on the page is born from the logo's own geometry.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f4f1ea'/%3E%3Crect x='8' y='8' width='16' height='16' fill='none' stroke='%231d4ed8' stroke-width='2.4'/%3E%3Cpath d='M8 8 L24 24' stroke='%231d4ed8' stroke-width='2.4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=Archivo+Expanded:wght@700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f4f1ea; --ink:#141519; --dim:#6f6c64; --line:rgba(20,21,25,.14);
+  --blue:#1d4ed8; --blue2:#4472ff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper); color:var(--ink); font-family:'Archivo',system-ui,sans-serif; overflow-x:hidden}
+::selection{background:var(--blue); color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid var(--blue); outline-offset:3px}
+
+/* ── the overture: mark unfolds center-stage ──────────── */
+#overture{position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;
+  background:var(--paper); transition:opacity .7s ease .1s, visibility .7s}
+#overture.done{opacity:0; visibility:hidden}
+#overture svg{width:min(200px,40vw); overflow:visible}
+#overture .seg{stroke:var(--blue); stroke-width:3; fill:none;
+  stroke-dasharray:var(--l); stroke-dashoffset:var(--l)}
+#overture.play .seg{animation:seg .8s cubic-bezier(.7,0,.2,1) forwards}
+#overture.play .s2{animation-delay:.25s}
+#overture.play .s3{animation-delay:.5s}
+#overture.play .s4{animation-delay:.68s}
+@keyframes seg{to{stroke-dashoffset:0}}
+
+header{display:flex; justify-content:space-between; align-items:center; padding:1.3rem 1.8rem;
+  border-bottom:1.5px solid var(--ink); position:relative; z-index:5}
+.mark{display:flex; align-items:center; gap:.7rem; font-family:'Archivo Expanded',sans-serif; font-weight:900; letter-spacing:.02em}
+.mark svg{width:26px}
+.mark .seg{stroke:var(--blue); stroke-width:3; fill:none}
+nav{display:flex; gap:1.6rem}
+nav a{font-family:'IBM Plex Mono',monospace; font-size:.64rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--blue)}
+
+/* every section element carries the unfold entrance */
+.uf{opacity:0; transform:translateY(18px) scale(.985)}
+body.borne .uf{opacity:1; transform:none;
+  transition:opacity .7s cubic-bezier(.2,.9,.2,1) var(--d,0s), transform .7s cubic-bezier(.2,.9,.2,1) var(--d,0s)}
+
+.hero{padding:11vh 1.8rem 9vh; text-align:left; max-width:1200px; margin:0 auto; position:relative}
+.kick{font-family:'IBM Plex Mono',monospace; font-size:.62rem; letter-spacing:.3em; text-transform:uppercase; color:var(--blue); margin-bottom:1.3rem}
+h1{font-family:'Archivo Expanded',sans-serif; font-weight:900; font-size:clamp(2.5rem,8.4vw,6.6rem); line-height:.96; letter-spacing:-.01em; text-transform:uppercase}
+h1 .o{color:var(--blue)}
+.hero p{max-width:32rem; margin-top:1.6rem; font-size:1.02rem; line-height:1.7; color:#3c3a35}
+
+/* mark-geometry decorations: squares + diagonals repeated from the logo */
+.geo{position:absolute; border:1.5px solid var(--line); pointer-events:none}
+.g1{width:130px;height:130px; right:8%; top:14%}
+.g2{width:64px;height:64px; right:16%; top:44%; border-color:var(--blue); opacity:.5}
+.g1::after,.g2::after{content:''; position:absolute; inset:0;
+  background:linear-gradient(to top right, transparent calc(50% - .8px), var(--line) 50%, transparent calc(50% + .8px))}
+
+.grid{max-width:1200px; margin:0 auto; padding:0 1.8rem 10vh;
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:1.1rem}
+.card{border:1.5px solid var(--ink); padding:1.5rem 1.4rem 1.3rem; position:relative; background:#fff9;
+  transition:transform .25s ease, box-shadow .25s ease}
+.card:hover{transform:translate(-3px,-3px); box-shadow:6px 6px 0 var(--blue)}
+.card .csvg{width:34px; margin-bottom:1.1rem}
+.card .cseg{stroke:var(--blue); stroke-width:3; fill:none;
+  stroke-dasharray:200; stroke-dashoffset:200; transition:stroke-dashoffset .9s cubic-bezier(.7,0,.2,1)}
+.card:hover .cseg, body.borne .card.seen .cseg{stroke-dashoffset:0}
+.card b{font-family:'Archivo Expanded',sans-serif; font-weight:700; font-size:1.02rem; display:block; margin-bottom:.5rem; text-transform:uppercase; letter-spacing:.02em}
+.card p{font-size:.88rem; line-height:1.65; color:#3c3a35}
+.card .no{position:absolute; top:1.1rem; right:1.2rem; font-family:'IBM Plex Mono',monospace; font-size:.6rem; color:var(--dim)}
+
+.belt{border-top:1.5px solid var(--ink); border-bottom:1.5px solid var(--ink); overflow:hidden; white-space:nowrap; padding:.8rem 0}
+.belt .t{display:inline-block; font-family:'Archivo Expanded',sans-serif; font-weight:900; text-transform:uppercase;
+  font-size:1rem; letter-spacing:.14em; animation:belt 22s linear infinite}
+.belt .t em{font-style:normal; color:var(--blue)}
+@keyframes belt{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.belt .t{animation:none}}
+
+footer{max-width:1200px; margin:0 auto; padding:2rem 1.8rem 3rem; display:flex; justify-content:space-between;
+  flex-wrap:wrap; gap:.8rem; font-family:'IBM Plex Mono',monospace; font-size:.6rem; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--dim)}
+footer a{color:var(--blue); text-decoration:none}
+
+.replay{position:fixed; right:1.4rem; bottom:1.3rem; z-index:20;
+  font-family:'IBM Plex Mono',monospace; font-size:.6rem; letter-spacing:.16em; text-transform:uppercase;
+  border:1.5px solid var(--ink); background:var(--paper); padding:.6rem 1rem; cursor:pointer; transition:.15s}
+.replay:hover{background:var(--blue); border-color:var(--blue); color:#fff}
+@media (prefers-reduced-motion:reduce){
+  #overture{display:none}
+  .uf{opacity:1; transform:none}
+}
+</style>
+</head>
+<body>
+
+<div id="overture" aria-hidden="true">
+  <svg viewBox="0 0 100 100">
+    <rect class="seg s1" x="14" y="14" width="72" height="72" style="--l:288"/>
+    <line class="seg s2" x1="14" y1="14" x2="86" y2="86" style="--l:102"/>
+    <line class="seg s3" x1="86" y1="14" x2="50" y2="50" style="--l:51"/>
+    <line class="seg s4" x1="14" y1="86" x2="50" y2="50" style="--l:51"/>
+  </svg>
+</div>
+
+<header class="uf" style="--d:.05s">
+  <span class="mark">
+    <svg viewBox="0 0 100 100"><rect class="seg" x="14" y="14" width="72" height="72"/><line class="seg" x1="14" y1="14" x2="86" y2="86"/></svg>
+    UNFOLD
+  </span>
+  <nav><a href="#system">System</a><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<section class="hero">
+  <div class="geo g1 uf" style="--d:.55s"></div>
+  <div class="geo g2 uf" style="--d:.65s"></div>
+  <div class="kick uf" style="--d:.15s">motion is the brand</div>
+  <h1 class="uf" style="--d:.25s">The mark<br>bec<span class="o">o</span>mes<br>the site.</h1>
+  <p class="uf" style="--d:.4s">One square, one diagonal. The loading mark you just watched isn't decoration —
+  its strokes seed the nav rule, the card borders, the belt, the corner geometry. A brand system where
+  every element can point at the logo and say: I came from that.</p>
+</section>
+
+<section class="grid" id="system">
+  <div class="card uf" style="--d:.5s">
+    <svg class="csvg" viewBox="0 0 100 100"><rect class="cseg" x="14" y="14" width="72" height="72"/></svg>
+    <b>The frame</b><p>The square becomes every border on this page — cards, header rule, footer hairline. Same stroke, same weight, same corner.</p>
+    <span class="no">01</span>
+  </div>
+  <div class="card uf" style="--d:.58s">
+    <svg class="csvg" viewBox="0 0 100 100"><line class="cseg" x1="14" y1="86" x2="86" y2="14"/></svg>
+    <b>The diagonal</b><p>The slash lives in the corner geometry and the hover shadow's direction. Hover any card: the offset is the diagonal, extruded.</p>
+    <span class="no">02</span>
+  </div>
+  <div class="card uf" style="--d:.66s">
+    <svg class="csvg" viewBox="0 0 100 100"><rect class="cseg" x="14" y="14" width="72" height="72"/><line class="cseg" x1="14" y1="14" x2="86" y2="86"/></svg>
+    <b>The reveal</b><p>Every icon redraws itself with the same stroke-dashoffset choreography as the overture. Scroll or hover — the brand keeps performing.</p>
+    <span class="no">03</span>
+  </div>
+</section>
+
+<div class="belt uf" style="--d:.72s" aria-hidden="true"><span class="t" id="beltT"></span></div>
+
+<footer class="uf" style="--d:.8s">
+  <span>site 77 / fable 25 · built by claude (fable 5)</span>
+  <span><a href="guide/">how it was made</a></span>
+</footer>
+
+<button class="replay" id="replay">↻ replay the unfold</button>
+
+<script>
+const overture = document.getElementById('overture');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function play(){
+  if (reduce){ document.body.classList.add('borne'); return; }
+  document.body.classList.remove('borne');
+  overture.classList.remove('done');
+  // restart stroke animations
+  overture.classList.remove('play');
+  void overture.offsetWidth;
+  overture.classList.add('play');
+  setTimeout(()=>{
+    overture.classList.add('done');
+    document.body.classList.add('borne');
+  }, 1550);
+}
+play();
+document.getElementById('replay').addEventListener('click', ()=>{ scrollTo(0,0); play(); });
+
+/* redraw card icons when scrolled into view */
+const io = new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){ e.target.classList.add('seen'); io.unobserve(e.target); }
+}),{threshold:.4});
+document.querySelectorAll('.card').forEach(c=>io.observe(c));
+
+document.getElementById('beltT').innerHTML =
+  'one square — one diagonal — <em>infinite system</em> — '.repeat(8);
+</script>
+</body>
+</html>

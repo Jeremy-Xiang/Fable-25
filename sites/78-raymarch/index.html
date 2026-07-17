@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIGNED DISTANCE — 3D with no geometry at all</title>
+<meta name="description" content="A raymarched SDF scene in one fragment shader: a breathing torus, orbiting spheres, soft shadows and fog — no meshes, no Three.js, just math per pixel. Drag to orbit.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23060a0f'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23ffb454' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='3.5' fill='%23ffb454'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{ --ink:#f3ede2; --dim:#8d867a; --dim2:#544f47; --amber:#ffb454; --line:rgba(243,237,226,.12); }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#060a0f; color:var(--ink); font-family:'Sora',sans-serif; overflow:hidden; height:100vh}
+::selection{background:var(--amber); color:#241503}
+a:focus-visible,button:focus-visible{outline:2px solid var(--amber); outline-offset:3px}
+
+#gl{position:fixed; inset:0; width:100%; height:100%; cursor:grab}
+#gl.drag{cursor:grabbing}
+
+header{position:fixed; top:0; left:0; right:0; z-index:5; display:flex; justify-content:space-between;
+  align-items:center; padding:1.3rem 1.6rem; pointer-events:none}
+header a,header .mark{pointer-events:auto}
+.mark{font-weight:600; letter-spacing:.2em; font-size:.8rem}
+.mark em{font-style:normal; color:var(--amber)}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'DM Mono',monospace; font-size:.62rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--amber)}
+
+.plate{position:fixed; left:1.6rem; bottom:1.5rem; z-index:5; max-width:21rem; pointer-events:none}
+.plate h1{font-weight:300; font-size:clamp(1.4rem,3.2vw,2.1rem); line-height:1.25}
+.plate h1 b{font-weight:600; color:var(--amber)}
+.plate p{font-family:'DM Mono',monospace; font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); margin-top:.8rem; line-height:1.9}
+
+.readout{position:fixed; right:1.6rem; bottom:1.5rem; z-index:5; text-align:right;
+  font-family:'DM Mono',monospace; font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim2); line-height:2; pointer-events:none}
+.readout b{color:var(--dim); font-weight:400}
+@media(max-width:640px){.readout{display:none}}
+</style>
+</head>
+<body>
+
+<canvas id="gl" aria-label="Raymarched 3D scene — drag to orbit the camera"></canvas>
+
+<header>
+  <span class="mark">SIGNED <em>DISTANCE</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="plate">
+  <h1>There is <b>no geometry</b> here.<br>Only distance.</h1>
+  <p>one fragment shader · sdf raymarching<br>soft shadows · fog · drag to orbit</p>
+</div>
+
+<div class="readout" aria-hidden="true">
+  camera <b id="rCam">θ 0.60 · φ 0.35</b><br>
+  march <b>96 steps max</b> · <b id="rFps">60 fps</b>
+</div>
+
+<script>
+const cv = document.getElementById('gl');
+const gl = cv.getContext('webgl');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const VS = `attribute vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }`;
+const FS = `precision highp float;
+uniform vec2 res; uniform float t; uniform vec2 cam;
+
+// ── SDF primitives ──
+float sdSphere(vec3 p, float r){ return length(p)-r; }
+float sdTorus(vec3 p, vec2 q){ vec2 d = vec2(length(p.xz)-q.x, p.y); return length(d)-q.y; }
+float sdPlane(vec3 p){ return p.y + 1.15; }
+float smin(float a, float b, float k){
+  float h = clamp(.5 + .5*(b-a)/k, 0., 1.);
+  return mix(b, a, h) - k*h*(1.-h);
+}
+
+// ── scene ──
+float map(vec3 p){
+  float breathe = 1. + .08*sin(t*.8);
+  float torus = sdTorus(vec3(p.x, p.y*breathe, p.z), vec2(1.05, .34));
+  vec3 o1 = vec3(cos(t*.6)*1.9, .4*sin(t*.9), sin(t*.6)*1.9);
+  vec3 o2 = -o1.zyx;
+  float s1 = sdSphere(p-o1, .3);
+  float s2 = sdSphere(p-o2, .22);
+  float blob = smin(torus, s1, .55);
+  blob = smin(blob, s2, .55);
+  return min(blob, sdPlane(p));
+}
+vec3 normalAt(vec3 p){
+  vec2 e = vec2(.0015, 0.);
+  return normalize(vec3(
+    map(p+e.xyy)-map(p-e.xyy),
+    map(p+e.yxy)-map(p-e.yxy),
+    map(p+e.yyx)-map(p-e.yyx)));
+}
+float softShadow(vec3 ro, vec3 rd){
+  float r = 1., dist = .06;
+  for (int i=0;i<32;i++){
+    float d = map(ro + rd*dist);
+    r = min(r, 11.*d/dist);
+    dist += clamp(d, .02, .3);
+    if (r < .005 || dist > 8.) break;
+  }
+  return clamp(r, 0., 1.);
+}
+void main(){
+  vec2 uv = (gl_FragCoord.xy*2. - res)/res.y;
+  // orbit camera
+  float th = cam.x, ph = clamp(cam.y, .12, 1.35);
+  vec3 ro = 4.2*vec3(sin(th)*cos(ph), sin(ph), cos(th)*cos(ph));
+  vec3 ww = normalize(-ro);
+  vec3 uu = normalize(cross(vec3(0,1,0), ww));
+  vec3 vv = cross(ww, uu);
+  vec3 rd = normalize(uv.x*uu + uv.y*vv + 1.7*ww);
+
+  float dist = 0.; float d; vec3 p;
+  for (int i=0;i<96;i++){
+    p = ro + rd*dist;
+    d = map(p);
+    if (d < .0012 || dist > 14.) break;
+    dist += d;
+  }
+
+  vec3 sky = mix(vec3(.02,.03,.05), vec3(.07,.1,.15), uv.y*.5+.5);
+  vec3 col = sky;
+  if (dist < 14.){
+    vec3 n = normalAt(p);
+    vec3 lightDir = normalize(vec3(.6,.9,.3));
+    float dif = clamp(dot(n, lightDir), 0., 1.) * softShadow(p + n*.02, lightDir);
+    float amb = .5 + .5*n.y;
+    float spe = pow(clamp(dot(reflect(rd,n), lightDir),0.,1.), 24.);
+    vec3 base = p.y < -1.14
+      ? vec3(.08,.1,.13) * (mod(floor(p.x*2.)+floor(p.z*2.), 2.) < 1. ? 1. : .72)
+      : mix(vec3(1.,.71,.33), vec3(.95,.4,.25), .5+.5*sin(p.x*2.+t*.5));
+    col = base*(dif*1.1 + amb*.24) + spe*.7;
+    // fog
+    col = mix(col, sky, 1.-exp(-.028*dist*dist));
+  }
+  // glow of the amber core through fog
+  col += vec3(1.,.7,.33)*.05/(1.+abs(sdTorus(ro+rd*3.5, vec2(1.05,.34)))*8.);
+  col = pow(col, vec3(.4545));
+  gl_FragColor = vec4(col, 1.);
+}`;
+
+function sh(t_,s){const o=gl.createShader(t_);gl.shaderSource(o,s);gl.compileShader(o);
+  if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(o));return o;}
+const pr=gl.createProgram();
+gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));
+gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));
+gl.linkProgram(pr); gl.useProgram(pr);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const al=gl.getAttribLocation(pr,'p');
+gl.enableVertexAttribArray(al); gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+const uRes=gl.getUniformLocation(pr,'res'), uT=gl.getUniformLocation(pr,'t'), uCam=gl.getUniformLocation(pr,'cam');
+
+function resize(){
+  const dpr=Math.min(devicePixelRatio||1, 1.6);   // raymarch is per-pixel; cap cost
+  cv.width=innerWidth*dpr; cv.height=innerHeight*dpr;
+  gl.viewport(0,0,cv.width,cv.height);
+  gl.uniform2f(uRes,cv.width,cv.height);
+}
+addEventListener('resize',resize); resize();
+
+/* orbit control */
+let th=.6, ph=.35, tth=.6, tph=.35, down=false, lx=0, ly=0;
+cv.addEventListener('pointerdown',e=>{down=true;lx=e.clientX;ly=e.clientY;cv.classList.add('drag');
+  try{cv.setPointerCapture(e.pointerId)}catch{}});
+addEventListener('pointermove',e=>{
+  if(!down) return;
+  tth += (e.clientX-lx)*.008; tph += (e.clientY-ly)*.006;
+  tph = Math.max(.12, Math.min(1.35, tph));
+  lx=e.clientX; ly=e.clientY;
+});
+addEventListener('pointerup',()=>{down=false;cv.classList.remove('drag')});
+
+const rCam=document.getElementById('rCam'), rFps=document.getElementById('rFps');
+let frames=0, fpsAt=performance.now();
+const t0=performance.now();
+(function loop(){
+  requestAnimationFrame(loop);
+  th += (tth-th)*.08; ph += (tph-ph)*.08;
+  if (!down && !reduce) tth += .0012;                 // slow idle orbit
+  gl.uniform1f(uT, reduce ? 12 : (performance.now()-t0)/1000);
+  gl.uniform2f(uCam, th, ph);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+  frames++;
+  const now=performance.now();
+  if (now-fpsAt > 800){
+    rFps.textContent = Math.round(frames*1000/(now-fpsAt))+' fps';
+    rCam.textContent = 'θ '+th.toFixed(2)+' · φ '+ph.toFixed(2);
+    frames=0; fpsAt=now;
+  }
+})();
+</script>
+</body>
+</html>

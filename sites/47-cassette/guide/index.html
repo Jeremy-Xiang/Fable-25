@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How CASSETTE-90 was made — guide</title>
+<meta name="description" content="How the CASSETTE-90 site was designed and built: technique, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Michroma&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #ff9d00; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0c0c0d; color:#e8e6e0;
+    font-family:'Martian Mono', monospace;
+    font-size:1rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-size:.68rem; letter-spacing:.16em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9a978f; text-decoration:none; border-bottom:1px solid #2a2a2b; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-size:.7rem; letter-spacing:.28em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-family:'Michroma',sans-serif; font-weight:400; font-size:clamp(1.7rem,5vw,2.6rem); line-height:1.3; margin-bottom:.8rem; }
+  .sub { color:#9a978f; font-size:1.05rem; margin-bottom:3.6rem; }
+  h2 {
+    font-family:'Michroma',sans-serif; font-size:.82rem; font-weight:400; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #232324;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-size:.66rem; color:var(--accent); letter-spacing:.1em; }
+  p { font-family:'Martian Mono', monospace; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; font-size:.92rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; font-size:.92rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-size:.68rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-size:.82rem; line-height:1.9; color:#c7c4bb;
+    background:#151515; border:1px solid #232324; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #232324;
+    font-size:.68rem; letter-spacing:.1em;
+    text-transform:uppercase; color:#88857c; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  code{background:#1a1a1b;padding:.1em .4em;border-radius:4px;font-size:.85em}
+  ::selection { background:var(--accent); color:#0c0c0d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to CASSETTE-90</a>
+    <a href="../../">all 50 sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 47 of 50 · how it was made</div>
+  <h1>CASSETTE-90</h1>
+  <p class="sub">Press play</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>A Higgsfield-generated product shot of retro hardware sets the mood, blurred into a backdrop rather than used as the interface itself — its knob labels came back slightly garbled (a known generated-text artifact), so the fix wasn't Photoshop, it was design: keep the photo soft and atmospheric, and build the actual, legible, working deck as CSS 3D geometry in front of it.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>The chassis sits in a <code>perspective</code> wrapper and tilts on <code>rotateX</code>/<code>rotateY</code> as the pointer moves — a real parallax response, not a static image of one</li>
+    <li>Each transport button is a real <code>&lt;button&gt;</code>: <code>:active</code> and a latched <code>.pressed</code> state drop it 4px and collapse its drop-shadow, so PLAY and REC visibly stay down the way a physical deck's buttons do</li>
+    <li>Reels are two nested circles with a <code>repeating-conic-gradient</code> spoke pattern; a CSS <code>animation-play-state</code> toggle starts/stops the spin rather than re-triggering the animation, so it always resumes from its current angle</li>
+    <li>The spectrum readout is a real Web Audio graph — two detuned oscillators through a gain node into an <code>AnalyserNode</code> — drawn to canvas only, never to a hidden audio element, so pressing Stop actually silences it via a gain ramp</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Michroma (display) + Martian Mono (readouts) · near-black chassis #0c0c0d, brushed metal #8f959b, amber CRT #ff9d00</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Wrap the deck in a parent with <code>perspective</code>, then rotate the deck itself in response to normalized pointer position (<code>(clientX / width) - 0.5</code>)</li>
+    <li>Give every button <code>translateZ()</code> to lift it off the panel, and drop both translateZ and box-shadow together on press so the depression reads as physical, not just a color change</li>
+    <li>Drive the analyser only while a gain node feeding it is actually open, so a "Stop" that silences the gain also stops the visual meter from lying about what's playing</li>
+    <li>Throttle the canvas redraw loop by timestamp rather than switching between <code>requestAnimationFrame</code> and <code>setTimeout</code> — one persistent loop, one branch on the interval, no risk of the animation silently dying when state changes</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration passes</h2>
+  <ul>
+    <li><b>Build pass</b> — first pass used two separate scheduling paths (rAF while playing, setTimeout while idle) for the spectrum canvas; pressing Play after the page had gone idle never restarted the loop, so the meter froze. Rebuilt as one persistent rAF loop, self-throttled by timestamp</li>
+    <li><b>Code-review pass</b> — the raw generated hero had legible-but-wrong knob labels; reviewed the composition and moved the photo to a heavily blurred backdrop role instead of a crisp foreground element, so no garbled text ships. Also confirmed every transport control is a real <code>&lt;button&gt;</code>, not a styled <code>&lt;div&gt;</code>, for keyboard operability</li>
+    <li><b>Live-server pass</b> — served locally, confirmed the deck tilt and reel spin both disable cleanly under <code>prefers-reduced-motion</code> (tilt resets to a fixed 6° rest angle, reels stop entirely, VU throttles to 2fps instead of freezing outright), and checked the mobile breakpoint flattens the 3D tilt and stacks the two screens</li>
+  </ul>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 5), Anthropic · Wing II — generated-asset pipeline (Higgsfield nano_banana_pro hero, optimized locally with <code>sips</code>) plus hand-written HTML/CSS/JS, no frameworks, no build step ·
+    3 documented iteration passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

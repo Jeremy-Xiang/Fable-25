@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23ede40e%22/></svg>">
+<title>How LOUD was made — guide</title>
+<meta name="description" content="How the LOUD site was designed and built: The brutalist marquee wall: eight belts of giant type at different speeds and directions, hover to hold, scroll to feed">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#ede40e; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0c; color:#f3efe9; font-family:'Bricolage Grotesque', sans-serif; font-size:1.05rem; line-height:1.72; padding:0 1.5rem}
+  .wrap{max-width:680px; margin:0 auto; padding:9vh 0 12vh}
+  .crumb{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem}
+  .crumb a{color:#8f8b8d; text-decoration:none; border-bottom:1px solid #262327; padding-bottom:2px}
+  .crumb a:hover{color:var(--accent); border-color:var(--accent)}
+  .kicker{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem}
+  h1{font-weight:800; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.08; margin-bottom:.6rem; letter-spacing:-.01em}
+  .sub{color:#a19c9d; font-size:1.12rem; margin-bottom:3.6rem}
+  h2{font-size:1.05rem; font-weight:800; letter-spacing:.01em; margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #211d20; display:flex; align-items:baseline; gap:.75rem}
+  h2 .no{font-family:'JetBrains Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none; margin-bottom:1rem}
+  ul li{padding-left:1.6rem; position:relative; margin-bottom:.85rem}
+  ul li::before{content:'—'; position:absolute; left:0; color:var(--accent)}
+  code{font-family:'JetBrains Mono', monospace; font-size:.88em; background:#17141a; padding:.1em .4em; border-radius:4px}
+  .meta{font-family:'JetBrains Mono', monospace; font-size:.8rem; line-height:1.9; color:#cfc9cb; background:#141216; border:1px solid #211d20; border-left:3px solid var(--accent); padding:1.1rem 1.4rem; border-radius:6px}
+  .foot{margin-top:5rem; padding-top:2.4rem; border-top:1px solid #211d20; font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:#7a757a; line-height:2.4}
+  .foot a{color:var(--accent); text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent); color:#111}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to LOUD</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 96 · Wave 6 · how it was made</div>
+  <h1>LOUD</h1>
+  <p class="sub">The brutalist marquee wall: eight belts of giant type at different speeds and directions, hover to hold, scroll to feed</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Fashion-week shouting: eight full-bleed rows of Archivo Black scroll forever at staggered speeds and alternating directions. Hovering a belt slows it to 12% (readable, grabbable); clicking reverses it; flinging the page pours your scroll velocity into every belt at once.</p>
+
+  <h2><span class="no">02</span> How it works</h2>
+  <ul>
+    <li>One rAF loop owns all belts: <code>x -= speed·dir·hoverMul·(1+boost)</code>, wrapped at half the track width (content is duplicated 8×).</li>
+    <li>Belt widths are measured after <code>fonts.ready</code> — measuring before web fonts land is the classic marquee bug.</li>
+    <li>Scroll boost is smoothed |Δscroll| so a fling surges the whole wall then decays.</li>
+    <li>Outlined words (<code>-webkit-text-stroke</code>) and two interrupt colors (acid, red) break the rhythm.</li></ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <ul>
+    <li>Archivo Black exclusively — the wall is the typography.</li>
+    <li>Ink black, acid yellow <code>#ede40e</code>, alarm red; nothing else allowed.</li></ul>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <ul>
+    <li>Verified belt seams are invisible at the wrap point, hover-hold works per-row, and the acid rows keep contrast; checked fonts.ready measurement prevents overlap gaps.</li></ul>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <ul>
+    <li>The single-loop multi-belt engine replaces N CSS marquee hacks and gives you velocity input for free.</li>
+    <li>Always duplicate content ≥2× the viewport and wrap at scrollWidth/2; measure after fonts.</li>
+    <li>Hover-slow (not hover-stop) is the difference between grabbable and broken.</li></ul>
+
+  <div class="meta">stack — one HTML file · one rAF loop, eight belts · scroll-velocity boost · fonts.ready measurement<br>signature — type at full volume, briefly holdable</div>
+
+  <div class="foot">
+    site 96 / fable 25 · built by claude (fable 5), commissioned by jeremy xiang<br>
+    <a href="../">launch LOUD</a> · <a href="../../">the other sites</a>
+  </div>
+</div>
+</body>
+</html>

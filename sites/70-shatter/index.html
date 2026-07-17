@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23ff7a3c%22/></svg>">
+<title>SHATTER — a headline that breaks apart under the cursor</title>
+<meta name="description" content="SHATTER is a hand-rolled canvas particle-text effect: a hero word sampled from its own rendered pixels, solid at rest, that shatters and repels from the pointer, then springs back into place.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0a09; --bg2:#151210;
+    --ember:#ff7a3c; --ember-lite:#ffb385;
+    --ink:#f3ece5; --dim:#8f8178; --line:#26201b;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 8%, rgba(255,122,60,.10), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'JetBrains Mono',monospace;
+    display:flex;flex-direction:column;min-height:100%;overflow-x:hidden;
+  }
+  ::selection{background:var(--ember);color:#1a0e06}
+
+  header{display:flex;justify-content:space-between;align-items:center;padding:1.4rem 2rem;position:relative;z-index:3}
+  .mark{font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:1.05rem;letter-spacing:.02em;color:var(--ink)}
+  .mark span{color:var(--ember)}
+  nav{font-size:.66rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--ink);text-decoration:none;opacity:.6;margin-left:1.5rem}
+  nav a:hover{opacity:1;color:var(--ember)}
+
+  .kicker{
+    text-align:center;font-size:.66rem;letter-spacing:.32em;text-transform:uppercase;
+    color:var(--dim);padding-top:.4rem;position:relative;z-index:2
+  }
+  .kicker em{color:var(--ember);font-style:normal}
+
+  .stage-wrap{display:flex;justify-content:center;padding:.9rem 1.2rem;position:relative;z-index:2}
+  .stage{position:relative;width:min(920px,94vw);aspect-ratio:3/1;}
+  canvas#word{width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+
+  .sub{text-align:center;padding:.2rem 1.5rem 0;position:relative;z-index:2}
+  .sub p{font-size:.78rem;letter-spacing:.04em;color:var(--dim);max-width:480px;margin:0 auto;line-height:1.6}
+  .sub .hint{margin-top:.6rem;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ember-lite);opacity:.85}
+
+  .cta{display:flex;gap:.9rem;justify-content:center;padding:1.4rem 1.5rem .4rem;flex-wrap:wrap;position:relative;z-index:2}
+  .btn{font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;
+    padding:.75rem 1.3rem;border-radius:99px;text-decoration:none;cursor:pointer;transition:.2s;border:1px solid var(--line)}
+  .btn.primary{background:var(--ember);color:#1a0e06;border-color:var(--ember);font-weight:500}
+  .btn.primary:hover{background:var(--ember-lite);border-color:var(--ember-lite)}
+  .btn.ghost{background:none;color:var(--ink);opacity:.8}
+  .btn.ghost:hover{opacity:1;border-color:var(--ember);color:var(--ember)}
+
+  .panel{position:relative;z-index:3;display:flex;flex-wrap:wrap;gap:1.5rem;align-items:end;
+    justify-content:center;padding:2.2rem 1.5rem 2rem;text-align:center;
+    border-top:1px solid var(--line);margin-top:1.2rem}
+  .grp{display:flex;flex-direction:column;align-items:center;gap:.45rem;min-width:110px}
+  .grp .lab{font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .grp .val{font-size:.6rem;color:var(--ember-lite);letter-spacing:.05em}
+  input[type=range]{-webkit-appearance:none;width:130px;background:transparent;cursor:ew-resize}
+  input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--ember);margin-top:-5.5px;box-shadow:0 0 8px rgba(255,122,60,.6)}
+  input[type=range]::-moz-range-track{height:2px;background:var(--line)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:none;border-radius:50%;background:var(--ember)}
+  button.act{font-family:'JetBrains Mono',monospace;font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;
+    background:none;border:1px solid var(--line);color:var(--ink);padding:.55rem 1rem;
+    border-radius:99px;cursor:pointer;transition:.2s}
+  button.act:hover{border-color:var(--ember);color:var(--ember)}
+
+  footer{position:relative;z-index:3;text-align:center;font-size:.58rem;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--dim);padding:0 1.5rem 1.6rem}
+  footer a{color:var(--ember);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  @media(max-width:640px){
+    header{padding:1rem 1.2rem}
+    .stage{aspect-ratio:2/1}
+    .panel{gap:1rem 1.4rem}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .btn,button.act{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">ember<span>.</span>studio</span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<p class="kicker">Interactive frontend studio <em>— est. 2026</em></p>
+
+<div class="stage-wrap">
+  <div class="stage">
+    <canvas id="word" role="img" aria-label="The word EMBER rendered as thousands of small particles; it sits solid until you move the pointer near it, which repels nearby particles, and reassembles when the pointer moves away or you press Reset"></canvas>
+  </div>
+</div>
+
+<div class="sub">
+  <p>A hero word rendered pixel-by-pixel as a particle field — solid at rest, it shatters away from the cursor and springs back the instant you leave it alone.</p>
+  <p class="hint">move, drag or tap the word above</p>
+</div>
+
+<div class="cta">
+  <a class="btn primary" href="#" onclick="return false">View work</a>
+  <a class="btn ghost" href="#" onclick="return false">Say hello</a>
+</div>
+
+<div class="panel">
+  <div class="grp">
+    <span class="lab">Repel radius</span>
+    <input type="range" id="radius" min="40" max="260" value="140">
+    <span class="val" id="radiusVal">140px</span>
+  </div>
+  <div class="grp">
+    <span class="lab">Repel strength</span>
+    <input type="range" id="strength" min="0" max="100" value="55">
+    <span class="val" id="strengthVal">55%</span>
+  </div>
+  <div class="grp">
+    <span class="lab">Particle density</span>
+    <input type="range" id="density" min="1" max="10" value="6">
+    <span class="val" id="densityVal">n/a</span>
+  </div>
+  <div class="grp">
+    <span class="lab">Reassemble speed</span>
+    <input type="range" id="speed" min="1" max="10" value="5">
+    <span class="val" id="speedVal">5</span>
+  </div>
+  <div class="grp">
+    <span class="lab">Action</span>
+    <button class="act" id="shatterBtn">Shatter</button>
+  </div>
+</div>
+
+<footer>
+  SHATTER — particle text, hand-rolled canvas · SITE 70 OF 72 · WAVE 4 · BUILT BY CLAUDE (FABLE 25) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+/* ============================================================
+   Hand-rolled particle-text shatter/reassemble effect.
+   1) The word is drawn once to an offscreen canvas.
+   2) That offscreen bitmap is sampled on a grid — every pixel
+      whose alpha exceeds a threshold becomes a particle "home"
+      position. This IS the text: no font is ever drawn on the
+      visible canvas, only the particles it seeded.
+   3) Each frame: particles within `radius` of the pointer get a
+      quadratic-falloff repulsion impulse; all particles are
+      pulled back toward their home position by a simple spring;
+      velocity is damped each frame. No physics library.
+   ============================================================ */
+const WORD = 'EMBER';
+const canvas = document.getElementById('word');
+const ctx = canvas.getContext('2d');
+const stage = document.querySelector('.stage');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let DPR = Math.min(devicePixelRatio || 1, 2);
+let W = 0, H = 0;
+let particles = [];
+let CELL = 5; // px grid step used when sampling the word bitmap
+
+function resize(){
+  const r = stage.getBoundingClientRect();
+  W = r.width; H = r.height;
+  canvas.width = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  buildParticles();
+}
+
+function buildParticles(){
+  const off = document.createElement('canvas');
+  off.width = Math.max(1, Math.round(W));
+  off.height = Math.max(1, Math.round(H));
+  const octx = off.getContext('2d');
+  octx.clearRect(0, 0, off.width, off.height);
+  octx.fillStyle = '#fff';
+  octx.textAlign = 'center';
+  octx.textBaseline = 'middle';
+
+  // fit the word to the canvas width, leaving an 8% margin each side
+  let fontSize = H * 0.66;
+  octx.font = `900 ${fontSize}px 'Space Grotesk', sans-serif`;
+  const maxW = W * 0.86;
+  const measured = octx.measureText(WORD).width;
+  if (measured > maxW) fontSize *= maxW / measured;
+  octx.font = `900 ${fontSize}px 'Space Grotesk', sans-serif`;
+  octx.fillText(WORD, off.width / 2, off.height * 0.54);
+
+  const img = octx.getImageData(0, 0, off.width, off.height).data;
+  const homes = [];
+  for (let y = 0; y < off.height; y += CELL) {
+    for (let x = 0; x < off.width; x += CELL) {
+      const a = img[(y * off.width + x) * 4 + 3];
+      if (a > 130) homes.push({ tx: x, ty: y });
+    }
+  }
+
+  const old = particles;
+  particles = homes.map((p, i) => {
+    // reuse an existing particle's live position/velocity when possible so
+    // changing sliders mid-shatter doesn't visually "reset" the effect
+    const prev = old[i];
+    return {
+      tx: p.tx, ty: p.ty,
+      x: prev ? prev.x : p.tx + (Math.random() - 0.5) * 8,
+      y: prev ? prev.y : p.ty + (Math.random() - 0.5) * 8,
+      vx: prev ? prev.vx : 0,
+      vy: prev ? prev.vy : 0,
+      r: 1.0 + Math.random() * 1.3,
+    };
+  });
+  const densityVal = document.getElementById('densityVal');
+  if (densityVal) densityVal.textContent = particles.length.toLocaleString() + ' pts';
+}
+
+// --- tunables (mapped from the UI) ---
+let repelRadius = 140;
+let repelStrength = 0.55; // 0..1 raw slider, mapped below
+let springK = 0.055;
+let damping = 0.90;
+
+function mapControls(){
+  repelRadius = Number(document.getElementById('radius').value);
+  repelStrength = Number(document.getElementById('strength').value) / 100;
+  const speed = Number(document.getElementById('speed').value);
+  springK = 0.02 + (speed - 1) * 0.018;      // 0.02 .. 0.182
+  damping = 0.965 - (speed - 1) * 0.006;      // slightly snappier at high reassemble speed
+}
+
+let mouse = { x: -9999, y: -9999, active: false };
+
+function step(dt){
+  const k = Math.min(2, dt * 60); // normalize toward a 60fps baseline
+  const dampF = Math.pow(damping, k);
+  for (const p of particles) {
+    if (mouse.active) {
+      const dx = p.x - mouse.x, dy = p.y - mouse.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < repelRadius && dist > 0.01) {
+        const f = 1 - dist / repelRadius;
+        const push = f * f * repelStrength * 26;
+        p.vx += (dx / dist) * push * k;
+        p.vy += (dy / dist) * push * k;
+      }
+    }
+    p.vx += (p.tx - p.x) * springK * k;
+    p.vy += (p.ty - p.y) * springK * k;
+    p.vx *= dampF;
+    p.vy *= dampF;
+    p.x += p.vx * k;
+    p.y += p.vy * k;
+  }
+}
+
+function burst(cx, cy, power){
+  for (const p of particles) {
+    const dx = p.x - cx, dy = p.y - cy;
+    const dist = Math.hypot(dx, dy) || 1;
+    const f = power / (dist * 0.04 + 1);
+    p.vx += (dx / dist) * f * (0.6 + Math.random() * 0.8);
+    p.vy += (dy / dist) * f * (0.6 + Math.random() * 0.8) - power * 0.12;
+  }
+}
+
+function draw(){
+  ctx.clearRect(0, 0, W, H);
+  for (const p of particles) {
+    const speed = Math.hypot(p.vx, p.vy);
+    const glow = Math.min(1, speed / 42);
+    ctx.globalAlpha = 0.6 + glow * 0.4;
+    ctx.fillStyle = glow > 0.5 ? '#ffb385' : '#ff7a3c';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r + glow * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawStatic(){
+  // reduced-motion end state: draw every particle sitting exactly at home
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#ff7a3c';
+  for (const p of particles) {
+    ctx.beginPath();
+    ctx.arc(p.tx, p.ty, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// --- interaction ---
+canvas.addEventListener('pointermove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+  mouse.active = true;
+});
+canvas.addEventListener('pointerleave', () => { mouse.active = false; });
+canvas.addEventListener('pointerdown', e => {
+  const r = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+  mouse.active = true;
+  burst(mouse.x, mouse.y, 22);
+});
+
+document.getElementById('radius').addEventListener('input', e => {
+  mapControls();
+  document.getElementById('radiusVal').textContent = e.target.value + 'px';
+});
+document.getElementById('strength').addEventListener('input', e => {
+  mapControls();
+  document.getElementById('strengthVal').textContent = e.target.value + '%';
+});
+document.getElementById('speed').addEventListener('input', e => {
+  mapControls();
+  document.getElementById('speedVal').textContent = e.target.value;
+});
+document.getElementById('density').addEventListener('input', e => {
+  CELL = densityToCell(Number(e.target.value));
+  buildParticles(); // also refreshes the "N pts" label to the real, current count
+});
+document.getElementById('shatterBtn').addEventListener('click', () => {
+  burst(W / 2, H * 0.54, 30);
+});
+
+function densityToCell(v){
+  // 1 (sparse) -> 10px grid step .. 10 (dense) -> 1px grid step
+  return Math.max(1, Math.round(11 - v));
+}
+
+addEventListener('resize', resize);
+mapControls();
+CELL = densityToCell(Number(document.getElementById('density').value));
+resize(); // resize() -> buildParticles() also sets the initial "N pts" label
+
+let last = performance.now();
+function loop(now){
+  const dt = Math.min(0.032, (now - last) / 1000); last = now;
+  if (!reduceMotion) {
+    step(dt);
+    draw();
+    requestAnimationFrame(loop);
+  } else {
+    drawStatic();
+  }
+}
+if (reduceMotion) drawStatic();
+else requestAnimationFrame(loop);
+</script>
+</body>
+</html>

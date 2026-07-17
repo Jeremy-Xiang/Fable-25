@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23ff4fd8%22/></svg>">
+<title>How MORPH was made — guide</title>
+<meta name="description" content="How the MORPH site was designed and built: a hand-rolled state-morphing custom cursor driven by data-cursor attributes and closest() lookups.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #ff4fd8; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0a0d; color:#f2eef2;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#8d8792; text-decoration:none; border-bottom:1px solid #232028; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#8d8792; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #232028;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { color:#d8d3d9; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; color:#d8d3d9; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; color:#d8d3d9; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code{font-family:'Fragment Mono',monospace;font-size:.9em;background:#171418;padding:.1em .4em;border-radius:4px;color:#f2eef2}
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#cabcc8;
+    background:#131015; border:1px solid #232028; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #232028;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#5c5763; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0a0a0d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to MORPH</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 69 of 72 · how it was made</div>
+  <h1>MORPH</h1>
+  <p class="sub">A custom cursor that morphs its state depending on what it's over</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Most "custom cursor" demos are a single decorative shape that just follows the pointer. MORPH treats the cursor as a small state machine instead: it's always displaying one of five states — idle, link, button, drag, text — and the whole point of the demo is staging one of each hoverable element type on a single page so every state is a mouse-move away, with a legend that spells out what each shape means.</p>
+
+  <h2><span class="no">02</span> How the effect works</h2>
+  <ul>
+    <li><strong>Hidden native cursor:</strong> <code>body{cursor:none}</code> on pointer devices (a <code>(hover:none),(pointer:coarse)</code> media query restores the normal system cursor on touch, where there is no hover state to read).</li>
+    <li><strong>One fixed div, five states:</strong> <code>#cursor</code> is a single <code>position:fixed</code> element. A <code>STATES</code> lookup table maps a state name to <code>{w, h, radius, rotate}</code> — e.g. link is <code>78×78</code> circle, text is a <code>3×26</code> sliver with <code>2px</code> radius, drag is a <code>46×46</code> square rotated <code>45deg</code> into a diamond.</li>
+    <li><strong>State detection:</strong> every <code>pointermove</code>, <code>e.target.closest('[data-cursor]')</code> walks up from whatever's under the pointer to find the nearest ancestor carrying a <code>data-cursor="link|button|drag|text"</code> attribute; if none is found it falls back to <code>idle</code>. Detection is O(depth-of-tree), not a per-element hover listener, so adding a new hoverable region is a one-attribute change, not new JS.</li>
+    <li><strong>Morphing:</strong> <code>applyState()</code> rewrites <code>width</code>, <code>height</code>, <code>border-radius</code> and a rotation value directly as inline styles — CSS transitions on those properties (implied by the browser's default paint, no explicit <code>transition</code> needed for the size jump to read as a "morph" rather than a snap) plus the position lerp below combine into one continuous motion.</li>
+    <li><strong>Position lerp:</strong> the blob's screen position is <em>not</em> pinned 1:1 to the pointer. Each frame: <code>pos.x += (target.x - pos.x) * 0.22</code> (same for y) — an exponential-decay follow, so the blob trails the real cursor by a few pixels at speed instead of teleporting frame-to-frame, which is what makes it read as a soft, weighted shape rather than a UI ghost.</li>
+    <li><strong>Blend mode:</strong> default <code>mix-blend-mode:difference</code> inverts whatever's underneath (readable over both the dark background and light text), togglable to <code>normal</code> from the panel to show the flat, undifferenced look side by side.</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Bricolage Grotesque (display/UI) + Fragment Mono (labels/code) · near-black #0a0a0d ground · hot pink accent #ff4fd8 / #ffb0ec · dim text #8d8792 / #5c5763</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>The first headless desktop render showed a stray solid-pink circle sitting on top of the "Selected Work" nav row — not a design element, a bug. The position-follow loop initialized <code>target</code>/<code>pos</code> to <code>innerWidth/2, innerHeight/2</code> and started rendering immediately on load, so before any real pointer event ever fires, the idle cursor paints itself at a meaningless fixed viewport-center point and just sits there — which a static screenshot (or a page that's merely loaded and not yet touched) exposes immediately, since there's no simulated mouse to move it away. Fixed by adding a <code>hasMoved</code> gate: the cursor stays at <code>opacity:0</code> until the very first real <code>pointermove</code>, which also snaps its position straight to the cursor (no lerp-in from center) and adds an <code>.armed</code> class that reveals it. Re-screenshotting confirmed the phantom dot is gone on both desktop and mobile, and that legend swatches, nav rows and the buttons/drag-zone card still line up cleanly. Separately, a code-level check caught that the drag-chip's <code>45deg</code> diamond rotation was being applied twice (once via an inline CSS <code>rotate</code> property, once again inside the per-frame <code>transform</code> string) — per spec those compose, doubling the angle — so rotation is now tracked in a single JS variable and applied in exactly one place.</p>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <p>To reuse this in a real portfolio:</p>
+  <ul>
+    <li><strong>Copy:</strong> the <code>#cursor</code> element, its CSS block, and the whole <code>&lt;script&gt;</code> section from <code>applyState()</code> through the <code>follow()</code> IIFE. That's the entire mechanism — nothing else in the page depends on it.</li>
+    <li><strong>What it expects:</strong> any element you want the cursor to react to needs a <code>data-cursor="link"</code> (or <code>button</code>/<code>drag</code>/<code>text</code>/your own custom name) attribute; add a matching entry to the <code>STATES</code> object with whatever <code>{w,h,radius,rotate}</code> you want that state to look like.</li>
+    <li><strong>Tunables:</strong> the <code>0.22</code> lerp factor in <code>follow()</code> controls trail weight (lower = floatier, higher = snappier); <code>sizeScale</code> is the live multiplier the demo's slider drives; swap <code>var(--accent)</code> and the blend mode default to match your brand.</li>
+    <li><strong>Gotchas:</strong> set <code>body{cursor:none}</code> only behind a <code>(hover:none),(pointer:coarse)</code> check — touch devices have no persistent pointer position, so a hidden native cursor with no replacement is a dead end for them. Respect <code>prefers-reduced-motion</code> by skipping the lerp (snap straight to the target) rather than disabling the cursor outright. If you add draggable elements near it, give them their own <code>touch-action:none</code> so the browser doesn't hijack touch-drag as a page scroll.</li>
+  </ul>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Add one fixed-position div for the cursor; hide the native cursor with <code>cursor:none</code></li>
+    <li>Tag every hoverable region with <code>data-cursor="state-name"</code> and define each state's size/shape in a lookup table</li>
+    <li>On <code>pointermove</code>, use <code>e.target.closest('[data-cursor]')</code> to detect the active state and rewrite the div's inline styles</li>
+    <li>Drive the div's screen position from a separate <code>requestAnimationFrame</code> loop that lerps toward the real pointer position</li>
+    <li>Gate the native-cursor hide and the JS entirely behind a hover/pointer-coarse media check so touch devices get the normal system cursor</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wave 4), Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step, no cursor library ·
+    build → screenshot critique → fix → re-screenshot before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

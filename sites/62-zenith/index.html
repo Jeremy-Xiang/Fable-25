@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZENITH — light at its highest point</title>
+<meta name="description" content="ZENITH is volumetric god-rays through drifting dust at solar noon — raymarched-style layered light shafts, curl-drifted dust motes, and a real bloom pass, in the collection's brightest site. Site 62 of 62 — the Wave 3 finale.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cardo:ital,wght@0,400;0,700;1,400&family=Fira+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#faf5ea;
+    --ink:#2b2418;
+    --gold:#a97c1f;
+    --gold-dp:#8a6316;
+    --dim:#8c7f66;
+    --line:rgba(43,36,24,.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--paper);color:var(--ink);font-family:'Cardo',Georgia,serif;overflow-x:hidden}
+  ::selection{background:var(--gold);color:#fff}
+  #gl{position:fixed;inset:0;z-index:0}
+
+  header{position:fixed;top:0;left:0;right:0;z-index:3;display:flex;justify-content:space-between;
+    align-items:center;padding:1.3rem 2rem;pointer-events:none;mix-blend-mode:multiply}
+  header *{pointer-events:auto}
+  .m{font-weight:700;font-size:1.2rem;letter-spacing:.1em}
+  .m i{color:var(--gold);font-style:italic}
+  nav{font-family:'Fira Mono',monospace;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--ink);text-decoration:none;opacity:.72;margin-left:1.5rem}
+  nav a:hover{opacity:1;color:var(--gold-dp)}
+
+  .hero{position:fixed;left:0;right:0;bottom:9.5rem;z-index:2;text-align:center;pointer-events:none;
+    padding:0 1.5rem}
+  .hero .kicker{font-family:'Fira Mono',monospace;font-size:.66rem;letter-spacing:.32em;text-transform:uppercase;
+    color:var(--gold-dp);margin-bottom:.9rem;opacity:.85}
+  .hero h1{font-weight:700;font-size:clamp(2.4rem,7vw,5.2rem);line-height:1;letter-spacing:.01em;
+    text-shadow:0 2px 40px rgba(255,255,255,.6)}
+  .hero h1 em{font-style:italic;color:var(--gold-dp)}
+
+  .panel{position:fixed;bottom:1.6rem;left:50%;transform:translateX(-50%);z-index:3;
+    display:flex;gap:1.1rem;align-items:center;background:rgba(250,245,234,.72);
+    backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:99px;
+    padding:.65rem 1.3rem;max-width:92vw;box-shadow:0 8px 30px rgba(120,90,20,.1)}
+  .stat{font-family:'Fira Mono',monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--dim);white-space:nowrap}
+  .stat b{color:var(--gold-dp);font-weight:700}
+  .divider{width:1px;height:20px;background:var(--line)}
+  button{font-family:'Fira Mono',monospace;font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;
+    background:var(--gold-dp);border:none;color:#fff;padding:.55rem 1.05rem;border-radius:99px;
+    cursor:pointer;transition:.2s;font-weight:600}
+  button:hover{background:var(--gold)}
+
+  footer{position:fixed;bottom:.5rem;right:1.4rem;z-index:2;font-family:'Fira Mono',monospace;
+    font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;opacity:.5;mix-blend-mode:multiply}
+  footer a{color:var(--ink)}
+
+  @media(max-width:760px){
+    .hero{bottom:8.2rem}
+    .panel{bottom:1rem;flex-wrap:wrap;justify-content:center;padding:.55rem .9rem}
+    footer{display:none}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .hero h1{text-shadow:none}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gl" aria-hidden="true"></canvas>
+
+<header>
+  <span class="m">ZE<i>NITH</i></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <div class="kicker">Site 62 of 62 · the wave 3 finale</div>
+  <h1>Light at its <em>highest point.</em></h1>
+</div>
+
+<div class="panel">
+  <span class="stat">Motes <b id="statMotes">—</b></span>
+  <span class="stat">Bloom <b id="statBloom">on</b></span>
+  <div class="divider"></div>
+  <button id="btnBreath">Release dust</button>
+</div>
+
+<footer>ZENITH — SITE 62 OF 62 · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a></footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canvas = document.getElementById('gl');
+
+let webglOK = true;
+try {
+  const testCtx = canvas.getContext('webgl2') || canvas.getContext('webgl');
+  if(!testCtx) webglOK = false;
+} catch(e){ webglOK = false; }
+
+if(!webglOK){
+  document.body.style.background = 'linear-gradient(180deg, #fffdf7 0%, #f7ecd0 45%, #f3dfa9 100%)';
+  canvas.style.display = 'none';
+} else {
+  runScene();
+}
+
+function runScene(){
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+
+  const scene = new THREE.Scene();
+
+  /* ---------- procedural sky backdrop: pale noon gradient with a warm
+     glow already seeded around where the sun sits, so the WebGL layers
+     read as an intensification of the backdrop rather than stickers on
+     top of it ---------- */
+  // deliberately mid-value gold, not near-white: additive light drawn on top
+  // of an already-white backdrop is invisible (nothing left to add), so the
+  // backdrop keeps enough headroom for the beams and sun to actually read as
+  // brighter than their surroundings. The sun sprite + bloom supply the one
+  // true near-white hotspot.
+  function makeSkyTexture(){
+    const c = document.createElement('canvas'); c.width=512; c.height=512;
+    const sctx = c.getContext('2d');
+    const g = sctx.createLinearGradient(0,0,0,512);
+    g.addColorStop(0,'#f5e3b8'); g.addColorStop(0.5,'#eecf95'); g.addColorStop(1,'#e0ba96');
+    sctx.fillStyle = g; sctx.fillRect(0,0,512,512);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+  scene.background = makeSkyTexture();
+
+  const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 100);
+  camera.position.set(0, 0.4, 7.4);
+  const camTarget = new THREE.Vector3(0, 2.0, 0);
+  camera.lookAt(camTarget);
+
+  const sunWorldPos = new THREE.Vector3(0, 3.6, -2.6);
+
+  /* ---------- sun disc: bright core the bloom pass will catch ---------- */
+  function makeGlowTexture(hard){
+    const c = document.createElement('canvas'); c.width=c.height=256;
+    const gctx = c.getContext('2d');
+    const g = gctx.createRadialGradient(128,128,0,128,128,128);
+    if(hard){
+      g.addColorStop(0,'rgba(255,255,255,1)');
+      g.addColorStop(0.18,'rgba(255,250,235,1)');
+      g.addColorStop(0.4,'rgba(255,225,150,0.6)');
+      g.addColorStop(1,'rgba(255,225,150,0)');
+    } else {
+      g.addColorStop(0,'rgba(255,244,214,0.9)');
+      g.addColorStop(1,'rgba(255,244,214,0)');
+    }
+    gctx.fillStyle=g; gctx.fillRect(0,0,256,256);
+    const tex = new THREE.CanvasTexture(c);
+    return tex;
+  }
+  const sunTex = makeGlowTexture(true);
+  const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map:sunTex, blending:THREE.AdditiveBlending, depthWrite:false, transparent:true
+  }));
+  sunSprite.position.copy(sunWorldPos);
+  sunSprite.scale.set(1.7,1.7,1);
+  scene.add(sunSprite);
+
+  /* ---------- volumetric-looking light shafts: layered additive cones
+     with a hand-written turbulence term standing in for raymarched dust
+     density ---------- */
+  const beamVert = `
+    varying vec2 vUv;
+    void main(){
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+    }
+  `;
+  const beamFrag = `
+    varying vec2 vUv;
+    uniform float uTime;
+    uniform float uSeed;
+    uniform float uOpacity;
+    float hash(vec2 p){ return fract(sin(dot(p,vec2(41.3,289.1)))*43758.5453); }
+    float noise(vec2 p){
+      vec2 i=floor(p), f=fract(p);
+      float a=hash(i), b=hash(i+vec2(1.0,0.0)), c=hash(i+vec2(0.0,1.0)), d=hash(i+vec2(1.0,1.0));
+      vec2 u=f*f*(3.0-2.0*f);
+      return mix(a,b,u.x)+ (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
+    }
+    void main(){
+      // vUv.y: 0 at sun-end (narrow), 1 at far end (wide); vUv.x across the beam width
+      float edge = 1.0 - abs(vUv.x - 0.5) * 2.0;         // 1 at center, 0 at edges
+      edge = pow(max(edge,0.0), 1.6);
+      float lenFade = pow(vUv.y, 1.1);                    // vUv.y=1 is the sun end, brighter there
+      vec2 np = vec2(vUv.x*3.0 + uSeed*10.0, vUv.y*5.0 - uTime*0.12);
+      float turb = noise(np)*0.6 + noise(np*2.3+11.0)*0.4;
+      float density = edge * lenFade * (0.55 + 0.65*turb);
+      gl_FragColor = vec4(vec3(1.0, 0.78, 0.36), density * uOpacity);
+    }
+  `;
+  const beams = [];
+  const BEAM_N = 7;
+  for(let i=0;i<BEAM_N;i++){
+    const w = 0.85 + Math.random()*1.1;
+    const beamLen = 11 + Math.random()*3;
+    const geo = new THREE.PlaneGeometry(w, beamLen, 1, 24);
+    // anchor the plane's TOP edge (uv.y=1) at its own local origin so the
+    // mesh can be positioned exactly at the sun and extend downward from
+    // there, instead of straddling the sun position
+    geo.translate(0, -beamLen/2, 0);
+    const mat = new THREE.ShaderMaterial({
+      vertexShader: beamVert, fragmentShader: beamFrag,
+      transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+      uniforms:{ uTime:{value:0}, uSeed:{value:Math.random()*10}, uOpacity:{value: 0.3 + Math.random()*0.16 } }
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(sunWorldPos);
+    const spread = (i - (BEAM_N-1)/2) * 0.42 + (Math.random()-0.5)*0.1;
+    mesh.rotation.z = spread;
+    mesh.renderOrder = 1;
+    scene.add(mesh);
+    beams.push(mesh);
+  }
+
+  /* ---------- dust motes: additive points drifting on a cheap curl-ish
+     noise field (sum of offset sine terms — organic without a full 3D
+     simplex implementation) ---------- */
+  const MOTE_N = window.innerWidth<760 ? 900 : 2200;
+  const moteGeo = new THREE.BufferGeometry();
+  const motePos = new Float32Array(MOTE_N*3);
+  const moteSeed = new Float32Array(MOTE_N);
+  for(let i=0;i<MOTE_N;i++){
+    motePos[i*3]   = (Math.random()-0.5)*14;
+    motePos[i*3+1] = Math.random()*8 - 1;
+    motePos[i*3+2] = (Math.random()-0.5)*10 + 1;
+    moteSeed[i] = Math.random()*1000;
+  }
+  moteGeo.setAttribute('position', new THREE.BufferAttribute(motePos,3));
+  const moteTex = makeGlowTexture(false);
+  const moteMat = new THREE.PointsMaterial({
+    map: moteTex, size: 0.09, transparent:true, opacity:0.8,
+    blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true,
+    color: 0xfff2d6
+  });
+  const motes = new THREE.Points(moteGeo, moteMat);
+  scene.add(motes);
+  document.getElementById('statMotes').textContent = MOTE_N;
+
+  // an extra "breath" burst pool, hidden until triggered
+  let burstUntil = 0;
+
+  /* ---------- lens-flare ghosts: screen-space artifacts that track the
+     sun's projected position — the deliberate complexity upgrade ---------- */
+  const ghostCount = 5;
+  const ghostSprites = [];
+  const ghostTex = makeGlowTexture(false);
+  for(let i=0;i<ghostCount;i++){
+    const m = new THREE.SpriteMaterial({ map:ghostTex, blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false, transparent:true, opacity:0.0 });
+    const s = new THREE.Sprite(m);
+    s.renderOrder = 10;
+    scene.add(s);
+    ghostSprites.push(s);
+  }
+  // scratch vectors reused every frame instead of allocated fresh — five
+  // ghosts at 60fps would otherwise garbage-collect several vectors/sec
+  const ndcTmp = new THREE.Vector3();
+  const worldPt = new THREE.Vector3();
+  const dirTmp = new THREE.Vector3();
+  const posTmp = new THREE.Vector3();
+  function updateGhosts(){
+    ndcTmp.copy(sunWorldPos).project(camera);
+    // only show flares while the sun is roughly in front of the camera
+    const inFront = ndcTmp.z < 1;
+    for(let i=0;i<ghostCount;i++){
+      const t = (i+1)/(ghostCount+1);
+      // ghosts sit along the line through screen center, opposite the sun
+      const gx = -ndcTmp.x * t * 1.4;
+      const gy = -ndcTmp.y * t * 1.4;
+      worldPt.set(gx, gy, 0.5).unproject(camera);
+      dirTmp.copy(worldPt).sub(camera.position).normalize();
+      const dist = 6 + t*3;
+      posTmp.copy(camera.position).add(dirTmp.multiplyScalar(dist));
+      ghostSprites[i].position.copy(posTmp);
+      const scale = (0.5 + (1-t)*0.9) * (0.6+0.4*Math.sin(t*7));
+      ghostSprites[i].scale.set(scale, scale, 1);
+      const edgeFalloff = Math.max(0, 1 - Math.hypot(ndcTmp.x,ndcTmp.y)*0.6);
+      ghostSprites[i].material.opacity = inFront ? 0.16*edgeFalloff*(1-t*0.4) : 0;
+    }
+  }
+
+  /* ---------- post-processing: bloom tuned high so only the sun core and
+     the brightest beam intersections bleed light — the pale sky backdrop
+     stays under threshold and doesn't wash out ---------- */
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), 0.42, 0.32, 0.85);
+  composer.addPass(bloom);
+
+  function onResize(){
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+    composer.setSize(innerWidth, innerHeight);
+    bloom.setSize && bloom.setSize(innerWidth, innerHeight);
+  }
+  addEventListener('resize', onResize);
+  onResize();
+
+  /* ---------- gentle parallax on pointer move ---------- */
+  let mx=0, my=0, tmx=0, tmy=0;
+  addEventListener('pointermove', e=>{
+    tmx = (e.clientX/innerWidth - 0.5);
+    tmy = (e.clientY/innerHeight - 0.5);
+  });
+
+  document.getElementById('btnBreath').addEventListener('click', ()=>{
+    burstUntil = performance.now() + 3200;
+  });
+
+  const clock = new THREE.Clock();
+  function animate(){
+    const dt = reduceMotion ? 0.008 : Math.min(0.05, clock.getDelta());
+    const t = clock.elapsedTime;
+
+    if(!reduceMotion){
+      mx += (tmx-mx)*0.04; my += (tmy-my)*0.04;
+      camera.position.x = mx*1.1;
+      camera.position.y = 0.2 - my*0.6;
+      camera.lookAt(camTarget);
+
+      beams.forEach(b=> b.material.uniforms.uTime.value = t);
+
+      // mote drift: cheap curl-ish field from offset sine terms, plus slow fall
+      const arr = moteGeo.attributes.position.array;
+      const burstBoost = performance.now() < burstUntil ? 1.8 : 1.0;
+      for(let i=0;i<MOTE_N;i++){
+        const s = moteSeed[i];
+        const ix=i*3, iy=i*3+1, iz=i*3+2;
+        const x = arr[ix], y = arr[iy], z = arr[iz];
+        const vx = Math.sin(y*0.6 + s + t*0.25) * 0.35;
+        const vz = Math.cos(x*0.5 + s + t*0.2) * 0.3;
+        let vy = -0.12 - Math.sin(x*0.4+z*0.4+s)*0.04;
+        arr[ix] = x + vx*dt*burstBoost;
+        arr[iy] = y + vy*dt*burstBoost;
+        arr[iz] = z + vz*dt*burstBoost;
+        if(arr[iy] < -2){ arr[iy] = 7.5; arr[ix]=(Math.sin(s)*7); arr[iz]=(Math.cos(s*1.7))*5+1; }
+      }
+      moteGeo.attributes.position.needsUpdate = true;
+
+      updateGhosts();
+    }
+
+    composer.render();
+    // under reduced motion nothing above changes frame to frame, so render
+    // one settled frame and stop — no point burning cycles re-drawing an
+    // identical image on a continuous rAF loop
+    if(!reduceMotion) requestAnimationFrame(animate);
+  }
+  animate();
+}
+</script>
+</body>
+</html>

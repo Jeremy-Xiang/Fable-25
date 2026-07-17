@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How AURORA was made — guide</title>
+<meta name="description" content="How the AURORA site was designed and built: techniques, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #4fd7c4; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0e11; color:#e9ede9;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9aa6a2; text-decoration:none; border-bottom:1px solid #232a29; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#9aa6a2; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #1c2221;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { margin-bottom: 1rem; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#b9c4c0;
+    background:#111716; border:1px solid #1c2221; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #1c2221;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a968f; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0a0e11; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to AURORA</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 26 of 50 · Wing II · how it was made</div>
+  <h1>AURORA</h1>
+  <p class="sub">A sky that keeps painting itself</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Wing II's whole premise is generated imagery plus a procedural layer that a photo alone can't provide: motion. AURORA is the clearest test case — a still painting of the northern lights is beautiful but static, and the northern lights are anything but. So the image stays exactly as generated, full-bleed and untouched, and a live flow field paints new ribbons in the same three hues directly on top of it, in front of the mountains, behind nothing. The photo supplies the texture a canvas gradient never could; the canvas supplies the one thing the photo structurally cannot: continuous, non-repeating motion.</p>
+  <p>A "solar wind" slider ties the metaphor to the mechanism instead of leaving it decorative — dragging it changes the actual noise-sampling rate and step size the flow field uses, so the sky visibly goes from a slow drift (Kp 2, calm) to a rough, fast churn (Kp 9, severe storm), which is also roughly how a real geomagnetic storm looks against Earth's aurora oval.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Hero: one nano_banana_pro generation, "painterly cinematic aurora borealis over dark silhouetted mountains, teal-violet-green, snowfield foreground, stars" — used as a fixed, full-bleed backdrop image, no CSS filters beyond a slight saturation/brightness trim for legibility</li>
+    <li>Motion layer: a transparent canvas positioned over the image with <code>mix-blend-mode: screen</code>, so painted strands add light onto the photo rather than covering it</li>
+    <li>Flow field: a small hand-written 2D value-noise function (hashed lattice + smoothstep interpolation — no external noise library, keeping the "one dependency: Google Fonts" rule) drives a per-frame angle for ~220 short-lived particles; each is retired and reseeded near the top of frame once its life or bounds run out, which keeps the ribbon density even instead of clumping</li>
+    <li>Color: three fixed RGB triples matching the painting's palette (oxygen teal, nitrogen violet, high-altitude green), each strand picks one at spawn so the canvas layer reads as an extension of the image's own hues, not a foreign overlay</li>
+    <li>Trail fade via <code>destination-out</code> compositing at low alpha each frame instead of a solid fillRect — avoids ever showing a hard rectangle edge against the transparent canvas</li>
+    <li>Below the fold: a two-column field-notes section (why the image and the shader split the labor) plus a small legend explaining the physical basis of each of the three colors, so the page has real content beyond the hero, not just a full-bleed image with a headline</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Bricolage Grotesque (display) + Red Hat Mono (labels/mono) · near-black blue #050b12 · teal #4fd7c4 · violet #8f6bff · green #6fffa8 · ice-white text #dbeeff</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Place the generated image as a fixed, full-bleed <code>&lt;img&gt;</code> behind everything, then a same-size transparent <code>&lt;canvas&gt;</code> directly on top with <code>mix-blend-mode:screen</code></li>
+    <li>Write a minimal value-noise function — hash two integers to a pseudo-random float, bilinear-interpolate the four lattice corners with smoothstep easing</li>
+    <li>Give each particle a noise-derived heading each frame, step it forward, stroke a short segment in a hue sampled from the source image's own palette</li>
+    <li>Fade old trails with a low-alpha <code>destination-out</code> rect instead of clearing the canvas outright, so strands trail rather than blink</li>
+    <li>Wire one control (here: a slider) to the noise sampling rate and step length so "intensity" is mechanically real, not just a label</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration passes</h2>
+  <p><b>Build pass:</b> first draft had the flow field covering the full viewport including the darkest lower third of the image, which muddied the mountains — clipped the particle spawn band to the upper ~60% (sky only) so the silhouette stays clean and readable. Added the field-notes section below the fold after realizing the first draft was hero-only and read as a single gimmick rather than a page.</p>
+  <p><b>Code-review pass:</b> checked contrast of the ice-white body text (#dbeeff) against #050b12 — comfortably AA for the size used. Switched the trail-fade from a full <code>clearRect</code> to alpha-based <code>destination-out</code> for smoother motion at effectively the same per-frame cost (still just two canvas ops). Confirmed the slider and every link are reachable and operable by keyboard alone (native range input + anchor tags, no custom widgets that trap focus).</p>
+  <p><b>Live-browser pass:</b> served locally and watched the canvas at both low and high "solar wind" settings — at 100 the strands were flickering distractingly fast, so the speed formula was reworked to scale the noise-time increment rather than the frame's redraw rate, which keeps it fast but readable. Confirmed <code>prefers-reduced-motion</code> fully halts the particle system (N set to 0, single static clear) rather than merely slowing it, per the brief's "gracefully degrade" requirement.</p>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wing II), Anthropic ·
+    hero image: Higgsfield <code>nano_banana_pro</code>, ~2cr, one generation ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    3 documented iteration passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

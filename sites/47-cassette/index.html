@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CASSETTE-90 — press play</title>
+<meta name="description" content="CASSETTE-90 is a playable CSS 3D tape-deck UI: buttons that depress, reels that spin, and a live amber spectrum driven by Web Audio.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Michroma&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0c0d;
+    --metal:#8f959b;
+    --metal-dk:#3a3d40;
+    --amber:#ff9d00;
+    --amber-dim:#8a5600;
+    --screen:#1a1204;
+    --txt:#e8e6e0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--txt);font-family:'Martian Mono',monospace;overflow-x:hidden}
+  ::selection{background:var(--amber);color:#1a1204}
+  a{color:inherit}
+
+  .backdrop{position:fixed;inset:0;z-index:0}
+  .backdrop img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    filter:blur(22px) brightness(.4) saturate(1.1);transform:scale(1.1)}
+  .backdrop::after{content:'';position:absolute;inset:0;
+    background:radial-gradient(ellipse at 50% 30%,rgba(12,12,13,.25),rgba(6,6,7,.92) 75%)}
+
+  header{position:relative;z-index:5;display:flex;justify-content:space-between;align-items:center;
+    padding:1.5rem 2rem}
+  .m{font-family:'Michroma',sans-serif;font-size:.92rem;letter-spacing:.06em;color:var(--txt)}
+  .m i{color:var(--amber);font-style:normal}
+  nav{font-size:.66rem;letter-spacing:.1em;text-transform:uppercase}
+  nav a{color:var(--txt);text-decoration:none;opacity:.75;margin-left:1.5rem}
+  nav a:hover,nav a:focus-visible{opacity:1;color:var(--amber)}
+
+  main{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;
+    padding:1rem 1.5rem 3rem;min-height:calc(100vh - 76px)}
+
+  .headline{text-align:center;max-width:640px;margin:1.4rem 0 2.6rem}
+  .headline .kicker{font-family:'Michroma',sans-serif;font-size:.6rem;letter-spacing:.28em;
+    text-transform:uppercase;color:var(--amber);margin-bottom:1rem}
+  .headline h1{font-family:'Michroma',sans-serif;font-weight:400;font-size:clamp(1.5rem,4.4vw,2.6rem);
+    line-height:1.35;color:var(--txt)}
+  .headline h1 em{font-style:normal;color:var(--amber)}
+  .headline p{font-size:.78rem;line-height:1.8;opacity:.65;margin-top:1.2rem}
+
+  /* ---------- deck ---------- */
+  .stage{perspective:1400px;width:100%;max-width:760px}
+  .deck{
+    position:relative;background:linear-gradient(155deg,#a7adb2,#6d7176 45%,#494c4f);
+    border-radius:14px;padding:1.6rem;
+    box-shadow:0 30px 70px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.35);
+    transform:rotateX(var(--tiltx,6deg)) rotateY(var(--tilty,0deg));
+    transform-style:preserve-3d;
+    transition:transform .4s cubic-bezier(.2,.7,.3,1);
+  }
+  .deck::before{content:'';position:absolute;inset:6px;border-radius:9px;
+    border:1px solid rgba(0,0,0,.25);pointer-events:none}
+
+  .screens{display:grid;grid-template-columns:1.1fr 1.6fr;gap:1rem;margin-bottom:1.4rem}
+  .screen{background:var(--screen);border-radius:6px;padding:.8rem 1rem;
+    box-shadow:inset 0 0 0 2px #000,inset 0 2px 14px rgba(0,0,0,.8);
+    transform:translateZ(4px)}
+  .screen .lbl{font-size:.56rem;letter-spacing:.18em;text-transform:uppercase;color:var(--amber-dim);margin-bottom:.5rem}
+  .screen canvas{display:block;width:100%;height:52px}
+  .counter{font-family:'Martian Mono',monospace;font-weight:600;font-size:1.6rem;color:var(--amber);
+    letter-spacing:.08em;text-shadow:0 0 10px rgba(255,157,0,.6)}
+  .counter-row{display:flex;justify-content:space-between;align-items:baseline}
+  .counter-row .state{font-size:.62rem;letter-spacing:.14em;color:var(--amber);opacity:.85}
+
+  .reels{display:flex;justify-content:space-between;margin-bottom:1.5rem;padding:0 .4rem}
+  .reel-wrap{width:110px;height:110px;border-radius:50%;background:#232527;
+    box-shadow:inset 0 0 0 2px #000,inset 0 6px 18px rgba(0,0,0,.7);
+    display:grid;place-items:center;transform:translateZ(4px)}
+  .reel{width:78%;height:78%;border-radius:50%;
+    background:
+      radial-gradient(circle at center, #101112 0 14%, transparent 15%),
+      repeating-conic-gradient(from 0deg, #cfd3d6 0deg 8deg, #55585b 8deg 45deg);
+    box-shadow:0 0 0 2px #050505;
+    animation:spin 2.6s linear infinite;
+    animation-play-state:paused;
+  }
+  .reel::after{content:'';position:absolute}
+  #reelL.spin,#reelR.spin{animation-play-state:running}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .controls{display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap}
+  .key{
+    position:relative;flex:1;min-width:84px;
+    background:linear-gradient(180deg,#d8dcdf,#a9aeb2);
+    border:none;border-radius:7px;padding:.85rem .6rem;
+    font-family:'Michroma',sans-serif;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;
+    color:#1c1d1e;cursor:pointer;
+    box-shadow:0 4px 0 #5c6064,0 8px 14px rgba(0,0,0,.4);
+    transform:translateZ(6px) translateY(0);
+    transition:transform .08s,box-shadow .08s;
+  }
+  .key:active,.key.pressed{
+    transform:translateZ(6px) translateY(4px);
+    box-shadow:0 0 0 #5c6064,0 2px 6px rgba(0,0,0,.4);
+  }
+  .key:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+  .key.play.pressed{background:linear-gradient(180deg,#ffc067,var(--amber));color:#2a1600}
+  .key.rec.pressed{background:linear-gradient(180deg,#ff6a5a,#c62f1f);color:#2a0500}
+
+  .hint{margin-top:1.6rem;font-size:.64rem;letter-spacing:.06em;opacity:.55;text-align:center}
+
+  footer{position:relative;z-index:3;text-align:center;font-size:.62rem;letter-spacing:.14em;
+    text-transform:uppercase;opacity:.6;padding:0 1rem 1.6rem}
+  footer a{color:var(--amber);text-decoration:none}
+
+  @media(max-width:640px){
+    .deck{transform:none !important}
+    .reel-wrap{width:84px;height:84px}
+    .screens{grid-template-columns:1fr}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .reel{animation:none}
+    .deck{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="backdrop"><img src="assets/hero.jpg" alt="" role="presentation"></div>
+
+<header>
+  <span class="m">CASSETTE<i>-90</i></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<main>
+  <div class="headline">
+    <div class="kicker">N&#176;47 — cassette-futurism</div>
+    <h1>Nothing skips. Nothing streams.<br>Just <em>press play.</em></h1>
+    <p>A generated studio shot of retro hardware sets the mood behind the glass; the deck itself is a working CSS 3D replica — real buttons, real reels, a live amber spectrum.</p>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="deck" id="deck">
+      <div class="screens">
+        <div class="screen">
+          <div class="lbl">Counter</div>
+          <div class="counter-row">
+            <span class="counter" id="counter">000:00</span>
+          </div>
+          <div class="counter-row"><span class="state" id="stateLbl">STOPPED</span></div>
+        </div>
+        <div class="screen">
+          <div class="lbl">Spectrum</div>
+          <canvas id="vu" width="300" height="52"></canvas>
+        </div>
+      </div>
+
+      <div class="reels">
+        <div class="reel-wrap"><div class="reel" id="reelL"></div></div>
+        <div class="reel-wrap"><div class="reel" id="reelR"></div></div>
+      </div>
+
+      <div class="controls">
+        <button class="key" id="btnRew" aria-label="Rewind">&#9664;&#9664; Rew</button>
+        <button class="key play" id="btnPlay" aria-label="Play">&#9654; Play</button>
+        <button class="key" id="btnStop" aria-label="Stop">&#9632; Stop</button>
+        <button class="key" id="btnFf" aria-label="Fast forward">Ff &#9654;&#9654;</button>
+        <button class="key rec" id="btnRec" aria-label="Record">&#9679; Rec</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">tab to the buttons and press enter/space · play unmutes a soft synth pad</p>
+</main>
+
+<footer>
+  CASSETTE-90 — CSS 3D DECK OVER A GENERATED HERO · SITE 47 OF 50 · BUILT BY CLAUDE (FABLE 5) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- 3D tilt on pointer (disabled under reduced-motion) ---------- */
+const stage = document.getElementById('stage');
+const deck = document.getElementById('deck');
+if(!reduced){
+  stage.addEventListener('pointermove', e=>{
+    const r = stage.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    deck.style.setProperty('--tiltx', (6 - py*10) + 'deg');
+    deck.style.setProperty('--tilty', (px*10) + 'deg');
+  });
+  stage.addEventListener('pointerleave', ()=>{
+    deck.style.setProperty('--tiltx','6deg');
+    deck.style.setProperty('--tilty','0deg');
+  });
+}
+
+/* ---------- transport state ---------- */
+const btnPlay = document.getElementById('btnPlay');
+const btnStop = document.getElementById('btnStop');
+const btnRec = document.getElementById('btnRec');
+const btnRew = document.getElementById('btnRew');
+const btnFf = document.getElementById('btnFf');
+const reelL = document.getElementById('reelL');
+const reelR = document.getElementById('reelR');
+const counterEl = document.getElementById('counter');
+const stateLbl = document.getElementById('stateLbl');
+
+let playing = false, recording = false, seconds = 0, minutes = 0, tickTimer = null;
+
+function paintCounter(){
+  counterEl.textContent = String(minutes).padStart(3,'0') + ':' + String(seconds).padStart(2,'0');
+}
+function setSpin(on){
+  reelL.classList.toggle('spin', on && !reduced);
+  reelR.classList.toggle('spin', on && !reduced);
+}
+
+function press(btn){ btn.classList.add('pressed'); setTimeout(()=>btn.classList.remove('pressed'), 140); }
+
+function play(){
+  if(playing) return;
+  playing = true;
+  btnPlay.classList.add('pressed');
+  stateLbl.textContent = recording ? 'RECORDING' : 'PLAYING';
+  setSpin(true);
+  startAudio();
+  tickTimer = setInterval(()=>{
+    seconds++; if(seconds>=60){seconds=0;minutes++;}
+    paintCounter();
+  }, 1000);
+}
+function stop(){
+  playing = false; recording = false;
+  btnPlay.classList.remove('pressed');
+  btnRec.classList.remove('pressed');
+  stateLbl.textContent = 'STOPPED';
+  setSpin(false);
+  stopAudio();
+  clearInterval(tickTimer);
+}
+btnPlay.addEventListener('click', play);
+btnStop.addEventListener('click', ()=>{ press(btnStop); stop(); });
+btnRec.addEventListener('click', ()=>{
+  recording = !recording;
+  btnRec.classList.toggle('pressed', recording);
+  if(recording && !playing) play(); else if(playing) stateLbl.textContent = recording?'RECORDING':'PLAYING';
+});
+btnRew.addEventListener('click', ()=>{
+  press(btnRew);
+  seconds = Math.max(0, seconds-10);
+  paintCounter();
+});
+btnFf.addEventListener('click', ()=>{
+  press(btnFf);
+  seconds += 10; if(seconds>=60){seconds-=60;minutes++;}
+  paintCounter();
+});
+
+/* ---------- tiny synth pad + analyser-driven VU ---------- */
+let AC, analyser, osc1, osc2, gain, dataArr;
+function startAudio(){
+  if(!AC) AC = new (window.AudioContext||window.webkitAudioContext)();
+  if(AC.state==='suspended') AC.resume();
+  if(osc1) return;
+  gain = AC.createGain(); gain.gain.value = 0;
+  analyser = AC.createAnalyser(); analyser.fftSize = 128;
+  dataArr = new Uint8Array(analyser.frequencyBinCount);
+  osc1 = AC.createOscillator(); osc1.type='sawtooth'; osc1.frequency.value=110;
+  osc2 = AC.createOscillator(); osc2.type='triangle'; osc2.frequency.value=164.81;
+  osc1.connect(gain); osc2.connect(gain); gain.connect(analyser); analyser.connect(AC.destination);
+  osc1.start(); osc2.start();
+  gain.gain.linearRampToValueAtTime(.06, AC.currentTime+.4);
+}
+function stopAudio(){
+  if(!gain) return;
+  gain.gain.linearRampToValueAtTime(0, AC.currentTime+.3);
+}
+
+/* ---------- VU canvas, RAF only runs while playing or once statically ---------- */
+const vu = document.getElementById('vu');
+const vctx = vu.getContext('2d');
+function drawVU(){
+  vctx.clearRect(0,0,vu.width,vu.height);
+  const bars = 24;
+  for(let i=0;i<bars;i++){
+    let v = 0.06;
+    if(analyser && playing){
+      analyser.getByteFrequencyData(dataArr);
+      v = dataArr[Math.floor(i/bars*dataArr.length)]/255;
+    }
+    const h = Math.max(2, v*vu.height);
+    vctx.fillStyle = i/bars > .78 ? '#ff5a3c' : '#ff9d00';
+    vctx.globalAlpha = .35 + v*.65;
+    vctx.fillRect(i*(vu.width/bars)+1, vu.height-h, (vu.width/bars)-3, h);
+  }
+}
+/* single persistent loop: full rate while playing (unless reduced-motion, which
+   throttles to a slow non-smooth cadence per the accessibility floor), a slow
+   idle heartbeat otherwise so the screen never looks frozen/broken. */
+let lastDraw = 0;
+(function loop(ts){
+  const interval = playing ? (reduced ? 500 : 0) : 1400;
+  if(ts - lastDraw >= interval){ drawVU(); lastDraw = ts; }
+  requestAnimationFrame(loop);
+})(0);
+
+paintCounter();
+</script>
+</body>
+</html>

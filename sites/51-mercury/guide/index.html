@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How MERCURY was made — guide</title>
+<meta name="description" content="How the MERCURY site was designed and built: raymarched SDF liquid metal, techniques, palette, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #9aa4b2; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0a0d; color:#e9e9ee;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#9a9aa6; text-decoration:none; border-bottom:1px solid #2a2a33; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#9a9aa6; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #232329;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#b9b9c4;
+    background:#151519; border:1px solid #232329; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #232329;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#8a8a96; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0a0a0d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to MERCURY</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 51 of 62 · how it was made</div>
+  <h1>MERCURY</h1>
+  <p class="sub">A pool that answers to gravity</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>A full-screen fragment shader raymarches a signed-distance-field pool of liquid chrome. The cursor position acts as a gravity well: the surface dents toward it, a rim bulges around the dent, and ripple rings radiate outward with velocity. No mesh, no geometry buffer for the liquid itself — it's pure distance-field math evaluated per pixel, sphere-traced until the ray hits the surface.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Raw WebGL (no Three.js needed for a single full-screen quad) running one fragment shader</li>
+    <li><code>map()</code> is the SDF: a base plane warped by slow ambient swell, a Gaussian pointer dent, an exponential rim bulge, and decaying sine ripple rings keyed to interaction "energy"</li>
+    <li>Sphere-traced normals via the standard six-tap central-difference gradient of the SDF</li>
+    <li>Fresnel term (<code>pow(1-NdotV, 3.2)</code>) blends a fake reflected "sky" gradient plus two banded studio strip-light highlights derived from the reflection vector — no environment map, no texture, no binary asset</li>
+    <li>Interaction energy eases toward the pointer's hold state and decays after movement stops, so dents and ripples feel physical rather than snapping</li>
+    <li>An idle-drift fallback slowly orbits the gravity well when the pointer has been still for 4s, so the hero never looks static on load</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Space Grotesk + Fragment Mono · studio black #05060a, liquid chrome #d8dde3, dim steel #7d8590</p>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <p>Rendered headless at desktop and mobile widths and looked at the PNGs directly. First pass had the hero title sitting flat against the metal with no separation — switched the headline to <code>mix-blend-mode: difference</code> against white so it self-inverts over both the dark backdrop and the bright chrome highlights, keeping it legible wherever the pool happens to be reflecting light. Also confirmed the raymarch camera framing kept the pool's horizon and specular band inside the safe area on narrow mobile viewports.</p>
+
+  <h2><span class="no">05</span> The complexity upgrade</h2>
+  <p>Beyond the base dent-and-reflect concept, the reflection itself is a small two-band procedural "studio lighting rig" (two sine-banded highlight strips at different frequencies and reflection axes) rather than a flat Fresnel gradient — that's what reads as an actual lit chrome surface instead of a grey blob, and it's the detail that separates "shiny plane" from "liquid metal in a studio."</p>
+
+  <h2><span class="no">06</span> Reproduce it</h2>
+  <ol>
+    <li>Full-screen quad, one fragment shader, camera ray per pixel from UV</li>
+    <li>Write an SDF <code>map(p)</code> combining a plane with pointer-driven Gaussian dents</li>
+    <li>Sphere-trace: step along the ray by the SDF distance until it's near zero</li>
+    <li>Compute normal from SDF gradient, apply Fresnel + fake env reflection</li>
+    <li>Smooth the pointer position and an "energy" scalar toward interaction state each frame</li>
+  </ol>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude, Anthropic ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    build pass, code-review pass, real headless-screenshot critique pass ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

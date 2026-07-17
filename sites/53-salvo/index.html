@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SALVO — thousands of embers, one click</title>
+<meta name="description" content="SALVO fires GPU-instanced ember and spark bursts — thousands of Three.js InstancedMesh particles with real velocity, gravity, and warm-to-cool color drift, holding 60fps.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{ --ember:#ff7a3d; --violet:#8b5cf6; --bg:#060305; --txt:#f2ece8; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overscroll-behavior:none}
+  body{background:var(--bg);color:var(--txt);font-family:'Fragment Mono',monospace;overflow:hidden}
+  ::selection{background:var(--ember);color:#060305}
+
+  canvas#gl{position:fixed;inset:0;display:block;touch-action:none;cursor:crosshair}
+
+  header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+    padding:1.4rem 2rem;pointer-events:none}
+  header *{pointer-events:auto}
+  .m{font-family:'Archivo Black',sans-serif;font-size:1rem;letter-spacing:.02em}
+  .m span{color:var(--ember)}
+  nav{font-size:.66rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--txt);text-decoration:none;opacity:.6;margin-left:1.5rem;transition:opacity .2s}
+  nav a:hover{opacity:1;color:var(--ember)}
+
+  .hero{position:fixed;top:0;left:0;right:0;z-index:3;text-align:center;pointer-events:none;
+    padding:8.6rem 1.5rem 0}
+  .hero h1{font-family:'Archivo Black',sans-serif;font-size:clamp(2.4rem,8vw,5.2rem);line-height:.96;
+    letter-spacing:-.01em;text-shadow:0 0 80px rgba(255,122,61,.25)}
+  .hero h1 span{color:var(--ember)}
+  .hero p{font-size:.72rem;letter-spacing:.26em;text-transform:uppercase;color:#a89e9b;margin-top:1.2rem}
+
+  .hud{position:fixed;bottom:1.3rem;left:2rem;z-index:5;font-size:.64rem;letter-spacing:.12em;
+    text-transform:uppercase;color:#8a807d;pointer-events:none}
+  .hud b{color:var(--ember);font-weight:400}
+
+  footer{position:fixed;bottom:1.3rem;right:2rem;z-index:5;text-align:right;font-size:.6rem;letter-spacing:.16em;
+    text-transform:uppercase;color:#8a807d;pointer-events:none}
+  footer a{color:var(--txt);pointer-events:auto}
+
+  @media(max-width:760px){
+    header{padding:1.1rem 1.3rem}
+    .hero{padding-top:6.2rem}
+    .hero h1{font-size:clamp(2rem,10vw,3rem)}
+    .hud{left:1.3rem;bottom:5.4rem;font-size:.56rem}
+    footer{right:1.3rem;bottom:1.1rem;font-size:.5rem;text-align:right;max-width:56vw;line-height:1.6}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gl"></canvas>
+
+<header>
+  <span class="m">SAL<span>VO</span></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>Click to <span>ignite.</span></h1>
+  <p>tap or click anywhere · thousands of instanced embers per burst</p>
+</div>
+
+<div class="hud" id="hud">particles: 0</div>
+<footer>SALVO — GPU-INSTANCED EMBER BURSTS · SITE 53 OF 62 · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a></footer>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canvas = document.getElementById('gl');
+const hud = document.getElementById('hud');
+
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x060305, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x060305, 0.035);
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 0.4, 15);
+
+/* ---------- GPU-instanced embers ---------- */
+const MAX = 5200;
+const geo = new THREE.PlaneGeometry(1, 1);
+geo.translate(0, 0, 0);
+
+const mat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+  vertexShader: `
+    attribute vec3 iColor;
+    attribute float iAlpha;
+    varying vec3 vColor;
+    varying float vAlpha;
+    varying vec2 vUv;
+    void main(){
+      vColor = iColor;
+      vAlpha = iAlpha;
+      vUv = uv;
+      vec3 scl = vec3(
+        length(instanceMatrix[0].xyz),
+        length(instanceMatrix[1].xyz),
+        length(instanceMatrix[2].xyz)
+      );
+      vec3 center = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+      vec4 mvCenter = modelViewMatrix * vec4(center, 1.0);
+      mvCenter.xy += position.xy * scl.xy;
+      gl_Position = projectionMatrix * mvCenter;
+    }
+  `,
+  fragmentShader: `
+    precision mediump float;
+    varying vec3 vColor;
+    varying float vAlpha;
+    varying vec2 vUv;
+    void main(){
+      vec2 c = vUv - 0.5;
+      float d = length(c) * 2.0;
+      float core = smoothstep(1.0, 0.0, d);
+      core = pow(core, 1.8);
+      float glow = smoothstep(1.0, 0.0, d) * 0.5;
+      vec3 col = vColor + vColor * core * 0.6;
+      gl_FragColor = vec4(col, (core*0.85 + glow*0.15) * vAlpha);
+    }
+  `
+});
+
+const mesh = new THREE.InstancedMesh(geo, mat, MAX);
+mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+mesh.count = MAX;
+scene.add(mesh);
+
+const colorArr = new Float32Array(MAX*3);
+const alphaArr = new Float32Array(MAX);
+geo.setAttribute('iColor', new THREE.InstancedBufferAttribute(colorArr, 3));
+geo.setAttribute('iAlpha', new THREE.InstancedBufferAttribute(alphaArr, 1));
+
+const dummy = new THREE.Object3D();
+
+/* particle pool */
+const pool = [];
+for(let i=0;i<MAX;i++){
+  pool.push({
+    active:false, x:0,y:0,z:0, vx:0,vy:0,vz:0,
+    age:0, life:1, scale:0.1, hueStart:20, hueEnd:265
+  });
+}
+let cursor = 0; // ring buffer allocation pointer
+let activeCount = 0;
+
+const tmpColor = new THREE.Color();
+
+function spawnBurst(wx, wy, wz){
+  const n = 420 + Math.floor(Math.random()*380);
+  for(let i=0;i<n;i++){
+    const p = pool[cursor];
+    cursor = (cursor+1) % MAX;
+    const theta = Math.random()*Math.PI*2;
+    const phi = Math.acos(Math.random()*2-1);
+    const speed = 2.2 + Math.random()*6.5;
+    p.active = true;
+    p.x = wx; p.y = wy; p.z = wz;
+    p.vx = Math.sin(phi)*Math.cos(theta)*speed;
+    p.vy = Math.abs(Math.cos(phi))*speed*0.9 + 1.2;
+    p.vz = Math.sin(phi)*Math.sin(theta)*speed*0.6;
+    p.age = 0;
+    p.life = 0.9 + Math.random()*1.1;
+    p.scale = 0.09 + Math.random()*0.16;
+    p.hueStart = 14 + Math.random()*30;   // ember orange/gold
+    p.hueEnd = 250 + Math.random()*40;    // violet/cool
+  }
+}
+
+function unproject(clientX, clientY, targetZ){
+  const ndc = new THREE.Vector2(
+    (clientX/innerWidth)*2-1,
+    -(clientY/innerHeight)*2+1
+  );
+  const vec = new THREE.Vector3(ndc.x, ndc.y, 0.5).unproject(camera);
+  const dir = vec.sub(camera.position).normalize();
+  const t = (targetZ - camera.position.z) / dir.z;
+  return camera.position.clone().add(dir.multiplyScalar(t));
+}
+
+function fireAt(clientX, clientY){
+  const w = unproject(clientX, clientY, 0);
+  spawnBurst(w.x, w.y, w.z);
+}
+
+addEventListener('pointerdown', e=>{
+  fireAt(e.clientX, e.clientY);
+});
+addEventListener('touchstart', e=>{
+  if(e.touches[0]) fireAt(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive:true});
+
+const GRAV = -5.2;
+function stepParticles(dt){
+  activeCount = 0;
+  for(let i=0;i<MAX;i++){
+    const p = pool[i];
+    if(!p.active){ alphaArr[i]=0; continue; }
+    p.age += dt;
+    if(p.age >= p.life){ p.active=false; alphaArr[i]=0; continue; }
+    p.vy += GRAV*dt;
+    p.vx *= 0.985; p.vz *= 0.985;
+    p.x += p.vx*dt; p.y += p.vy*dt; p.z += p.vz*dt;
+
+    const f = p.age/p.life;
+    const alpha = Math.sin(Math.min(f*6,1)*Math.PI*0.5) * Math.pow(1-f, 1.4);
+    const scl = p.scale * (1 - f*0.35);
+    // interpolate hue the "short way" (through red/magenta), not through green/cyan/blue
+    const h0 = p.hueStart, h1 = p.hueEnd - 360;
+    let hue = h0 + (h1-h0)*Math.pow(f, 1.7);
+    hue = ((hue % 360) + 360) % 360;
+    tmpColor.setHSL(hue/360, 0.85, 0.5 + (1-f)*0.15);
+
+    dummy.position.set(p.x,p.y,p.z);
+    dummy.scale.setScalar(scl);
+    dummy.rotation.set(0,0,0);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+
+    colorArr[i*3]=tmpColor.r; colorArr[i*3+1]=tmpColor.g; colorArr[i*3+2]=tmpColor.b;
+    alphaArr[i]=alpha;
+    activeCount++;
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  geo.attributes.iColor.needsUpdate = true;
+  geo.attributes.iAlpha.needsUpdate = true;
+}
+
+function resize(){
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
+addEventListener('resize', resize);
+
+/* idle ambience: a few auto bursts so the hero never reads empty, gently spaced */
+let lastAuto = 0;
+function maybeAutoBurst(now){
+  if(now - lastAuto > 3400){
+    lastAuto = now;
+    const wx = (Math.random()-0.5)*7;
+    const wy = -1 + Math.random()*1.5;
+    spawnBurst(wx, wy, 0);
+  }
+}
+
+let last = performance.now();
+let hudCounter = 0;
+function frame(now){
+  const dt = Math.min((now-last)/1000, 1/30);
+  last = now;
+  if(!reduceMotion) maybeAutoBurst(now);
+  stepParticles(reduceMotion ? 1/60 : dt);
+  renderer.render(scene, camera);
+  hudCounter++;
+  if(hudCounter % 6 === 0) hud.textContent = 'particles: ' + activeCount;
+  if(!reduceMotion || activeCount>0) requestAnimationFrame(frame);
+}
+
+// initial ignition so first paint isn't a blank stage (skipped under reduced-motion:
+// only user-triggered click bursts animate, no autoplay)
+if(!reduceMotion){
+  spawnBurst(-2.6, 0.4, 0);
+  setTimeout(()=>spawnBurst(2.4, -0.2, 0), 260);
+  setTimeout(()=>spawnBurst(0, 1.1, 0), 520);
+  requestAnimationFrame(frame);
+} else {
+  stepParticles(0);
+  renderer.render(scene, camera);
+  addEventListener('pointerdown', ()=>requestAnimationFrame(frame));
+  addEventListener('touchstart', ()=>requestAnimationFrame(frame), {passive:true});
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%233fa9f5%22/></svg>">
+<title>RIPPLE — WebGL liquid-distortion image hover</title>
+<meta name="description" content="RIPPLE is a hand-rolled WebGL shader effect: pointer movement injects propagating ripple rings that distort a procedurally-drawn project tile, classic creative-agency image hover, framework-free.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg0:#05080b; --bg1:#0a1119;
+    --accent:#3fa9f5; --accent-dim:#3fa9f566;
+    --ink:#eaf2fa; --dim:#7f93a6; --line:#182432;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -10%, #0f2436 0%, transparent 60%),
+      linear-gradient(180deg, var(--bg0), var(--bg1) 60%, var(--bg0));
+    color:var(--ink); font-family:'IBM Plex Mono',monospace;
+    min-height:100%; display:flex; flex-direction:column; overflow-x:hidden;
+  }
+  ::selection{background:var(--accent);color:#02060a}
+
+  header{display:flex;justify-content:space-between;align-items:center;padding:1.4rem 2rem;position:relative;z-index:5}
+  .m{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;letter-spacing:.02em}
+  .m em{color:var(--accent);font-style:normal}
+  nav{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--ink);text-decoration:none;opacity:.55;margin-left:1.6rem;transition:opacity .2s,color .2s}
+  nav a:hover{opacity:1;color:var(--accent)}
+
+  .hero{text-align:center;padding:1.6rem 1.5rem .6rem;position:relative;z-index:2}
+  .kicker{font-size:.66rem;letter-spacing:.32em;text-transform:uppercase;color:var(--accent);margin-bottom:1rem}
+  .hero h1{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:clamp(1.9rem,5.2vw,3.4rem);
+    letter-spacing:-.01em;line-height:1.08}
+  .hero p{font-size:.78rem;line-height:1.7;color:var(--dim);max-width:34rem;margin:1.1rem auto 0}
+
+  .gridwrap{flex:1;display:flex;flex-direction:column;align-items:center;padding:2.4rem 1.5rem 1rem;gap:2rem}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.4rem;width:min(760px,100%)}
+  .tile{position:relative;border-radius:10px;overflow:hidden;background:#0c1620;
+    box-shadow:0 18px 44px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.05);
+    aspect-ratio:4/5; touch-action:pan-y; cursor:crosshair;
+    transition:box-shadow .25s, transform .25s;
+  }
+  .tile:hover{box-shadow:0 22px 54px rgba(63,169,245,.18), inset 0 0 0 1px rgba(63,169,245,.35)}
+  .tile canvas{display:block;width:100%;height:100%}
+  .tile .tag{position:absolute;left:0;right:0;bottom:0;padding:.9rem 1rem 1rem;
+    background:linear-gradient(0deg, rgba(3,7,11,.86), rgba(3,7,11,0));
+    pointer-events:none; z-index:2;}
+  .tile .tag .t{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:.98rem;letter-spacing:.01em}
+  .tile .tag .c{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-top:.2rem}
+  .tile .idx{position:absolute;top:.7rem;right:.8rem;font-size:.62rem;letter-spacing:.1em;color:rgba(234,242,250,.55);z-index:2;pointer-events:none}
+
+  .hint{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);text-align:center}
+  .hint b{color:var(--accent);font-weight:500}
+
+  .panel{position:relative;z-index:3;display:flex;flex-wrap:wrap;gap:2.2rem;align-items:flex-end;
+    justify-content:center;padding:.4rem 1.5rem 2.4rem;text-align:center;
+    border-top:1px solid var(--line); width:min(760px,100%); margin:0 auto;}
+  .panel-inner{display:flex;flex-wrap:wrap;gap:2.2rem;justify-content:center;padding-top:1.8rem;width:100%}
+  .grp{display:flex;flex-direction:column;align-items:center;gap:.5rem;min-width:9rem}
+  .grp .lab{font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);display:flex;gap:.4rem}
+  .grp .lab .v{color:var(--accent)}
+  input[type=range]{-webkit-appearance:none;width:130px;background:transparent;cursor:ew-resize}
+  input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--accent);margin-top:-5.5px;box-shadow:0 0 10px var(--accent-dim)}
+  input[type=range]::-moz-range-track{height:2px;background:var(--line)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:none;border-radius:50%;background:var(--accent)}
+
+  footer{position:relative;z-index:3;text-align:center;font-size:.58rem;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--dim);padding:0 1.5rem 1.6rem}
+  footer a{color:var(--accent);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  @media(max-width:640px){
+    .grid{grid-template-columns:1fr;max-width:340px}
+    header{padding:1.1rem 1.3rem}
+    .panel-inner{gap:1.4rem}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .tile, nav a{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="m">RIPPLE<em>.</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <div class="kicker">Selected work · 2026</div>
+  <h1>Hover to disturb the surface.</h1>
+  <p>A WebGL shader ripples outward from wherever the pointer touches each tile — a hand-rolled version of the liquid-distortion image hover you've seen on agency sites, wired into a small project grid.</p>
+</div>
+
+<div class="gridwrap">
+  <div class="grid" id="grid">
+    <div class="tile" data-seed="0">
+      <canvas></canvas>
+      <span class="idx">01</span>
+      <div class="tag"><div class="t">Tideworks</div><div class="c">Product design</div></div>
+    </div>
+    <div class="tile" data-seed="1">
+      <canvas></canvas>
+      <span class="idx">02</span>
+      <div class="tag"><div class="t">Monoline</div><div class="c">Visual identity</div></div>
+    </div>
+    <div class="tile" data-seed="2">
+      <canvas></canvas>
+      <span class="idx">03</span>
+      <div class="tag"><div class="t">Archive No. 3</div><div class="c">Motion study</div></div>
+    </div>
+    <div class="tile" data-seed="3">
+      <canvas></canvas>
+      <span class="idx">04</span>
+      <div class="tag"><div class="t">Palewave</div><div class="c">Brand system</div></div>
+    </div>
+  </div>
+  <p class="hint">move — or tap — over a tile · <b>customize</b> below</p>
+</div>
+
+<div class="panel">
+  <div class="panel-inner">
+    <div class="grp">
+      <span class="lab">Strength <span class="v" id="vStrength">55</span></span>
+      <input type="range" id="strength" min="0" max="100" value="55">
+    </div>
+    <div class="grp">
+      <span class="lab">Decay speed <span class="v" id="vDecay">45</span></span>
+      <input type="range" id="decay" min="5" max="100" value="45">
+    </div>
+    <div class="grp">
+      <span class="lab">Ripple radius <span class="v" id="vRadius">50</span></span>
+      <input type="range" id="radius" min="10" max="100" value="50">
+    </div>
+  </div>
+</div>
+
+<footer>
+  RIPPLE — WEBGL LIQUID-DISTORTION IMAGE HOVER · SITE 72 OF 72 · WAVE 4 · BUILT BY CLAUDE (FABLE 25) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+/* ==========================================================================
+   RIPPLE — hand-rolled WebGL ripple-distortion image hover.
+   Each tile gets its own <canvas>+WebGL context. A procedurally-drawn 2D
+   composition (gradient/shapes/noise — no binary image assets) is uploaded
+   as a texture once. On pointer move/down, a ripple record {u, v, t0} is
+   pushed into a small ring buffer. The fragment shader sums each active
+   ripple's contribution as a decaying sine wave traveling outward from its
+   origin, using that sum as a UV offset into the texture (plus a tiny
+   chromatic-aberration split), so the "image" itself appears to be liquid.
+   ========================================================================== */
+
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- shared, live-tunable params (driven by the customize panel) ----------
+const params = { strength: 0.55, decay: 0.45, radius: 0.50 };
+
+function bindSlider(id, key, out, map){
+  const el = document.getElementById(id);
+  const label = document.getElementById(out);
+  const set = v => { params[key] = map ? map(+v) : (+v/100); label.textContent = v; };
+  set(el.value);
+  el.addEventListener('input', e => set(e.target.value));
+}
+bindSlider('strength', 'strength', 'vStrength');
+bindSlider('decay', 'decay', 'vDecay');
+bindSlider('radius', 'radius', 'vRadius');
+
+// ---------- procedural "project" textures (canvas 2D, drawn once) ----------
+function noise(cv, alpha){
+  const c = cv.getContext('2d');
+  const w = cv.width, h = cv.height;
+  const img = c.getImageData(0,0,w,h);
+  for(let i=0;i<img.data.length;i+=4){
+    const n = (Math.random()*2-1)*alpha;
+    img.data[i]   = Math.min(255,Math.max(0, img.data[i]+n));
+    img.data[i+1] = Math.min(255,Math.max(0, img.data[i+1]+n));
+    img.data[i+2] = Math.min(255,Math.max(0, img.data[i+2]+n));
+  }
+  c.putImageData(img,0,0);
+}
+
+const compositions = [
+  // 0 — Tideworks: radial aqua gradient + concentric ripple rings (on-theme)
+  function(c,w,h){
+    const g = c.createRadialGradient(w*0.5,h*0.38,0, w*0.5,h*0.38,w*0.95);
+    g.addColorStop(0,'#1c4b66'); g.addColorStop(.55,'#0d2c3d'); g.addColorStop(1,'#061620');
+    c.fillStyle=g; c.fillRect(0,0,w,h);
+    c.strokeStyle='rgba(120,210,245,.35)'; c.lineWidth=2;
+    for(let r=30;r<w*0.9;r+=46){ c.beginPath(); c.arc(w*0.5,h*0.38,r,0,Math.PI*2); c.stroke(); }
+    c.fillStyle='#eaf7ff'; c.beginPath(); c.arc(w*0.5,h*0.38,14,0,Math.PI*2); c.fill();
+  },
+  // 1 — Monoline: dark diagonal bands + a single bold stroke circle
+  function(c,w,h){
+    c.fillStyle='#141019'; c.fillRect(0,0,w,h);
+    c.strokeStyle='rgba(176,120,255,.22)'; c.lineWidth=18;
+    for(let x=-h;x<w+h;x+=54){ c.beginPath(); c.moveTo(x,0); c.lineTo(x+h,h); c.stroke(); }
+    c.strokeStyle='#d9c2ff'; c.lineWidth=5;
+    c.beginPath(); c.arc(w*0.62,h*0.42,w*0.28,0,Math.PI*2); c.stroke();
+  },
+  // 2 — Archive No. 3: dot grid + soft blob
+  function(c,w,h){
+    c.fillStyle='#0e1512'; c.fillRect(0,0,w,h);
+    const g = c.createRadialGradient(w*0.32,h*0.62,0, w*0.32,h*0.62,w*0.7);
+    g.addColorStop(0,'#3fdca0'); g.addColorStop(1,'rgba(63,220,160,0)');
+    c.fillStyle=g; c.fillRect(0,0,w,h);
+    c.fillStyle='rgba(220,255,240,.5)';
+    for(let y=20;y<h;y+=30) for(let x=20;x<w;x+=30) { c.beginPath(); c.arc(x,y,1.6,0,Math.PI*2); c.fill(); }
+  },
+  // 3 — Palewave: warm gradient + soft horizontal wave lines
+  function(c,w,h){
+    const g = c.createLinearGradient(0,0,0,h);
+    g.addColorStop(0,'#2a1f14'); g.addColorStop(1,'#120c08');
+    c.fillStyle=g; c.fillRect(0,0,w,h);
+    c.strokeStyle='rgba(240,190,110,.4)'; c.lineWidth=3;
+    for(let i=0;i<7;i++){
+      c.beginPath();
+      const yb = h*0.2 + i*(h*0.09);
+      for(let x=0;x<=w;x+=8){
+        const y = yb + Math.sin(x*0.02+i)*14;
+        x===0? c.moveTo(x,y) : c.lineTo(x,y);
+      }
+      c.stroke();
+    }
+  }
+];
+
+function buildTexCanvas(seed){
+  const cv = document.createElement('canvas');
+  cv.width = 480; cv.height = 600;
+  const c = cv.getContext('2d');
+  compositions[seed % compositions.length](c, cv.width, cv.height);
+  noise(cv, 9);
+  return cv;
+}
+
+// ---------- WebGL ripple tile ----------
+const VS = `
+attribute vec2 a_pos;
+varying vec2 v_uv;
+void main(){
+  v_uv = vec2(a_pos.x*0.5+0.5, 1.0-(a_pos.y*0.5+0.5));
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}`;
+
+const FS = `
+precision highp float;
+varying vec2 v_uv;
+uniform sampler2D u_tex;
+uniform float u_time;
+uniform float u_aspect;
+uniform int u_count;
+uniform vec3 u_ripples[12];
+uniform float u_strength;
+uniform float u_decay;
+uniform float u_radius;
+
+void main(){
+  vec2 uv = v_uv;
+  vec2 offset = vec2(0.0);
+  float crest = 0.0;
+  for(int i=0;i<12;i++){
+    if(i>=u_count) break;
+    vec3 r = u_ripples[i];
+    float age = u_time - r.z;
+    if(age < 0.0 || age > 3.2) continue;
+    vec2 d = uv - r.xy;
+    d.x *= u_aspect;
+    float dist = length(d);
+    vec2 dir = dist > 0.0001 ? d/dist : vec2(0.0);
+    float wave = sin(dist*40.0 - age*7.5) * exp(-age*u_decay) * exp(-dist/max(u_radius,0.02));
+    offset += dir * wave * u_strength * 0.14;
+    crest += abs(wave);
+  }
+  vec2 duv = clamp(uv + offset, vec2(0.001), vec2(0.999));
+  vec2 ca = offset * 0.5;
+  float rC = texture2D(u_tex, clamp(duv+ca, 0.001, 0.999)).r;
+  float gC = texture2D(u_tex, duv).g;
+  float bC = texture2D(u_tex, clamp(duv-ca, 0.001, 0.999)).b;
+  // specular glint along each ripple's wave crest, independent of the underlying
+  // texture — without this, a ripple over already-circular art (e.g. tile 01) is
+  // nearly invisible since it just looks like more static rings.
+  float highlight = clamp(crest * u_strength * 0.6, 0.0, 0.45);
+  vec3 col = vec3(rC, gC, bC) + highlight;
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}`;
+
+function compile(gl, type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+
+class RippleTile {
+  constructor(el, seed){
+    this.el = el;
+    this.canvas = el.querySelector('canvas');
+    this.gl = this.canvas.getContext('webgl', { alpha:false, antialias:true, preserveDrawingBuffer:false })
+           || this.canvas.getContext('experimental-webgl');
+    this.ok = !!this.gl;
+    if(!this.ok) return;
+    const gl = this.gl;
+    const prog = gl.createProgram();
+    gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VS));
+    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+    this.prog = prog;
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, 'a_pos');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, buildTexCanvas(seed));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    this.u_time = gl.getUniformLocation(prog, 'u_time');
+    this.u_aspect = gl.getUniformLocation(prog, 'u_aspect');
+    this.u_count = gl.getUniformLocation(prog, 'u_count');
+    this.u_ripples = gl.getUniformLocation(prog, 'u_ripples');
+    this.u_strength = gl.getUniformLocation(prog, 'u_strength');
+    this.u_decay = gl.getUniformLocation(prog, 'u_decay');
+    this.u_radius = gl.getUniformLocation(prog, 'u_radius');
+
+    this.MAX = 12;
+    this.data = new Float32Array(this.MAX*3);
+    this.ring = 0; this.count = 0;
+    this.resize();
+
+    const add = (x,y) => {
+      const i = this.ring % this.MAX;
+      this.data[i*3]=x; this.data[i*3+1]=y; this.data[i*3+2]=now();
+      this.ring++; if(this.count<this.MAX) this.count++;
+    };
+    this._add = add;
+    let lastAdd = 0;
+    const uvFromEvent = e => {
+      const r = this.canvas.getBoundingClientRect();
+      return [ (e.clientX-r.left)/r.width, (e.clientY-r.top)/r.height ];
+    };
+    this.canvas.addEventListener('pointerdown', e => { const [x,y]=uvFromEvent(e); add(x,y); lastAdd=now(); markActive(); });
+    this.canvas.addEventListener('pointermove', e => {
+      const t = now();
+      if(t-lastAdd < 0.045) return;
+      lastAdd = t;
+      const [x,y]=uvFromEvent(e); add(x,y); markActive();
+    });
+  }
+  resize(){
+    if(!this.ok) return;
+    const r = this.el.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio||1, 2);
+    this.canvas.width = Math.max(2, Math.round(r.width*dpr));
+    this.canvas.height = Math.max(2, Math.round(r.height*dpr));
+    this.aspect = r.width / r.height;
+    this.gl.viewport(0,0,this.canvas.width,this.canvas.height);
+  }
+  render(){
+    if(!this.ok) return;
+    const gl = this.gl;
+    gl.useProgram(this.prog);
+    gl.uniform1f(this.u_time, now());
+    gl.uniform1f(this.u_aspect, this.aspect || 1);
+    gl.uniform1i(this.u_count, this.count);
+    gl.uniform3fv(this.u_ripples, this.data);
+    gl.uniform1f(this.u_strength, params.strength * 0.9 + 0.03);
+    gl.uniform1f(this.u_decay, 0.4 + params.decay * 4.2);
+    gl.uniform1f(this.u_radius, 0.08 + params.radius * 0.55);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+}
+
+function now(){ return performance.now()/1000; }
+
+const tiles = [...document.querySelectorAll('.tile')].map((el,i) => new RippleTile(el, +el.dataset.seed || i));
+window.addEventListener('resize', () => tiles.forEach(t => t.resize()));
+
+// ---------- idle autoplay: keeps the effect visibly demoing when untouched,
+// so the piece never sits flat on load, and pauses once a visitor interacts ----------
+let lastInteraction = -999;
+function markActive(){ lastInteraction = now(); }
+
+if(!reduceMotion){
+  let autoIdx = 0, nextAuto = now() + 0.4;
+  function autoplay(){
+    if(now() < nextAuto) return;
+    const t = tiles[autoIdx % tiles.length];
+    if(t && t.ok) t._add(0.5 + Math.sin(autoIdx*1.7)*0.18, 0.42 + Math.cos(autoIdx*1.3)*0.14);
+    autoIdx++;
+    nextAuto = now() + 1.9;
+  }
+
+  (function loop(){
+    tiles.forEach(t => t.render());
+    if(now() - lastInteraction > 2.6){
+      autoplay();
+    }
+    requestAnimationFrame(loop);
+  })();
+} else {
+  // reduced motion: render one static, undistorted frame per tile and stop —
+  // no perpetual animation loop, no autoplay. Hover still gives a CSS-only cue.
+  tiles.forEach(t => t.render());
+}
+</script>
+</body>
+</html>

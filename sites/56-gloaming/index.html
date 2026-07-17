@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23ff9d5c%22/></svg>">
+<title>GLOAMING — drag the sun through a real sky</title>
+<meta name="description" content="GLOAMING renders a physically-approximated Rayleigh/Mie atmospheric-scattering sky in a fragment shader — drag to move the sun and watch the scattering integral repaint the whole dome.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Antic+Didot&family=Fragment+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --txt:#fbeee0; --dim:rgba(251,238,224,.62); --accent:#ffb27a; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:#04040a;color:var(--txt);font-family:'Fragment Mono',monospace;overflow:hidden}
+  ::selection{background:var(--accent);color:#1a0d05}
+
+  #sky{position:fixed;inset:0;z-index:0;touch-action:none;cursor:grab}
+  #sky.dragging{cursor:grabbing}
+
+  #ground{position:fixed;left:0;right:0;bottom:0;z-index:2;pointer-events:none;height:26vh;min-height:140px}
+
+  header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+    padding:1.3rem 2rem}
+  .m{font-family:'Antic Didot',serif;font-size:1.2rem;letter-spacing:.08em;color:var(--txt);
+    text-shadow:0 2px 20px rgba(0,0,0,.6)}
+  nav{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--txt);text-decoration:none;opacity:.8;margin-left:1.5rem;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+  nav a:hover{opacity:1;color:var(--accent)}
+
+  .hero{position:fixed;top:16vh;left:0;right:0;z-index:4;text-align:center;pointer-events:none;padding:0 1.5rem}
+  .hero h1{font-family:'Antic Didot',serif;font-weight:400;font-size:clamp(2rem,6.2vw,4.6rem);
+    color:var(--txt);text-shadow:0 4px 40px rgba(0,0,0,.55);line-height:1.1}
+  .hero p{font-size:.72rem;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);margin-top:1rem;
+    text-shadow:0 2px 12px rgba(0,0,0,.6)}
+
+  .hud{position:fixed;bottom:1.6rem;left:0;right:0;z-index:5;display:flex;justify-content:center;
+    gap:1.6rem;flex-wrap:wrap;padding:0 1.5rem;pointer-events:none}
+  .hud .chip{background:rgba(10,8,14,.42);backdrop-filter:blur(10px);border:1px solid rgba(251,238,224,.18);
+    border-radius:99px;padding:.55rem 1.1rem;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--dim)}
+  .hud .chip b{color:var(--accent);font-weight:500}
+
+  #hint{position:fixed;top:5.2rem;left:50%;transform:translateX(-50%);z-index:5;font-size:.6rem;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--dim);text-shadow:0 2px 10px rgba(0,0,0,.6);
+    opacity:.85;transition:opacity .6s;pointer-events:none;text-align:center;width:90%}
+  #hint.hide{opacity:0}
+
+  @media(max-width:640px){
+    header{padding:1rem 1.2rem}
+    .hero{top:13vh}
+    .hud{gap:.8rem;bottom:1.2rem}
+    .hud .chip{padding:.45rem .85rem;font-size:.6rem}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="sky" aria-label="Interactive atmospheric-scattering sky — drag to move the sun"></canvas>
+<svg id="ground" viewBox="0 0 1000 200" preserveAspectRatio="none" aria-hidden="true"></svg>
+
+<div id="hint">click &amp; drag anywhere · or use arrow keys</div>
+
+<header>
+  <span class="m">GLOAMING</span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="hero">
+  <h1>Drag the sun.<br>Watch the sky answer.</h1>
+  <p>real Rayleigh / Mie single-scattering, not a gradient</p>
+</div>
+
+<div class="hud">
+  <div class="chip">SUN ELEV <b id="elevRead">12°</b></div>
+  <div class="chip">AZIMUTH <b id="azRead">0°</b></div>
+  <div class="chip" id="phaseChip">PHASE <b id="phaseRead">DUSK</b></div>
+</div>
+
+<canvas id="sky2d" style="display:none"></canvas>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canvas = document.getElementById('sky');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:false, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+
+const VERT = `
+  varying vec2 vUv;
+  void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+`;
+
+const FRAG = `
+  precision highp float;
+  varying vec2 vUv;
+  uniform vec2 uRes;
+  uniform vec3 uSunDir;
+  uniform float uExposure;
+
+  const float PI = 3.141592653589793;
+  const float EARTH_RADIUS = 6360000.0;
+  const float ATMOS_RADIUS = 6420000.0;
+  const vec3  BETA_R = vec3(5.5e-6, 13.0e-6, 22.4e-6);
+  const vec3  BETA_M = vec3(21e-6);
+  const float H_R = 7994.0;
+  const float H_M = 1200.0;
+  const float G = 0.76;
+  const int PRIMARY_STEPS = 12;
+  const int LIGHT_STEPS = 5;
+
+  bool raySphere(vec3 ro, vec3 rd, float radius, out float t0, out float t1){
+    float b = dot(ro, rd);
+    float c = dot(ro, ro) - radius*radius;
+    float disc = b*b - c;
+    if(disc < 0.0) return false;
+    float s = sqrt(disc);
+    t0 = -b - s; t1 = -b + s;
+    return true;
+  }
+
+  vec3 atmosphere(vec3 rd, vec3 ro, vec3 sunDir){
+    float t0, t1;
+    if(!raySphere(ro, rd, ATMOS_RADIUS, t0, t1) || t1 < 0.0) return vec3(0.0);
+    t0 = max(t0, 0.0);
+
+    float tp0, tp1;
+    bool hitPlanet = raySphere(ro, rd, EARTH_RADIUS, tp0, tp1) && tp0 > 0.0;
+    if(hitPlanet) t1 = min(t1, tp0);
+
+    float segLen = (t1 - t0) / float(PRIMARY_STEPS);
+    if(segLen <= 0.0) return vec3(0.0);
+    float tCur = t0;
+    vec3 sumR = vec3(0.0), sumM = vec3(0.0);
+    float odR = 0.0, odM = 0.0;
+
+    float mu = dot(rd, sunDir);
+    float phaseR = 3.0/(16.0*PI) * (1.0 + mu*mu);
+    float g2 = G*G;
+    float phaseM = 3.0/(8.0*PI) * ((1.0-g2)*(1.0+mu*mu)) / ((2.0+g2)*pow(1.0+g2-2.0*G*mu, 1.5));
+
+    for(int i=0;i<PRIMARY_STEPS;i++){
+      vec3 samplePos = ro + rd*(tCur + segLen*0.5);
+      float height = length(samplePos) - EARTH_RADIUS;
+      if(height >= 0.0){
+        float hr = exp(-height/H_R) * segLen;
+        float hm = exp(-height/H_M) * segLen;
+        odR += hr; odM += hm;
+
+        float lt0, lt1;
+        raySphere(samplePos, sunDir, ATMOS_RADIUS, lt0, lt1);
+        float lSegLen = max(lt1, 0.0) / float(LIGHT_STEPS);
+        float lt = 0.0;
+        float lodR = 0.0, lodM = 0.0;
+        bool overground = true;
+        for(int j=0;j<LIGHT_STEPS;j++){
+          vec3 lp = samplePos + sunDir*(lt + lSegLen*0.5);
+          float lh = length(lp) - EARTH_RADIUS;
+          if(lh < 0.0){ overground = false; break; }
+          lodR += exp(-lh/H_R) * lSegLen;
+          lodM += exp(-lh/H_M) * lSegLen;
+          lt += lSegLen;
+        }
+        if(overground){
+          vec3 tau = BETA_R*(odR+lodR) + BETA_M*1.1*(odM+lodM);
+          vec3 attn = exp(-tau);
+          sumR += attn * hr;
+          sumM += attn * hm;
+        }
+      }
+      tCur += segLen;
+    }
+    return (sumR*BETA_R*phaseR + sumM*BETA_M*phaseM) * 22.0;
+  }
+
+  void main(){
+    vec2 uv = (vUv - 0.5);
+    uv.x *= uRes.x/uRes.y;
+    float azimuth = uv.x * 2.4;
+    float elevation = mix(-0.22, 1.5, vUv.y);
+    vec3 rd = normalize(vec3(cos(elevation)*sin(azimuth), sin(elevation), cos(elevation)*cos(azimuth)));
+    vec3 ro = vec3(0.0, EARTH_RADIUS + 400.0, 0.0);
+
+    vec3 col = atmosphere(rd, ro, uSunDir);
+
+    float sunAmt = dot(rd, uSunDir);
+    float disc = smoothstep(0.9997, 0.99995, sunAmt);
+    float glow = pow(max(sunAmt,0.0), 620.0) * 0.6;
+    vec3 sunColor = vec3(1.0, 0.92, 0.78);
+    col += (disc*8.0 + glow*3.0) * sunColor * clamp(uSunDir.y*3.0+0.3, 0.05, 1.0);
+
+    col = vec3(1.0) - exp(-col * uExposure);
+    col = pow(col, vec3(1.0/2.2));
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+const uniforms = {
+  uRes: { value: new THREE.Vector2(innerWidth, innerHeight) },
+  uSunDir: { value: new THREE.Vector3(0.3, 0.22, 0.9).normalize() },
+  uExposure: { value: 1.15 },
+};
+const mat = new THREE.ShaderMaterial({ vertexShader:VERT, fragmentShader:FRAG, uniforms });
+const quad = new THREE.Mesh(new THREE.PlaneGeometry(2,2), mat);
+scene.add(quad);
+
+function resize(){
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h);
+  uniforms.uRes.value.set(w, h);
+}
+addEventListener('resize', resize);
+resize();
+
+// --- sun control: azimuth + elevation from normalized drag position ---
+let azimuth = 0.35, elevation = 0.42; // radians-ish state (elevation 0..1.2)
+function sunFromState(){
+  const az = azimuth, el = elevation;
+  const dir = new THREE.Vector3(Math.cos(el)*Math.sin(az), Math.sin(el), Math.cos(el)*Math.cos(az));
+  uniforms.uSunDir.value.copy(dir.normalize());
+  const elevDeg = Math.round(el*180/Math.PI);
+  document.getElementById('elevRead').textContent = elevDeg+'°';
+  document.getElementById('azRead').textContent = Math.round(((az*180/Math.PI)+360)%360)+'°';
+  let phase = 'NIGHT';
+  if(elevDeg>45) phase='NOON';
+  else if(elevDeg>12) phase='DAY';
+  else if(elevDeg>-3) phase='GLOAMING';
+  else if(elevDeg>-10) phase='DUSK';
+  document.getElementById('phaseRead').textContent = phase;
+}
+sunFromState();
+
+let dragging=false, lastX=0, lastY=0, interacted=false;
+const skyEl = document.getElementById('sky');
+function pointerToState(dx,dy){
+  azimuth -= dx*0.006;
+  elevation = Math.max(-0.35, Math.min(1.45, elevation - dy*0.005));
+}
+skyEl.addEventListener('pointerdown', e=>{
+  dragging=true; lastX=e.clientX; lastY=e.clientY; skyEl.classList.add('dragging');
+  interacted=true; document.getElementById('hint').classList.add('hide');
+  skyEl.setPointerCapture(e.pointerId);
+});
+skyEl.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  pointerToState(e.clientX-lastX, e.clientY-lastY);
+  lastX=e.clientX; lastY=e.clientY;
+  sunFromState();
+});
+skyEl.addEventListener('pointerup', ()=>{ dragging=false; skyEl.classList.remove('dragging'); });
+skyEl.addEventListener('pointercancel', ()=>{ dragging=false; skyEl.classList.remove('dragging'); });
+
+skyEl.setAttribute('tabindex','0');
+skyEl.addEventListener('keydown', e=>{
+  const step=0.05;
+  let used=true;
+  if(e.key==='ArrowLeft') azimuth -= step;
+  else if(e.key==='ArrowRight') azimuth += step;
+  else if(e.key==='ArrowUp') elevation = Math.min(1.45, elevation+step);
+  else if(e.key==='ArrowDown') elevation = Math.max(-0.35, elevation-step);
+  else used=false;
+  if(used){ e.preventDefault(); interacted=true; document.getElementById('hint').classList.add('hide'); sunFromState(); }
+});
+
+// gentle idle auto-drift (pauses once user interacts; respects reduced motion)
+let idleT = 0;
+function animate(t){
+  if(!interacted && !reduceMotion){
+    idleT += 0.0022;
+    azimuth = 0.35 + Math.sin(idleT)*0.5;
+    elevation = 0.28 + Math.sin(idleT*0.7)*0.22;
+    sunFromState();
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+// --- foreground silhouette (ridge line), tinted subtly by sun elevation ---
+const groundSvg = document.getElementById('ground');
+function ridgePath(seed, amp, baseY){
+  let d = `M0,200 L0,${baseY}`;
+  const n = 14;
+  for(let i=0;i<=n;i++){
+    const x = i/n*1000;
+    const y = baseY - (Math.sin(i*0.9+seed)*0.5+0.5)*amp - (Math.sin(i*2.3+seed*1.7)*0.5+0.5)*amp*0.4;
+    d += ` L${x.toFixed(1)},${y.toFixed(1)}`;
+  }
+  d += ` L1000,200 Z`;
+  return d;
+}
+groundSvg.innerHTML = `
+  <path d="${ridgePath(1.3, 55, 150)}" fill="#0a0710" opacity=".55"/>
+  <path d="${ridgePath(4.1, 42, 172)}" fill="#050308" opacity=".85"/>
+`;
+</script>
+
+<footer style="position:fixed;bottom:0;left:0;right:0;z-index:5;text-align:center;font-size:.55rem;
+  letter-spacing:.16em;text-transform:uppercase;color:rgba(251,238,224,.4);padding-bottom:.5rem;pointer-events:none">
+  GLOAMING — RAYLEIGH / MIE SKY SHADER · SITE 56 OF 62 · FABLE 25 · WAVE 3
+</footer>
+
+</body>
+</html>

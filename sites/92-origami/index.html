@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLI — a letter that unfolds as you scroll</title>
+<meta name="description" content="A folded letter opens panel by panel as you scroll — real CSS 3D creases with paper shading that follows the fold angle. A story told in four unfoldings.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23efe8dc'/%3E%3Cpath d='M6 10 L16 4 L26 10 V24 H6 Z' fill='none' stroke='%23375e4e' stroke-width='1.8'/%3E%3Cpath d='M6 10 L16 16 L26 10' fill='none' stroke='%23375e4e' stroke-width='1.8'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --desk:#0f1512; --paper:#efe8dc; --paper2:#e4dbc9; --ink:#2c3a33;
+  --green:#375e4e; --dim:#93a29a; --wax:#a33b2e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:
+    radial-gradient(80% 60% at 50% 20%, rgba(239,232,220,.05), transparent 60%),
+    var(--desk);
+  color:var(--paper); font-family:'Cormorant Garamond',serif; overflow-x:hidden}
+::selection{background:var(--green); color:#fff}
+a:focus-visible{outline:2px solid var(--paper); outline-offset:3px}
+
+header{position:fixed; top:0; left:0; right:0; z-index:10; display:flex; justify-content:space-between;
+  padding:1.3rem 1.6rem}
+.mark{font-family:'Space Mono',monospace; font-weight:700; font-size:.76rem; letter-spacing:.3em; color:var(--paper)}
+.mark em{font-style:normal; color:#c9b458}
+nav{display:flex; gap:1.5rem}
+nav a{font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); text-decoration:none}
+nav a:hover{color:var(--paper)}
+
+#track{height:520vh}
+
+.stage{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; perspective:1500px}
+
+/* the letter: a column of four panels, folded accordion-style */
+#letter{transform-style:preserve-3d; width:min(420px,84vw)}
+.panel{
+  width:100%; height:150px; transform-style:preserve-3d; transform-origin:top center;
+  position:relative;
+}
+.panel .side{
+  position:absolute; inset:0; backface-visibility:hidden;
+  background:var(--paper); color:var(--ink); padding:1.1rem 1.6rem;
+  border-left:1px solid rgba(44,58,51,.12); border-right:1px solid rgba(44,58,51,.12);
+}
+.panel .side.backside{transform:rotateX(180deg); background:var(--paper2);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Caveat',cursive; font-size:1.6rem; color:rgba(44,58,51,.65)}
+.panel .shade{position:absolute; inset:0; background:#20180c; pointer-events:none}
+.panel h2{font-size:1.32rem; font-weight:500; font-style:italic; margin-bottom:.2rem}
+.panel p{font-size:1.02rem; line-height:1.5}
+.panel .hand{font-family:'Caveat',cursive; font-size:1.5rem; color:var(--green)}
+.panel:first-child .side{border-top:1px solid rgba(44,58,51,.12)}
+
+/* wax seal on the outside of the folded letter */
+#seal{
+  position:absolute; left:50%; top:118px; transform:translateX(-50%) translateZ(60px); z-index:9;
+  width:56px; height:56px; border-radius:50%;
+  background:radial-gradient(circle at 36% 32%, #c0533f, var(--wax) 60%, #7c2b21);
+  box-shadow:0 4px 12px rgba(0,0,0,.5), inset 0 2px 6px rgba(255,255,255,.22);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Space Mono',monospace; font-weight:700; color:#f5ded7; font-size:1.05rem;
+  transition:opacity .4s, transform .4s;
+}
+#seal.broken{opacity:0; transform:translateX(-50%) translateZ(60px) scale(1.5) rotate(24deg)}
+
+.hint{position:fixed; left:50%; bottom:1.6rem; transform:translateX(-50%); z-index:10;
+  font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.26em; text-transform:uppercase; color:var(--dim)}
+.progress{position:fixed; right:1.6rem; bottom:1.5rem; z-index:10; text-align:right;
+  font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); line-height:2}
+.progress b{color:#c9b458; font-weight:400}
+@media(max-width:640px){.progress{display:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">PLI <em>№92</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div id="track" aria-hidden="true"></div>
+
+<div class="stage" aria-label="A folded letter that opens as you scroll">
+  <div id="letter">
+    <div id="seal">92</div>
+    <div class="panel" data-i="0">
+      <div class="side">
+        <h2>Dear reader,</h2>
+        <p>This letter arrived folded four times. You are unfolding it right now — keep scrolling, gently. Paper remembers how it was creased.</p>
+      </div>
+      <div class="side backside">for whoever scrolls next</div>
+      <div class="shade"></div>
+    </div>
+    <div class="panel" data-i="1">
+      <div class="side">
+        <p>Every crease here is a real rotation in 3D — not a fade, not a slide. The shading on each panel follows its fold angle, the way a page darkens as it tilts away from the lamp.</p>
+      </div>
+      <div class="side backside">PLI · no. 92 · fable 25</div>
+      <div class="shade"></div>
+    </div>
+    <div class="panel" data-i="2">
+      <div class="side">
+        <p>Accordion folds alternate: valley, mountain, valley. Scroll back up and the letter refolds itself — some things do go back in the envelope.</p>
+      </div>
+      <div class="side backside"></div>
+      <div class="shade"></div>
+    </div>
+    <div class="panel" data-i="3">
+      <div class="side">
+        <p>That's all this page is: one idea, taken seriously.</p>
+        <p class="hand">— written &amp; folded by a language model</p>
+      </div>
+      <div class="side backside"></div>
+      <div class="shade"></div>
+    </div>
+  </div>
+</div>
+
+<div class="hint" id="hint">scroll to break the seal &amp; unfold</div>
+<div class="progress" aria-hidden="true">unfolded <b id="pv">0%</b></div>
+
+<script>
+/* ═════ PLI — scroll-driven accordion unfold ═════
+   Panel 0 lies flat. Panels 1..3 hang beneath, each rotated at its top
+   crease. Fold angle per panel goes 180°(closed, hidden behind) → 0°(flat).
+   Panels unfold in sequence; shading = cos of fold angle. */
+
+const panels = [...document.querySelectorAll('.panel')];
+const shades = panels.map(p=>p.querySelector('.shade'));
+const seal = document.getElementById('seal');
+const hint = document.getElementById('hint');
+const pv = document.getElementById('pv');
+const letter = document.getElementById('letter');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function setFolds(t){
+  // t: 0..1 overall unfold; each panel i uses band [i/4 … (i+1.4)/4] for overlap
+  let totalOpen = 0;
+  for (let i=1;i<panels.length;i++){
+    const a = (i-1)/3.4, b = (i+0.6)/3.4;
+    let k = (t - a) / (b - a);
+    k = Math.max(0, Math.min(1, k));
+    k = k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
+    totalOpen += k;
+    // alternate mountain/valley: odd panels fold forward, even backward
+    const dir = i%2 ? 1 : -1;
+    const ang = (1-k) * 180 * dir;
+    panels[i].style.transform = `rotateX(${ang}deg)`;
+    // shade by tilt
+    const shade = Math.pow(1-k, 1.6) * .82;
+    shades[i].style.opacity = shade.toFixed(3);
+  }
+  shades[0].style.opacity = 0;
+  // the letter drifts up as it grows so it stays centered
+  letter.style.transform = `translateY(${(-totalOpen*72)+108}px) rotateX(12deg)`;
+  seal.classList.toggle('broken', t > .04);
+  hint.style.opacity = t > .05 ? 0 : 1;
+  pv.textContent = Math.round(t*100)+'%';
+}
+
+let target = 0, cur = -0.001;
+function loop(){
+  requestAnimationFrame(loop);
+  const max = document.documentElement.scrollHeight - innerHeight;
+  target = max>0 ? scrollY/max : 0;
+  cur += (target-cur) * (reduce ? 1 : .09);
+  if (Math.abs(target-cur) < .0005 && cur === target) return;
+  setFolds(Math.max(0, Math.min(1, cur)));
+}
+requestAnimationFrame(loop);
+setFolds(0);
+</script>
+</body>
+</html>

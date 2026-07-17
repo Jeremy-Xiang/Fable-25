@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TESSERA — a mosaic that keeps tiling itself</title>
+<meta name="description" content="TESSERA extends one gold-and-lapis Byzantine mosaic photograph outward with a live generative Truchet-tile field, so the algorithmic pattern and the photograph read as one surface.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#150e14;
+    --gold:#c6a15b;
+    --lapis:#3a63b0;
+    --garnet:#9c3a52;
+    --emerald:#3f8c66;
+    --ivory:#e9dfc4;
+    --txt:#f1e9d8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--txt);font-family:'Spectral',Georgia,serif;overflow-x:hidden}
+  ::selection{background:var(--gold);color:#150e14}
+  a{color:inherit}
+
+  canvas#field{position:fixed;inset:0;z-index:0}
+  .veil{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 40%,transparent 30%,rgba(21,14,20,.72) 82%)}
+
+  header{position:relative;z-index:3;display:flex;justify-content:space-between;align-items:center;
+    padding:1.5rem 2.2rem}
+  .brand{font-family:'Spectral',serif;font-weight:600;font-size:1.15rem;letter-spacing:.03em}
+  .brand em{font-style:italic;color:var(--gold)}
+  nav{font-family:'Fragment Mono',monospace;font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;display:flex;gap:1.6rem}
+  nav a{color:var(--txt);text-decoration:none;opacity:.75}
+  nav a:hover{opacity:1;color:var(--gold)}
+
+  main{position:relative;z-index:2}
+
+  .hero{min-height:78vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:4vh 2rem 2vh}
+  .kicker{font-family:'Fragment Mono',monospace;font-size:.68rem;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--gold);margin-bottom:1.3rem}
+  h1{font-size:clamp(2.3rem,6vw,4.4rem);font-weight:600;line-height:1.05;max-width:16ch}
+  h1 em{font-style:italic;color:var(--gold)}
+  .hero p{margin-top:1.3rem;max-width:52ch;font-size:1.02rem;line-height:1.75;opacity:.82}
+
+  .frame-wrap{margin:5vh auto 3vh;max-width:760px;padding:0 2rem}
+  .frame{position:relative;border-radius:6px;overflow:hidden;
+    border:10px solid var(--bg);outline:3px solid var(--gold);outline-offset:-2px;
+    box-shadow:0 40px 90px -30px rgba(0,0,0,.7)}
+  .frame img{width:100%;display:block}
+  .frame .corners span{position:absolute;width:22px;height:22px;border:2px solid var(--gold)}
+  .frame .corners .tl{top:6px;left:6px;border-right:none;border-bottom:none}
+  .frame .corners .tr{top:6px;right:6px;border-left:none;border-bottom:none}
+  .frame .corners .bl{bottom:6px;left:6px;border-right:none;border-top:none}
+  .frame .corners .br{bottom:6px;right:6px;border-left:none;border-top:none}
+  .caption{text-align:center;font-family:'Fragment Mono',monospace;font-size:.64rem;letter-spacing:.16em;
+    text-transform:uppercase;opacity:.6;margin-top:1rem}
+
+  .sections{max-width:920px;margin:0 auto;padding:8vh 2rem 4vh;display:grid;grid-template-columns:repeat(3,1fr);gap:2.4rem}
+  .sec .no{font-family:'Fragment Mono',monospace;font-size:.66rem;letter-spacing:.2em;color:var(--gold);display:block;margin-bottom:.7rem}
+  .sec h2{font-size:1.3rem;font-weight:600;margin-bottom:.6rem}
+  .sec p{font-size:.88rem;line-height:1.7;opacity:.82}
+
+  .controls{max-width:760px;margin:0 auto;padding:3vh 2rem 10vh;text-align:center}
+  .controls .lab{font-family:'Fragment Mono',monospace;font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;opacity:.65;margin-bottom:1rem;display:block}
+  .swatches{display:flex;justify-content:center;gap:.7rem;flex-wrap:wrap}
+  .swatch{width:38px;height:38px;border-radius:50%;border:2px solid rgba(241,233,216,.3);cursor:pointer;transition:.2s}
+  .swatch:hover,.swatch:focus-visible{transform:scale(1.12);border-color:var(--txt)}
+  .swatch.on{border-color:var(--txt);box-shadow:0 0 0 3px rgba(241,233,216,.18)}
+
+  footer{position:relative;z-index:2;text-align:center;font-family:'Fragment Mono',monospace;
+    font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;opacity:.6;padding-bottom:2.5rem}
+  footer a{color:var(--gold)}
+
+  @media(max-width:760px){
+    .sections{grid-template-columns:1fr;gap:2.2rem}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .swatch{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="field" aria-hidden="true"></canvas>
+<div class="veil"></div>
+
+<header>
+  <span class="brand">TESSER<em>A</em></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<main>
+  <section class="hero">
+    <span class="kicker">Byzantine mosaic, extended live</span>
+    <h1>The pattern <em>doesn't stop</em> at the frame.</h1>
+    <p>One photographed tessellation, gold leaf and lapis glass, sits at the center. Around it, a generative field of Truchet tiles keeps the geometry going — same palette, same logic, no more photograph. Move your cursor through it.</p>
+  </section>
+
+  <div class="frame-wrap">
+    <figure class="frame">
+      <img src="assets/hero.jpg" alt="Macro photograph of a gold, lapis, and garnet Byzantine mosaic tessellation." loading="eager">
+      <div class="corners" aria-hidden="true"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span></div>
+    </figure>
+    <p class="caption">Fragment · gold tesserae, lapis and garnet glass · generated reference</p>
+  </div>
+
+  <section class="sections">
+    <div class="sec">
+      <span class="no">01</span>
+      <h2>Tesserae</h2>
+      <p>Each generative tile is a Truchet square — two quarter-circle arcs, one of two rotations, chosen at random per cell so the field never repeats predictably.</p>
+    </div>
+    <div class="sec">
+      <span class="no">02</span>
+      <h2>Palette</h2>
+      <p>Five inks sampled from the photograph: gold, lapis, garnet, emerald, ivory. The canvas field draws only from this set, so it reads as one continuous material.</p>
+    </div>
+    <div class="sec">
+      <span class="no">03</span>
+      <h2>Field</h2>
+      <p>Tiles near the cursor rotate to face it, like glass catching candlelight as you pass — a ripple of reorientation, not redraw.</p>
+    </div>
+  </section>
+
+  <div class="controls">
+    <span class="lab">Recompose the field</span>
+    <div class="swatches" role="group" aria-label="Choose a mosaic palette">
+      <button class="swatch on" data-p="warm" style="background:conic-gradient(var(--gold),var(--garnet),var(--lapis),var(--emerald))" aria-label="Warm gold palette"></button>
+      <button class="swatch" data-p="cool" style="background:conic-gradient(#3a63b0,#3f8c66,#c6a15b,#274a86)" aria-label="Cool lapis palette"></button>
+      <button class="swatch" data-p="deep" style="background:conic-gradient(#9c3a52,#5a2038,#c6a15b,#3f1f2a)" aria-label="Deep garnet palette"></button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  TESSERA — GENERATIVE TRUCHET FIELD · SITE 33 OF 50 · BUILT BY CLAUDE (FABLE 25) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const cv = document.getElementById('field'), ctx = cv.getContext('2d');
+
+const PALETTES = {
+  warm: ['#c6a15b','#9c3a52','#3a63b0','#3f8c66','#e9dfc4'],
+  cool: ['#3a63b0','#3f8c66','#c6a15b','#274a86','#e9dfc4'],
+  deep: ['#9c3a52','#5a2038','#c6a15b','#3f1f2a','#e9dfc4']
+};
+let palette = PALETTES.warm;
+
+const CELL = 46;
+let cols, rows, tiles = [];
+let mx = -9999, my = -9999, tmx = -9999, tmy = -9999;
+
+function build(){
+  const w = innerWidth, h = innerHeight;
+  cv.width = w*devicePixelRatio; cv.height = h*devicePixelRatio;
+  cv.style.width = w+'px'; cv.style.height = h+'px';
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  cols = Math.ceil(w/CELL)+1; rows = Math.ceil(h/CELL)+1;
+  tiles = [];
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      tiles.push({
+        x, y,
+        rot: Math.floor(Math.random()*2), // 0 or 1 : two truchet orientations
+        color: palette[Math.floor(Math.random()*palette.length)],
+        color2: palette[Math.floor(Math.random()*palette.length)],
+        wob: 0
+      });
+    }
+  }
+}
+addEventListener('resize', build);
+build();
+
+addEventListener('pointermove', e=>{ tmx=e.clientX; tmy=e.clientY; });
+addEventListener('pointerleave', ()=>{ tmx=-9999; tmy=-9999; });
+
+document.querySelectorAll('.swatch').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.swatch').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    palette = PALETTES[btn.dataset.p];
+    tiles.forEach(t=>{
+      t.color = palette[Math.floor(Math.random()*palette.length)];
+      t.color2 = palette[Math.floor(Math.random()*palette.length)];
+    });
+  });
+});
+
+function drawTile(t){
+  const px = t.x*CELL, py = t.y*CELL;
+  const cx = px+CELL/2, cy = py+CELL/2;
+  ctx.save();
+  ctx.translate(cx,cy);
+  const wobble = t.wob * 0.55;
+  ctx.rotate((t.rot?Math.PI/2:0) + wobble);
+  ctx.translate(-cx,-cy);
+
+  ctx.fillStyle = '#0000';
+  ctx.lineWidth = CELL*0.24;
+  ctx.lineCap = 'round';
+
+  ctx.strokeStyle = t.color;
+  ctx.beginPath();
+  ctx.arc(px, py, CELL/2, 0, Math.PI/2);
+  ctx.stroke();
+
+  ctx.strokeStyle = t.color2;
+  ctx.beginPath();
+  ctx.arc(px+CELL, py+CELL, CELL/2, Math.PI, Math.PI*1.5);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function frame(){
+  ctx.fillStyle = '#150e14';
+  ctx.fillRect(0,0,innerWidth,innerHeight);
+
+  mx += (tmx-mx)*.14; my += (tmy-my)*.14;
+
+  for(const t of tiles){
+    const px = t.x*CELL+CELL/2, py = t.y*CELL+CELL/2;
+    const d = Math.hypot(px-mx, py-my);
+    const influence = Math.max(0, 1 - d/220);
+    t.wob += (influence*0.9 - t.wob) * 0.12;
+    drawTile(t);
+  }
+  if(!reduced) requestAnimationFrame(frame);
+}
+
+if(reduced){
+  frame(); // draw once, static
+  addEventListener('pointermove', ()=>{}); // no ripple loop, but swatch changes still redraw
+  document.querySelectorAll('.swatch').forEach(b=>b.addEventListener('click', ()=>requestAnimationFrame(frame)));
+}else{
+  frame();
+}
+</script>
+</body>
+</html>

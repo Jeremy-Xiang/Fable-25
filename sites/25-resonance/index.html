@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RESONANCE — an instrument, not a website</title>
+<meta name="description" content="RESONANCE is a playable polysynth in your browser: Web Audio oscillators, a delay line, and a radial spectrum that blooms when you play.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0812;
+    --vio:#8b5cf6;
+    --rose:#fb7185;
+    --mint:#34d399;
+    --txt:#ece8f5;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--txt);font-family:'Syne',sans-serif;
+    display:flex;flex-direction:column;overflow:hidden}
+  ::selection{background:var(--vio);color:#fff}
+
+  #viz{position:fixed;inset:0;z-index:0}
+
+  header{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:center;
+    padding:1.3rem 2rem}
+  .m{font-weight:800;font-size:1.15rem;letter-spacing:.06em}
+  .m i{color:var(--vio);font-style:normal}
+  nav{font-family:'Fragment Mono',monospace;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase}
+  nav a{color:var(--txt);text-decoration:none;opacity:.75;margin-left:1.5rem}
+  nav a:hover{opacity:1;color:var(--vio)}
+
+  .mid{position:relative;z-index:2;flex:1;display:grid;place-items:center;pointer-events:none;padding:0 2rem;text-align:center}
+  .mid h1{font-weight:800;font-size:clamp(1.9rem,5.5vw,4.2rem);line-height:1.08;
+    text-shadow:0 0 60px rgba(139,92,246,.4)}
+  .mid h1 em{font-style:normal;background:linear-gradient(90deg,var(--vio),var(--rose),var(--mint));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .mid p{font-family:'Fragment Mono',monospace;font-size:.72rem;letter-spacing:.24em;
+    text-transform:uppercase;margin-top:1.4rem;opacity:.7}
+
+  .console{position:relative;z-index:2;padding:0 2rem 1.6rem}
+  .panel{max-width:1080px;margin:0 auto;background:rgba(20,14,34,.72);backdrop-filter:blur(14px);
+    border:1px solid rgba(236,232,245,.14);border-radius:18px;padding:1.4rem 1.6rem}
+  .prow{display:flex;gap:1.4rem;align-items:center;flex-wrap:wrap;justify-content:space-between}
+  .ctls{display:flex;gap:1.4rem;align-items:center;flex-wrap:wrap}
+  .grp{display:flex;gap:.5rem;align-items:center}
+  .grp .lab{font-family:'Fragment Mono',monospace;font-size:.58rem;letter-spacing:.2em;
+    text-transform:uppercase;opacity:.6;margin-right:.3rem}
+  .wavebtn{font-family:'Fragment Mono',monospace;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;
+    background:none;border:1px solid rgba(236,232,245,.22);color:var(--txt);padding:.5rem .95rem;
+    border-radius:99px;cursor:pointer;transition:.2s}
+  .wavebtn:hover{border-color:var(--txt)}
+  .wavebtn.on{background:var(--vio);border-color:var(--vio);color:#fff}
+  input[type=range]{-webkit-appearance:none;width:110px;background:transparent;cursor:ew-resize}
+  input[type=range]::-webkit-slider-runnable-track{height:2px;background:rgba(236,232,245,.3)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:var(--rose);margin-top:-6px}
+
+  .keys{display:flex;margin-top:1.3rem;height:120px;border-radius:10px;overflow:hidden;
+    user-select:none;touch-action:none}
+  .key{flex:1;background:#f4f1fa;border-right:1px solid #1a1428;position:relative;cursor:pointer;
+    transition:background .08s;display:flex;align-items:flex-end;justify-content:center;padding-bottom:.5rem}
+  .key:last-child{border-right:none}
+  .key span{font-family:'Fragment Mono',monospace;font-size:.6rem;color:#6a6480;text-transform:uppercase}
+  .key.black{background:#241c3a;margin:0 -1.5%;z-index:2;flex:0 0 6%;height:64%;border-radius:0 0 6px 6px}
+  .key.black span{color:#8a84a5}
+  .key.lit{background:var(--vio)}
+  .key.black.lit{background:var(--rose)}
+  .key.lit span{color:#fff}
+
+  #boot{position:fixed;inset:0;z-index:50;background:rgba(11,8,18,.94);display:grid;place-items:center;
+    text-align:center;cursor:pointer;transition:opacity .7s,visibility .7s}
+  #boot.off{opacity:0;visibility:hidden}
+  #boot .inner h2{font-weight:800;font-size:clamp(1.8rem,5vw,3.4rem)}
+  #boot .inner h2 span{color:var(--vio)}
+  #boot .inner p{font-family:'Fragment Mono',monospace;font-size:.72rem;letter-spacing:.3em;
+    text-transform:uppercase;margin-top:1.6rem;opacity:.7;animation:pulsehint 2s ease-in-out infinite}
+  @keyframes pulsehint{50%{opacity:.3}}
+
+  footer{position:relative;z-index:2;text-align:center;font-family:'Fragment Mono',monospace;
+    font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;opacity:.6;padding-bottom:1rem}
+  footer a{color:var(--txt)}
+
+  @media(max-width:760px){
+    .mid h1{font-size:clamp(1.5rem,6vw,2.4rem)}
+    .keys{height:96px}
+    input[type=range]{width:80px}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="viz"></canvas>
+
+<div id="boot">
+  <div class="inner">
+    <h2>This page is <span>an instrument.</span></h2>
+    <p>tap anywhere to power on the synth</p>
+  </div>
+</div>
+
+<header>
+  <span class="m">RESO<i>NANCE</i></span>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="mid">
+  <div>
+    <h1>Play the keys.<br>Watch the room <em>bloom.</em></h1>
+    <p>keyboard row A–K works too · sharps on W E T Y U</p>
+  </div>
+</div>
+
+<div class="console">
+  <div class="panel">
+    <div class="prow">
+      <div class="ctls">
+        <div class="grp"><span class="lab">Voice</span>
+          <button class="wavebtn on" data-w="sawtooth">Saw</button>
+          <button class="wavebtn" data-w="square">Square</button>
+          <button class="wavebtn" data-w="sine">Sine</button>
+          <button class="wavebtn" data-w="triangle">Tri</button>
+        </div>
+        <div class="grp"><span class="lab">Echo</span><input type="range" id="fb" min="0" max="85" value="45"></div>
+        <div class="grp"><span class="lab">Release</span><input type="range" id="rel" min="10" max="300" value="120"></div>
+      </div>
+      <div class="grp"><span class="lab" id="notedisp">—</span></div>
+    </div>
+    <div class="keys" id="keys"></div>
+  </div>
+</div>
+
+<footer>
+  RESONANCE — WEB AUDIO POLYSYNTH · SITE 25 OF 25 · BUILT BY CLAUDE (FABLE 5) · <a href="guide/">/GUIDE</a> · <a href="../">/INDEX</a>
+</footer>
+
+<script>
+/* ————— audio engine ————— */
+let AC,master,analyser,delay,fbGain,started=false;
+function boot(){
+  if(started)return;started=true;
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  master=AC.createGain();master.gain.value=.5;
+  analyser=AC.createAnalyser();analyser.fftSize=1024;
+  delay=AC.createDelay(1);delay.delayTime.value=.28;
+  fbGain=AC.createGain();fbGain.gain.value=.45;
+  const wet=AC.createGain();wet.gain.value=.35;
+  master.connect(analyser);
+  analyser.connect(AC.destination);
+  master.connect(delay);delay.connect(fbGain);fbGain.connect(delay);
+  delay.connect(wet);wet.connect(analyser);
+  document.getElementById('boot').classList.add('off');
+}
+document.getElementById('boot').addEventListener('click',boot);
+addEventListener('keydown',boot,{once:false});
+
+let wave='sawtooth';
+document.querySelectorAll('.wavebtn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.wavebtn').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');wave=b.dataset.w;
+}));
+document.getElementById('fb').addEventListener('input',e=>{if(fbGain)fbGain.gain.value=e.target.value/100});
+let relMs=120;
+document.getElementById('rel').addEventListener('input',e=>relMs=+e.target.value*10);
+
+const NOTES=[
+  ['C4',261.63,'a',0],['C#4',277.18,'w',1],['D4',293.66,'s',0],['D#4',311.13,'e',1],
+  ['E4',329.63,'d',0],['F4',349.23,'f',0],['F#4',369.99,'t',1],['G4',392.00,'g',0],
+  ['G#4',415.30,'y',1],['A4',440.00,'h',0],['A#4',466.16,'u',1],['B4',493.88,'j',0],
+  ['C5',523.25,'k',0]
+];
+const active={};
+const bursts=[];
+function noteOn(n){
+  if(!started)boot();
+  if(!AC||active[n[0]])return;
+  const o=AC.createOscillator(),g=AC.createGain();
+  o.type=wave;o.frequency.value=n[1];
+  g.gain.setValueAtTime(0,AC.currentTime);
+  g.gain.linearRampToValueAtTime(.32,AC.currentTime+.012);
+  o.connect(g);g.connect(master);
+  o.start();
+  active[n[0]]={o,g};
+  document.querySelector(`[data-note="${n[0]}"]`)?.classList.add('lit');
+  document.getElementById('notedisp').textContent=n[0]+' · '+Math.round(n[1])+' Hz';
+  bursts.push({hue:NOTES.indexOf(n)/NOTES.length,r:0,life:1});
+}
+function noteOff(name){
+  const v=active[name];
+  if(!v)return;
+  v.g.gain.cancelScheduledValues(AC.currentTime);
+  v.g.gain.setValueAtTime(v.g.gain.value,AC.currentTime);
+  v.g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+relMs/1000);
+  v.o.stop(AC.currentTime+relMs/1000+.05);
+  delete active[name];
+  document.querySelector(`[data-note="${name}"]`)?.classList.remove('lit');
+}
+
+/* keys UI */
+const keysEl=document.getElementById('keys');
+NOTES.forEach(n=>{
+  const k=document.createElement('div');
+  k.className='key'+(n[3]?' black':'');
+  k.dataset.note=n[0];
+  k.innerHTML=`<span>${n[2]}</span>`;
+  k.addEventListener('pointerdown',e=>{e.preventDefault();noteOn(n)});
+  k.addEventListener('pointerup',()=>noteOff(n[0]));
+  k.addEventListener('pointerleave',()=>noteOff(n[0]));
+  keysEl.appendChild(k);
+});
+const keymap={};NOTES.forEach(n=>keymap[n[2]]=n);
+addEventListener('keydown',e=>{
+  if(e.repeat)return;
+  const n=keymap[e.key.toLowerCase()];
+  if(n)noteOn(n);
+});
+addEventListener('keyup',e=>{
+  const n=keymap[e.key.toLowerCase()];
+  if(n)noteOff(n[0]);
+});
+
+/* ————— visualizer ————— */
+const cv=document.getElementById('viz'),ctx=cv.getContext('2d');
+function rs(){cv.width=innerWidth*devicePixelRatio;cv.height=innerHeight*devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}
+addEventListener('resize',rs);rs();
+const freq=new Uint8Array(512);
+(function draw(t){
+  ctx.fillStyle='rgba(11,8,18,.22)';
+  ctx.fillRect(0,0,innerWidth,innerHeight);
+  const cx=innerWidth/2,cy=innerHeight/2-30;
+
+  if(analyser){
+    analyser.getByteFrequencyData(freq);
+    const N=90;
+    for(let i=0;i<N;i++){
+      const v=freq[Math.floor(i/N*220)]/255;
+      const a=i/N*Math.PI*2 - Math.PI/2 + t/9000;
+      const r0=Math.min(innerWidth,innerHeight)*.16;
+      const r1=r0+v*Math.min(innerWidth,innerHeight)*.3;
+      const hue=260+((i/N*140)+t/120)%140;
+      ctx.strokeStyle=`hsla(${hue},80%,${55+v*30}%,${.25+v*.75})`;
+      ctx.lineWidth=2.4;
+      ctx.beginPath();
+      ctx.moveTo(cx+Math.cos(a)*r0,cy+Math.sin(a)*r0);
+      ctx.lineTo(cx+Math.cos(a)*r1,cy+Math.sin(a)*r1);
+      ctx.stroke();
+    }
+    /* soft core */
+    let energy=0;for(let i=0;i<80;i++)energy+=freq[i];
+    energy/=80*255;
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,140+energy*220);
+    g.addColorStop(0,`rgba(139,92,246,${.16+energy*.4})`);
+    g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;
+    ctx.beginPath();ctx.arc(cx,cy,140+energy*220,0,7);ctx.fill();
+  }
+  /* note bursts */
+  for(let i=bursts.length-1;i>=0;i--){
+    const b=bursts[i];
+    b.r+=5;b.life-=.014;
+    if(b.life<=0){bursts.splice(i,1);continue}
+    ctx.strokeStyle=`hsla(${260+b.hue*140},85%,68%,${b.life*.6})`;
+    ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.arc(cx,cy,b.r,0,7);ctx.stroke();
+  }
+  requestAnimationFrame(draw);
+})(0);
+</script>
+</body>
+</html>

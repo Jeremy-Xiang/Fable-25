@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHROMA∞ — a Y2K fever dream</title>
+<meta name="description" content="CHROMA∞ is a Y2K revival artifact: liquid chrome type, holographic tilt cards, sparkle trails, and optimism about the millennium.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@300;500;800&family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0d0918;
+    --chrome-hi:#ffffff;
+    --pink:#ff5ecf;
+    --cyan:#4de3ff;
+    --lime:#c8ff4d;
+    --violet:#8b5cf6;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--void);color:#efeaff;
+    font-family:'Chakra Petch',sans-serif;overflow-x:hidden;
+    cursor:crosshair;
+  }
+  ::selection{background:var(--pink);color:var(--void)}
+
+  /* animated iridescent backdrop */
+  .irid{position:fixed;inset:-20%;z-index:0;filter:blur(90px) saturate(1.3);opacity:.5;
+    background:
+      radial-gradient(38% 42% at 22% 28%,var(--pink),transparent 68%),
+      radial-gradient(40% 44% at 78% 22%,var(--cyan),transparent 68%),
+      radial-gradient(36% 40% at 68% 78%,var(--violet),transparent 68%),
+      radial-gradient(30% 34% at 28% 76%,var(--lime),transparent 68%);
+    animation:swirl 26s ease-in-out infinite alternate}
+  @keyframes swirl{
+    0%{transform:rotate(0deg) scale(1)}
+    100%{transform:rotate(38deg) scale(1.18)}
+  }
+  /* y2k grid floor */
+  .floor{position:fixed;left:-40%;right:-40%;bottom:-12%;height:46vh;z-index:0;
+    background:
+      repeating-linear-gradient(90deg,rgba(77,227,255,.25) 0 1px,transparent 1px 70px),
+      repeating-linear-gradient(0deg,rgba(77,227,255,.25) 0 1px,transparent 1px 44px);
+    transform:perspective(480px) rotateX(64deg);transform-origin:bottom;
+    mask-image:linear-gradient(to top,rgba(0,0,0,.8),transparent);
+    -webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.8),transparent);
+    animation:floorscroll 3.2s linear infinite}
+  @keyframes floorscroll{from{background-position:0 0,0 0}to{background-position:0 0,0 44px}}
+
+  main{position:relative;z-index:2}
+
+  nav{display:flex;justify-content:space-between;align-items:center;padding:1.4rem 2rem;
+    font-size:.72rem;letter-spacing:.26em;text-transform:uppercase}
+  nav .logo{font-family:'Unbounded';font-weight:800;font-size:.95rem;
+    background:linear-gradient(100deg,#fff,#9ab,#fff 45%,#89a 60%,#fff);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  nav a{color:#efeaff;text-decoration:none;opacity:.8;margin-left:1.6rem}
+  nav a:hover{opacity:1;color:var(--cyan);text-shadow:0 0 12px var(--cyan)}
+
+  .hero{min-height:92vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;position:relative}
+  .chrome-svg{width:min(94vw,1000px)}
+  .hero .sub{font-size:clamp(.72rem,1.6vw,.95rem);letter-spacing:.5em;text-transform:uppercase;margin-top:1rem;color:var(--cyan);text-shadow:0 0 18px rgba(77,227,255,.6)}
+  .hero .y2k{margin-top:2.6rem;display:flex;gap:1rem;flex-wrap:wrap;justify-content:center}
+  .pill{font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;padding:.55rem 1.3rem;border-radius:99px;
+    border:1px solid rgba(239,234,255,.35);backdrop-filter:blur(6px);transition:.25s;user-select:none}
+  .pill:hover{border-color:var(--pink);color:var(--pink);text-shadow:0 0 14px var(--pink);transform:translateY(-3px) rotate(-2deg)}
+
+  .ticker{border-top:1px solid rgba(239,234,255,.2);border-bottom:1px solid rgba(239,234,255,.2);
+    overflow:hidden;white-space:nowrap;padding:.7rem 0;background:rgba(13,9,24,.5);backdrop-filter:blur(8px)}
+  .ticker span{display:inline-block;animation:tick 22s linear infinite;font-size:.78rem;letter-spacing:.3em;text-transform:uppercase}
+  .ticker b{color:var(--lime);font-weight:400}
+  @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+  .cards{display:grid;grid-template-columns:1fr;gap:2.2rem;
+    max-width:1200px;margin:0 auto;padding:12vh 5vw}
+  @media (min-width:640px){
+    .cards{grid-template-columns:repeat(2,1fr)}
+    .cards>:nth-child(3){grid-column:1/-1;max-width:540px;width:100%;justify-self:center}
+  }
+  @media (min-width:1040px){
+    .cards{grid-template-columns:repeat(3,1fr)}
+    .cards>:nth-child(3){grid-column:auto;max-width:none;justify-self:stretch}
+  }
+  .holo{
+    position:relative;border-radius:18px;padding:2.6rem 2rem;min-height:340px;
+    display:flex;flex-direction:column;justify-content:flex-end;gap:.8rem;
+    background:linear-gradient(150deg,rgba(255,255,255,.14),rgba(255,255,255,.03) 40%),#171226;
+    border:1px solid rgba(239,234,255,.22);
+    transform-style:preserve-3d;transition:transform .18s ease-out,box-shadow .3s;
+    overflow:hidden;
+  }
+  .holo::before{content:"";position:absolute;inset:0;opacity:.55;mix-blend-mode:color-dodge;pointer-events:none;
+    background:conic-gradient(from var(--ang,0deg) at var(--hx,50%) var(--hy,50%),
+      var(--pink),var(--cyan),var(--lime),var(--violet),var(--pink));
+    filter:blur(34px) saturate(1.3);transition:opacity .3s}
+  .holo:hover::before{opacity:.85}
+  .holo::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(240px circle at var(--hx,50%) var(--hy,50%),rgba(255,255,255,.35),transparent 42%);
+    mix-blend-mode:overlay}
+  .holo h3{font-family:'Unbounded';font-weight:500;font-size:1.35rem;position:relative}
+  .holo p{font-size:.8rem;line-height:1.75;opacity:.8;position:relative}
+  .holo .chip{position:absolute;top:1.4rem;left:1.6rem;font-size:.6rem;letter-spacing:.3em;text-transform:uppercase;
+    border:1px solid rgba(239,234,255,.4);padding:.35rem .8rem;border-radius:99px}
+  .holo .big{position:absolute;top:2.6rem;right:1.4rem;font-family:'Unbounded';font-weight:800;
+    font-size:4.6rem;opacity:.12;line-height:1}
+
+  .shrine{text-align:center;padding:10vh 2rem 14vh}
+  .shrine h2{font-family:'Unbounded';font-weight:300;font-size:clamp(1.4rem,4vw,2.6rem);line-height:1.4}
+  .shrine h2 b{font-weight:800;background:linear-gradient(90deg,var(--pink),var(--cyan),var(--lime));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .shrine .starbar{margin-top:2.2rem;font-size:1.4rem;letter-spacing:1em;color:var(--pink)}
+
+  footer{padding:3rem 2rem 4rem;text-align:center;font-size:.66rem;letter-spacing:.3em;text-transform:uppercase;opacity:.75;line-height:2.6}
+  footer a{color:var(--cyan);text-decoration:none}
+  footer a:hover{text-shadow:0 0 12px var(--cyan)}
+
+  .spark{position:fixed;pointer-events:none;z-index:50;font-size:14px;animation:sparkfall 1s ease-out forwards}
+  @keyframes sparkfall{
+    from{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0)}
+    to{opacity:0;transform:translate(-50%,10px) scale(.2) rotate(160deg)}
+  }
+  @media(max-width:640px){nav a{margin-left:.9rem}}
+</style>
+</head>
+<body>
+<div class="irid"></div>
+<div class="floor"></div>
+
+<main>
+  <nav>
+    <span class="logo">CHROMA∞</span>
+    <span>
+      <a href="#drops">Drops</a>
+      <a href="guide/">Guide</a>
+      <a href="../">Index</a>
+    </span>
+  </nav>
+
+  <section class="hero">
+    <svg class="chrome-svg" viewBox="0 0 1000 260" role="img" aria-label="CHROMA wordmark in liquid chrome">
+      <defs>
+        <linearGradient id="chromeGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#f8fbff"/>
+          <stop offset=".38" stop-color="#c8d4e6"/>
+          <stop offset=".49" stop-color="#5a6b85"/>
+          <stop offset=".52" stop-color="#141a26"/>
+          <stop offset=".56" stop-color="#e8f0fa"/>
+          <stop offset=".72" stop-color="#9fb2cc"/>
+          <stop offset="1" stop-color="#e6ecf5"/>
+        </linearGradient>
+        <filter id="liquid" x="-10%" y="-30%" width="120%" height="160%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.012 0.06" numOctaves="2" seed="8" result="n">
+            <animate attributeName="baseFrequency" dur="14s" values="0.012 0.06;0.016 0.045;0.012 0.06" repeatCount="indefinite"/>
+          </feTurbulence>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="14"/>
+        </filter>
+        <filter id="glowp"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <g filter="url(#liquid)">
+        <text x="500" y="180" text-anchor="middle"
+          font-family="Unbounded, sans-serif" font-weight="800" font-size="150"
+          fill="url(#chromeGrad)" stroke="#0d0918" stroke-width="3"
+          style="paint-order:stroke">CHROMA</text>
+      </g>
+      <text x="500" y="238" text-anchor="middle" font-family="Chakra Petch" font-size="26" letter-spacing="26"
+        fill="#4de3ff" filter="url(#glowp)">EST.Y2K — REISSUED 2026</text>
+    </svg>
+    <div class="sub">the future used to look like this</div>
+    <div class="y2k">
+      <span class="pill">✦ 56K FRIENDLY</span>
+      <span class="pill">☻ CURSOR SPARKLES: ON</span>
+      <span class="pill">◉ BEST VIEWED AT 1024×768</span>
+      <span class="pill">♡ NO DIAL-UP REQUIRED</span>
+    </div>
+  </section>
+
+  <div class="ticker"><span id="tk"></span></div>
+
+  <section class="cards" id="drops">
+    <div class="holo"><span class="chip">Drop 001</span><span class="big">01</span>
+      <h3>Liquid Chrome</h3>
+      <p>The wordmark above is one &lt;text&gt; element wearing an animated feTurbulence displacement map — real liquid metal, zero raster images, fully selectable.</p>
+    </div>
+    <div class="holo"><span class="chip">Drop 002</span><span class="big">02</span>
+      <h3>Holographic Foil</h3>
+      <p>These cards track your cursor with a conic-gradient hologram in color-dodge blend. Tilt is 3D CSS; the rainbow follows your hand like a trading card in sunlight.</p>
+    </div>
+    <div class="holo"><span class="chip">Drop 003</span><span class="big">03</span>
+      <h3>Infinite Floor</h3>
+      <p>A perspective-transformed grid scrolling toward the horizon at exactly the speed of nostalgia. Every Y2K interface promised us this floor. We finally shipped it.</p>
+    </div>
+  </section>
+
+  <section class="shrine">
+    <h2>We were promised <b>jetpacks &amp; chrome.</b><br>We got <b>chrome</b>, at least.</h2>
+    <div class="starbar">✦ ✧ ✦ ✧ ✦</div>
+  </section>
+
+  <footer>
+    CHROMA∞ — A Y2K RELIQUARY · BUILT BY CLAUDE (FABLE 5)<br>
+    <a href="guide/">HOW IT WAS MADE</a> · <a href="../">ALL 25 SITES</a>
+  </footer>
+</main>
+
+<script>
+/* ticker */
+const t='★ CHROMA∞ ★ THE MILLENNIUM BUG WAS JUST GLITTER ★ <b>NEW</b> LIQUID CHROME WORDMARK ★ HOLOFOIL CARDS RESTOCKED ★ YOUR SCREENSAVER MISSES YOU ★ ';
+document.getElementById('tk').innerHTML=t.repeat(4);
+
+/* holo tilt */
+document.querySelectorAll('.holo').forEach(card=>{
+  card.addEventListener('pointermove',e=>{
+    const r=card.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
+    card.style.setProperty('--hx',x*100+'%');
+    card.style.setProperty('--hy',y*100+'%');
+    card.style.setProperty('--ang',(x*360)+'deg');
+    card.style.transform=`perspective(700px) rotateY(${(x-.5)*16}deg) rotateX(${(.5-y)*14}deg) translateZ(6px)`;
+    card.style.boxShadow=`0 30px 60px rgba(0,0,0,.5), 0 0 40px rgba(255,94,207,.12)`;
+  });
+  card.addEventListener('pointerleave',()=>{
+    card.style.transform='';card.style.boxShadow='';
+  });
+});
+
+/* sparkle trail */
+const glyphs=['✦','✧','★','☆','✵'];
+let last=0;
+addEventListener('pointermove',e=>{
+  const now=performance.now();
+  if(now-last<45)return;last=now;
+  const s=document.createElement('span');
+  s.className='spark';s.textContent=glyphs[Math.random()*glyphs.length|0];
+  s.style.left=e.clientX+(Math.random()*16-8)+'px';
+  s.style.top=e.clientY+(Math.random()*16-8)+'px';
+  s.style.color=['#ff5ecf','#4de3ff','#c8ff4d','#fff'][Math.random()*4|0];
+  document.body.appendChild(s);
+  setTimeout(()=>s.remove(),1000);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How MURANO was made — guide</title>
+<meta name="description" content="How the MURANO site was designed and built: a raymarched Three.js metaball shader with zero generated assets, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gilda+Display&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #c026d3; --gold: #e8b64a; --teal: #2adfc2; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0a0a; color:#f2eef4;
+    font-family:'Instrument Sans', sans-serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-size:.75rem; letter-spacing:.16em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#a89aad; text-decoration:none; border-bottom:1px solid #2a2430; padding-bottom:2px; }
+  .crumb a:hover { color:var(--teal); border-color:var(--teal); }
+  .kicker {
+    font-size:.85rem; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--gold); margin-bottom:1.2rem;
+  }
+  h1 { font-family:'Gilda Display', serif; font-weight:400; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.15; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#a89aad; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #201c24;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  code { background:#1a1620; border:1px solid #2a2430; border-radius:4px; padding:.05em .4em; font-size:.92em; }
+  .meta {
+    font-size:.9rem; line-height:1.9; color:#cabfd0;
+    background:#141018; border:1px solid #2a2430; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #201c24;
+    font-size:.75rem; letter-spacing:.1em;
+    text-transform:uppercase; color:#8f8698; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#0a0a0a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to MURANO</a>
+    <a href="../../">all 50 sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 48 of 50 · how it was made</div>
+  <h1>MURANO</h1>
+  <p class="sub">Molten, never still</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Wing II mostly leans on Higgsfield-generated imagery, but three sites in this half of the collection (35-orrery, 38-facet, and this one) exist to prove the other Wing II muscle: real, hand-written Three.js 3D with <em>no</em> generated asset in the loop at all. MURANO renders liquid Murano glass — five soft-blended blobs raymarched as a single signed-distance field, refracting and reflecting a synthetic starfield, morphing forever. Drag to orbit it, press and hold to stir its color. Nothing here was photographed, painted, or generated; every pixel is math evaluated live in a fragment shader.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>A single full-screen triangle/quad is rendered with an orthographic camera; all the actual "3D" happens inside the fragment shader via sphere-tracing (raymarching) against a signed-distance function, not through Three.js's normal mesh pipeline — this is the same technique demoscene/Shadertoy glass scenes use, ported into a <code>THREE.ShaderMaterial</code></li>
+    <li>The distance field is five spheres orbiting independent Lissajous-style paths, blended with a polynomial smooth-minimum (<code>smin</code>) so they melt into and out of each other instead of ever showing a hard seam — that continuous blending is what reads as "molten" rather than "clustered balls"</li>
+    <li>Surface shading combines a Fresnel term, a refracted sample and a reflected sample of a procedural starfield background (itself just value noise, no texture asset), plus a specular highlight from a fixed key light — four cheap terms stacked instead of a full physically-based glass BSDF, which would have been far more expensive per pixel for a look that reads convincingly as glass anyway</li>
+    <li>Orbit is pointer-drag (with velocity damping toward a target yaw/pitch) or Arrow-key presses on the focused canvas; a faint automatic yaw drift keeps the piece alive when idle so it never looks static on a still screenshot</li>
+    <li>Press-and-hold (pointer or Space) raises a <code>u_stir</code> uniform that brightens the Fresnel rim and nudges the palette's hue offset — a tactile "stir the color" gesture rather than a passive hover effect</li>
+    <li>A <code>try/catch</code> around renderer creation and shader compilation drives a CSS-only fallback: if WebGL is unavailable, the canvas is hidden and a <code>border-radius</code>-morphing gradient blob (<code>@keyframes morph</code>) takes over so the page never shows a blank hole</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Gilda Display (display) + Instrument Sans (UI/body) · void black #050505, Murano fuchsia #c026d3, gold #e8b64a, teal #2adfc2 — a jewel-tone palette pulled from real Murano glass, not from the render itself</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Render one full-screen quad with an orthographic camera; do the actual geometry inside the fragment shader</li>
+    <li>Write a <code>map(p,t)</code> signed-distance function for N moving spheres, combined with a smooth-min so their union has no hard edge</li>
+    <li>Sphere-trace: step a ray from the camera along <code>rd</code>, shrinking each step by the current distance estimate, until you're within an epsilon of the surface or exceed a max distance</li>
+    <li>Estimate the surface normal with a small central-difference offset on <code>map()</code>, then compute Fresnel, refraction and reflection against a cheap procedural background function</li>
+    <li>Gate every animated uniform (time speed, drift) behind <code>prefers-reduced-motion</code>, and wrap renderer/shader setup in <code>try/catch</code> with a non-WebGL CSS fallback so the page degrades instead of breaking</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration passes</h2>
+  <ul>
+    <li><b>Build pass</b> — first draft of the SDF used a hard <code>min()</code> between the five spheres, which produced visible seams where blobs crossed; switched to a smooth-min with a tuned blend radius (<code>k=.55</code>) so the glass reads as one continuous body</li>
+    <li><b>Code-review pass</b> — the orbit drag had no keyboard equivalent, which would have made the piece unusable without a mouse; added focus styling plus Arrow-key yaw/pitch and Space-to-stir on the canvas. Also found the raymarch loop had no reduced-motion branch for the idle ambient yaw drift (only the shader's own time-scale was gated) — added an explicit check so autoplay rotation stops entirely rather than just slowing down, and confirmed the mobile breakpoint drops the device pixel ratio cap on small screens to keep frame time reasonable</li>
+    <li><b>Live-server pass</b> — served the folder locally, confirmed the page still renders a coherent scene with the WebGL path force-disabled (CSS fallback blob shows correctly and the direction hint text updates to explain why), verified the canvas has an <code>aria-label</code> describing the interaction for screen-reader users who can't see the shader, and checked <code>guide/</code>'s relative paths resolve back to the site and index correctly from the nested folder</li>
+  </ul>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 5), Anthropic · Wing II — no generated asset pipeline used here; pure hand-written Three.js/WebGL raymarching, the collection's third real-3D showcase piece alongside 35-orrery and 38-facet ·
+    3 documented iteration passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

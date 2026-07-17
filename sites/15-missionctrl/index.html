@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MISSION CTRL — Flight Ops Console, Est. 1972</title>
+<meta name="description" content="MISSION CTRL is a living retro-NASA flight console: orbital plot, ground track, gauges and telemetry, all simulated and all animated.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --panel:#0d1420;
+    --bg:#070b12;
+    --amber:#ffb547;
+    --teal:#41e0c8;
+    --red:#ff4f42;
+    --dim:#3a4a60;
+    --txt:#cfe0f0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg);color:var(--txt);
+    font-family:'Share Tech Mono',monospace;
+    min-height:100vh;padding-bottom:3rem;
+  }
+  ::selection{background:var(--amber);color:var(--bg)}
+
+  header{
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;
+    padding:1.2rem 1.8rem;border-bottom:2px solid var(--dim);
+    background:linear-gradient(to bottom,#101a2a,var(--bg));
+    position:sticky;top:0;z-index:10;
+  }
+  .mission{display:flex;align-items:center;gap:1.1rem}
+  .meatball{width:44px;height:44px;border-radius:50%;background:var(--red);position:relative;overflow:hidden;flex-shrink:0}
+  .meatball::after{content:"";position:absolute;left:-20%;top:52%;width:140%;height:10%;background:var(--txt);transform:rotate(-14deg)}
+  .mission h1{font-family:'Oxanium';font-weight:700;font-size:1.3rem;letter-spacing:.18em}
+  .mission h1 small{display:block;font-size:.6rem;letter-spacing:.34em;color:var(--amber);font-weight:300}
+  .met{text-align:right;font-size:.66rem;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+  .met b{display:block;font-size:1.5rem;color:var(--teal);letter-spacing:.1em;font-weight:400}
+  header nav{font-size:.7rem;letter-spacing:.2em}
+  header nav a{color:var(--amber);text-decoration:none;margin-left:1.4rem;text-transform:uppercase}
+  header nav a:hover{text-decoration:underline;text-underline-offset:4px}
+
+  .deck{display:grid;gap:14px;padding:14px 1.8rem;
+    grid-template-columns:repeat(12,1fr);max-width:1500px;margin:0 auto}
+  .panel{
+    background:var(--panel);border:1px solid #1c2940;border-radius:6px;padding:1.2rem 1.3rem;position:relative;
+    box-shadow:inset 0 0 40px rgba(0,0,0,.4);
+  }
+  .panel .ptitle{font-size:.62rem;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;
+    display:flex;justify-content:space-between;margin-bottom:1rem}
+  .panel .ptitle .lamp{width:8px;height:8px;border-radius:50%;background:var(--teal);
+    box-shadow:0 0 8px var(--teal);animation:lamp 2.2s ease-in-out infinite}
+  @keyframes lamp{50%{opacity:.35;box-shadow:none}}
+
+  .p-orbit{grid-column:span 5;grid-row:span 2}
+  .p-track{grid-column:span 7}
+  .p-g1,.p-g2,.p-g3{grid-column:span 2}
+  .p-tel{grid-column:span 4;grid-row:span 2}
+  .p-log{grid-column:span 7}
+  .p-burn{grid-column:span 4}
+
+  svg{display:block;width:100%}
+  .orbit-svg .planet{fill:#16233a;stroke:var(--dim);stroke-width:1}
+  .orbit-svg .orbitpath{fill:none;stroke:var(--teal);stroke-width:1;stroke-dasharray:3 5;opacity:.8}
+  .orbit-svg .sat{fill:var(--amber)}
+  .orbit-svg .satring{fill:none;stroke:var(--amber);opacity:.5}
+  .orbit-svg text{font-family:'Share Tech Mono';font-size:7.5px;fill:var(--dim);letter-spacing:.1em}
+
+  .track-svg .gridl{stroke:#18243a;stroke-width:1}
+  .track-svg .trk{fill:none;stroke:var(--teal);stroke-width:1.4;opacity:.85}
+  .track-svg .trk2{fill:none;stroke:var(--teal);stroke-width:1.4;opacity:.3;stroke-dasharray:2 4}
+  .track-svg .satdot{fill:var(--amber)}
+
+  .gauge text{font-family:'Share Tech Mono';fill:var(--txt)}
+  .gauge .arcbg{fill:none;stroke:#1c2940;stroke-width:8;stroke-linecap:round}
+  .gauge .arcv{fill:none;stroke:var(--teal);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .8s cubic-bezier(.3,0,.3,1)}
+  .gauge.warn .arcv{stroke:var(--amber)}
+  .gauge .gval{font-size:15px;text-anchor:middle}
+  .gauge .glab{font-size:6.5px;text-anchor:middle;fill:var(--dim);letter-spacing:.2em}
+
+  table{width:100%;border-collapse:collapse;font-size:.72rem}
+  td{padding:.5rem .2rem;border-bottom:1px solid #16233a}
+  td:last-child{text-align:right;color:var(--teal)}
+  td .u{color:var(--dim);font-size:.6rem}
+  tr.alert td:last-child{color:var(--red)}
+
+  #log{height:150px;overflow:hidden;font-size:.7rem;line-height:1.9;display:flex;flex-direction:column;justify-content:flex-end}
+  #log div b{color:var(--amber);font-weight:400;margin-right:.8em}
+  #log div.crit b{color:var(--red)}
+  #log div{opacity:0;animation:login .4s forwards}
+  @keyframes login{to{opacity:1}}
+
+  .burnbar{margin-top:.4rem}
+  .burnbar .lbl{display:flex;justify-content:space-between;font-size:.62rem;color:var(--dim);letter-spacing:.14em;margin-bottom:.4rem;text-transform:uppercase}
+  .burnbar .bar{height:10px;background:#16233a;border-radius:5px;overflow:hidden}
+  .burnbar .bar i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--teal),var(--amber));transition:width 1s linear}
+  .gonogo{display:flex;gap:.6rem;margin-top:1.1rem;flex-wrap:wrap}
+  .gng{flex:1;min-width:64px;text-align:center;padding:.55rem .2rem;font-size:.6rem;letter-spacing:.2em;
+    border:1px solid #1c2940;border-radius:4px;color:var(--dim)}
+  .gng.go{color:var(--teal);border-color:var(--teal);text-shadow:0 0 8px rgba(65,224,200,.5)}
+
+  footer{padding:2.4rem 1.8rem 0;text-align:center;font-size:.62rem;letter-spacing:.28em;color:var(--dim);text-transform:uppercase;line-height:2.4}
+  footer a{color:var(--amber);text-decoration:none}
+
+  @media(max-width:1100px){
+    .p-orbit{grid-column:span 12}
+    .p-track{grid-column:span 12}
+    .p-g1,.p-g2,.p-g3{grid-column:span 4}
+    .p-tel{grid-column:span 12}
+    .p-log{grid-column:span 12}
+    .p-burn{grid-column:span 12}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="mission">
+    <div class="meatball"></div>
+    <h1>MISSION CTRL<small>ARTEMIS-ADJACENT FLIGHT OPS · CONSOLE 4</small></h1>
+  </div>
+  <div class="met">Mission elapsed time<b id="met">T+ 00:00:00</b></div>
+  <nav><a href="guide/">Guide</a><a href="../">Index</a></nav>
+</header>
+
+<div class="deck">
+
+  <div class="panel p-orbit">
+    <div class="ptitle">Orbital plot — LEO 412 km<span class="lamp"></span></div>
+    <svg class="orbit-svg" viewBox="0 0 400 380">
+      <circle class="planet" cx="200" cy="190" r="80"/>
+      <text x="200" y="193" text-anchor="middle">TERRA</text>
+      <ellipse class="orbitpath" cx="200" cy="190" rx="150" ry="118"/>
+      <ellipse class="orbitpath" cx="200" cy="190" rx="108" ry="86" opacity=".25"/>
+      <g id="sat">
+        <circle class="satring" r="10">
+          <animate attributeName="r" values="8;14;8" dur="3s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values=".6;.1;.6" dur="3s" repeatCount="indefinite"/>
+        </circle>
+        <circle class="sat" r="4"/>
+      </g>
+      <text id="satlabel" x="0" y="0">KESTREL-9</text>
+    </svg>
+  </div>
+
+  <div class="panel p-track">
+    <div class="ptitle">Ground track — rev 4,116<span class="lamp"></span></div>
+    <svg class="track-svg" viewBox="0 0 700 210" id="tracksvg">
+      <g id="gridlines"></g>
+      <path class="trk" id="trk1"/>
+      <path class="trk2" id="trk2"/>
+      <circle class="satdot" id="trkdot" r="4"/>
+    </svg>
+  </div>
+
+  <div class="panel p-g1"><div class="ptitle">O₂ tank</div>
+    <svg class="gauge" viewBox="0 0 100 88" id="g-o2">
+      <path class="arcbg" d="M14 74 A 42 42 0 1 1 86 74"/>
+      <path class="arcv" id="g-o2-arc" d="M14 74 A 42 42 0 1 1 86 74"/>
+      <text class="gval" id="g-o2-v" x="50" y="60">—</text>
+      <text class="glab" x="50" y="76">PERCENT</text>
+    </svg>
+  </div>
+  <div class="panel p-g2"><div class="ptitle">Bus voltage</div>
+    <svg class="gauge" viewBox="0 0 100 88" id="g-v">
+      <path class="arcbg" d="M14 74 A 42 42 0 1 1 86 74"/>
+      <path class="arcv" id="g-v-arc" d="M14 74 A 42 42 0 1 1 86 74"/>
+      <text class="gval" id="g-v-v" x="50" y="60">—</text>
+      <text class="glab" x="50" y="76">VOLTS DC</text>
+    </svg>
+  </div>
+  <div class="panel p-g3"><div class="ptitle">Cabin temp</div>
+    <svg class="gauge warn" viewBox="0 0 100 88" id="g-t">
+      <path class="arcbg" d="M14 74 A 42 42 0 1 1 86 74"/>
+      <path class="arcv" id="g-t-arc" d="M14 74 A 42 42 0 1 1 86 74"/>
+      <text class="gval" id="g-t-v" x="50" y="60">—</text>
+      <text class="glab" x="50" y="76">°CELSIUS</text>
+    </svg>
+  </div>
+
+  <div class="panel p-tel">
+    <div class="ptitle">Telemetry downlink<span class="lamp"></span></div>
+    <table>
+      <tr><td>Apogee</td><td id="t-apo">— <span class="u">km</span></td></tr>
+      <tr><td>Perigee</td><td id="t-per">— <span class="u">km</span></td></tr>
+      <tr><td>Velocity</td><td id="t-vel">— <span class="u">km/s</span></td></tr>
+      <tr><td>Signal delay</td><td id="t-sig">— <span class="u">ms</span></td></tr>
+      <tr><td>Star tracker lock</td><td id="t-str">NOMINAL</td></tr>
+      <tr id="coffee" class="alert"><td>Console 4 coffee level</td><td id="t-cof">CRITICAL</td></tr>
+    </table>
+  </div>
+
+  <div class="panel p-log">
+    <div class="ptitle">Event log — air/ground loop 2<span class="lamp"></span></div>
+    <div id="log"></div>
+  </div>
+
+  <div class="panel p-burn">
+    <div class="ptitle">Next maneuver — circularization burn</div>
+    <div class="burnbar">
+      <div class="lbl"><span>Burn window</span><span id="burnpct">0%</span></div>
+      <div class="bar"><i id="burnbar"></i></div>
+    </div>
+    <div class="gonogo" id="gonogo">
+      <div class="gng go">FIDO</div><div class="gng go">GUIDO</div><div class="gng">EECOM</div>
+      <div class="gng go">SURGEON</div><div class="gng go">CAPCOM</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  MISSION CTRL — A SIMULATION. NO SPACECRAFT WERE HARMED.<br>
+  BUILT BY CLAUDE (FABLE 5) · <a href="guide/">HOW IT WAS MADE</a> · <a href="../">ALL 25 SITES</a>
+</footer>
+
+<script>
+/* MET clock */
+const t0=Date.now();
+setInterval(()=>{
+  const s=Math.floor((Date.now()-t0)/1000)+14620;
+  const hh=String(Math.floor(s/3600)).padStart(2,'0'),
+        mm=String(Math.floor(s%3600/60)).padStart(2,'0'),
+        ss=String(s%60).padStart(2,'0');
+  document.getElementById('met').textContent=`T+ ${hh}:${mm}:${ss}`;
+},250);
+
+/* orbiting satellite */
+const sat=document.getElementById('sat'),satlabel=document.getElementById('satlabel');
+let th=0;
+(function orbit(){
+  th+=.006;
+  const x=200+150*Math.cos(th), y=190+118*Math.sin(th);
+  sat.setAttribute('transform',`translate(${x},${y})`);
+  /* flip the callout to the inside edge so it never clips the frame */
+  const flip=x>260;
+  satlabel.setAttribute('x',flip?x-14:x+14);
+  satlabel.setAttribute('y',y+3);
+  satlabel.setAttribute('text-anchor',flip?'end':'start');
+  requestAnimationFrame(orbit);
+})();
+
+/* ground track */
+const gl=document.getElementById('gridlines');
+for(let x=0;x<=700;x+=50)gl.innerHTML+=`<line class="gridl" x1="${x}" y1="0" x2="${x}" y2="210"/>`;
+for(let y=0;y<=210;y+=35)gl.innerHTML+=`<line class="gridl" x1="0" y1="${y}" x2="700" y2="${y}"/>`;
+function trackPath(phase){
+  let d='';
+  for(let x=0;x<=700;x+=6){
+    const y=105-72*Math.sin((x/700)*Math.PI*2+phase);
+    d+=(x?'L':'M')+x+' '+y.toFixed(1);
+  }
+  return d;
+}
+document.getElementById('trk1').setAttribute('d',trackPath(0));
+document.getElementById('trk2').setAttribute('d',trackPath(2.4));
+const dot=document.getElementById('trkdot');
+let tp=0;
+(function trackAnim(){
+  tp=(tp+.7)%700;
+  dot.setAttribute('cx',tp);
+  dot.setAttribute('cy',105-72*Math.sin((tp/700)*Math.PI*2));
+  requestAnimationFrame(trackAnim);
+})();
+
+/* gauges */
+const ARC=207; /* approx path length */
+function setGauge(id,frac,text){
+  const arc=document.getElementById(id+'-arc');
+  arc.style.strokeDasharray=ARC;
+  arc.style.strokeDashoffset=ARC*(1-frac);
+  document.getElementById(id+'-v').textContent=text;
+}
+function drift(base,amp){return base+Math.sin(Date.now()/3000+base)*amp+Math.random()*amp*.4}
+setInterval(()=>{
+  const o2=drift(87,2);setGauge('g-o2',o2/100,o2.toFixed(1));
+  const v=drift(28.4,.5);setGauge('g-v',(v-20)/15,v.toFixed(1));
+  const t=drift(21.8,1.2);setGauge('g-t',(t-10)/25,t.toFixed(1));
+  document.getElementById('t-apo').innerHTML=(412.4+Math.sin(Date.now()/9000)*1.8).toFixed(1)+' <span class="u">km</span>';
+  document.getElementById('t-per').innerHTML=(408.9+Math.cos(Date.now()/11000)*1.1).toFixed(1)+' <span class="u">km</span>';
+  document.getElementById('t-vel').innerHTML=(7.66+Math.sin(Date.now()/7000)*.02).toFixed(3)+' <span class="u">km/s</span>';
+  document.getElementById('t-sig').innerHTML=Math.round(2.6+Math.random()*1.8)+' <span class="u">ms</span>';
+},900);
+
+/* burn progress + EECOM go */
+let burn=0;
+setInterval(()=>{
+  burn=Math.min(100,burn+.6);
+  document.getElementById('burnbar').style.width=burn+'%';
+  document.getElementById('burnpct').textContent=Math.round(burn)+'%';
+  if(burn>62)document.querySelectorAll('.gng')[2].classList.add('go');
+},700);
+
+/* event log */
+const LOGS=[
+  'KESTREL-9 telemetry frame 44,102 nominal.',
+  'Star tracker reacquired Vega. Attitude solution tight.',
+  'CAPCOM: crew reports the Earth "still extremely round."',
+  'Momentum wheel #3 desaturation complete.',
+  'Uplink carrier lock at 2.2 GHz, margins comfortable.',
+  'EECOM: fuel cell purge scheduled for MET 04:12.',
+  'Thermal: port radiator at 4°C, within limits.',
+  'GUIDO: state vector updated, residuals < 0.3 m/s.',
+  'Console 4 coffee level upgraded to MARGINAL.',
+  'Ground station Canberra AOS in 00:06:12.',
+  'CAPCOM: reminded crew that the fern needs watering.',
+  'DSN handover Goldstone → Madrid clean.',
+];
+const CRIT=['MASTER ALARM (drill): crew acknowledged in 1.9 s. Well done.','Momentary S-band dropout — recovered, 0 frames lost.'];
+const log=document.getElementById('log');
+let li=0;
+function addlog(){
+  const crit=Math.random()<.12;
+  const msg=crit?CRIT[Math.random()*CRIT.length|0]:LOGS[li++%LOGS.length];
+  const s=Math.floor((Date.now()-t0)/1000)+14620;
+  const stamp=`${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor(s%3600/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  const d=document.createElement('div');
+  if(crit)d.className='crit';
+  d.innerHTML=`<b>T+${stamp}</b>${msg}`;
+  log.appendChild(d);
+  while(log.children.length>7)log.removeChild(log.firstChild);
+  setTimeout(addlog,1800+Math.random()*2600);
+}
+addlog();
+
+/* coffee status cycles */
+const cof=['CRITICAL','REFILLING','NOMINAL','CRITICAL AGAIN'];
+let ci=0;
+setInterval(()=>{
+  document.getElementById('t-cof').textContent=cof[++ci%cof.length];
+  document.getElementById('coffee').classList.toggle('alert',cof[ci%cof.length].includes('CRITICAL'));
+},8000);
+</script>
+</body>
+</html>

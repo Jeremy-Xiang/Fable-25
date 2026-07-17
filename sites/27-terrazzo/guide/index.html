@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How TERRAZZO was made — guide</title>
+<meta name="description" content="How the TERRAZZO site was designed and built: techniques, palette, typography, and steps to reproduce it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Fragment+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #e0479f; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#141018; color:#efe9ee;
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.06rem; line-height:1.75;
+    padding:0 1.5rem;
+  }
+  .wrap { max-width:680px; margin:0 auto; padding:9vh 0 12vh; }
+  .crumb {
+    font-family:'Fragment Mono', monospace; font-size:.7rem; letter-spacing:.22em;
+    text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem;
+  }
+  .crumb a { color:#a89aa4; text-decoration:none; border-bottom:1px solid #2b232a; padding-bottom:2px; }
+  .crumb a:hover { color:var(--accent); border-color:var(--accent); }
+  .kicker {
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem;
+  }
+  h1 { font-size:clamp(2.1rem,5.5vw,3.2rem); font-weight:600; line-height:1.12; margin-bottom:.6rem; }
+  .sub { font-style:italic; color:#a89aa4; font-size:1.15rem; margin-bottom:3.6rem; }
+  h2 {
+    font-size:1.05rem; font-weight:600; letter-spacing:.02em;
+    margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #241e24;
+    display:flex; align-items:baseline; gap:.75rem;
+  }
+  h2 .no { font-family:'Fragment Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em; }
+  p { margin-bottom: 1rem; }
+  ul { list-style:none; }
+  ul li { padding-left:1.6rem; position:relative; margin-bottom:.85rem; }
+  ul li::before { content:'—'; position:absolute; left:0; color:var(--accent); }
+  ol { counter-reset:step; list-style:none; }
+  ol li { counter-increment:step; padding-left:2.4rem; position:relative; margin-bottom:1rem; }
+  ol li::before {
+    content:counter(step,decimal-leading-zero); position:absolute; left:0; top:.18em;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; color:var(--accent); letter-spacing:.08em;
+  }
+  .meta {
+    font-family:'Fragment Mono', monospace; font-size:.8rem; line-height:1.9; color:#c4b9c0;
+    background:#1a151b; border:1px solid #241e24; border-left:3px solid var(--accent);
+    padding:1.1rem 1.4rem; border-radius:6px;
+  }
+  .foot {
+    margin-top:5rem; padding-top:2.4rem; border-top:1px solid #241e24;
+    font-family:'Fragment Mono', monospace; font-size:.72rem; letter-spacing:.18em;
+    text-transform:uppercase; color:#96898f; line-height:2.4;
+  }
+  .foot a { color:var(--accent); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  ::selection { background:var(--accent); color:#141018; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to TERRAZZO</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 27 of 50 · Wing II · how it was made</div>
+  <h1>TERRAZZO</h1>
+  <p class="sub">A material study you can shake</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Terrazzo floors are archives of accident — cement cast around whatever stone and glass was on hand, ground flat, no two chips or two floors alike. That's a nice metaphor for procedural generation, so the site treats the generated macro photo as the "real" material sample and lets a canvas layer keep manufacturing new, never-repeating chips in the same family of colors, forever.</p>
+  <p>The trick that makes it feel connected rather than bolted-on: the floating chips don't use a hardcoded palette. On load, the page draws the hero image into an offscreen canvas, samples a grid of pixels, filters for saturated (non-cream) ones, and hands that list of real RGB values to the chip generator. Change the hero image and the floating chips would change color with it automatically.</p>
+
+  <h2><span class="no">02</span> The craft</h2>
+  <ul>
+    <li>Background: the same hero JPEG tiled via CSS <code>background-repeat</code> at a fixed tile size, so it reads as an endless slab rather than one framed photo</li>
+    <li>Live palette extraction: hero image drawn to a 160×90 offscreen canvas, ~4000 random pixel samples filtered by saturation &amp; brightness to reject the cream cement background, first handful of surviving colors kept as the working palette (wrapped in try/catch — falls back to four preset swatches if canvas read access is ever blocked, e.g. opening the file directly instead of via a server)</li>
+    <li>Chips: irregular 6–8 point polygons (not circles) generated per chip so they read as broken stone rather than confetti dots, each with a soft white specular ellipse to match the glossy resin look in the photo</li>
+    <li>Motion: scroll position drives a per-chip parallax offset (each chip has its own depth factor), and cursor proximity pushes nearby chips a few pixels away — both are direct position math, no physics engine</li>
+    <li>"Shake the jar" button re-randomizes every chip's position in one call, a discrete, non-looping interaction that works identically with reduced motion on</li>
+  </ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <p class="meta">Lilita One (display) + Quicksand (body) · cream cement #f7edd9 · ink #231c3a · plus a 4-color palette sampled live from the hero image at runtime (rose, teal, gold, ember by default)</p>
+
+  <h2><span class="no">04</span> Reproduce it</h2>
+  <ol>
+    <li>Tile the source image as a CSS background instead of stretching it — repetition is what makes a "material" read as endless</li>
+    <li>Draw the same image into a small offscreen canvas and sample random pixels to build a runtime color palette instead of hardcoding hex values</li>
+    <li>Generate irregular polygons (not perfect circles) for anything meant to look like a natural chip or fragment</li>
+    <li>Separate "depth" (scroll parallax factor) from "position" per particle so a single scroll listener can drive dozens of independent-feeling layers</li>
+    <li>Always wrap canvas pixel reads in a try/catch with a hardcoded fallback palette — cross-origin or file:// access can silently taint the canvas</li>
+  </ol>
+
+  <h2><span class="no">05</span> Iteration passes</h2>
+  <p><b>Build pass:</b> the first draft sampled colors but never filtered by saturation, so the palette kept picking near-white cement pixels and the chips looked washed out. Added a saturation threshold (&gt;0.28) and a minimum brightness floor, which reliably isolates the four ink colors now.</p>
+  <p><b>Code-review pass:</b> the cursor-repulsion math ran even when reduced motion was on, so hover would still visibly nudge chips despite the setting — moved the position update out of the animation loop entirely for that branch so a static frame really is static. Verified swatch card contrast (dark ink text on white cards) and headline shadow-offset text still meet contrast against the cream background at all breakpoints.</p>
+  <p><b>Live-browser pass:</b> served locally; on first load before the async palette sample resolves, the swatch list now renders the fallback palette immediately instead of sitting empty, closing a half-second flash of missing content that showed up when testing on a throttled connection.</p>
+
+  <div class="foot">
+    Designed &amp; built end-to-end by Claude (Fable 25, Wing II), Anthropic ·
+    hero image: Higgsfield <code>nano_banana_pro</code>, ~2cr, one generation ·
+    hand-written HTML/CSS/JS, no frameworks, no build step ·
+    3 documented iteration passes before sign-off ·
+    <a href="../../guide/">read the full process →</a>
+  </div>
+</div>
+</body>
+</html>

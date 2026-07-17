@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RASTER 2026 — International Congress of Grid Systems</title>
+<meta name="description" content="RASTER 2026 is a fictional Swiss-style design congress. Objective typography, mathematical arcs, and a baseline grid you can switch on.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,700;0,900;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --w:#ffffff;
+    --k:#111111;
+    --r:#e30613; /* swiss red */
+    --u:8px;     /* baseline unit */
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--w);color:var(--k);
+    font-family:'Inter Tight',sans-serif;
+    font-feature-settings:'ss01' 1;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--r);color:var(--w)}
+
+  /* Baseline grid overlay (toggle with G) */
+  #baseline{position:fixed;inset:0;z-index:50;pointer-events:none;opacity:0;transition:opacity .3s;
+    background:
+      repeating-linear-gradient(to bottom,rgba(227,6,19,.16) 0,rgba(227,6,19,.16) 1px,transparent 1px,transparent calc(var(--u)*3)),
+      repeating-linear-gradient(to right,rgba(227,6,19,.1) 0,rgba(227,6,19,.1) 1px,transparent 1px,transparent calc(100%/12));}
+  body.gridon #baseline{opacity:1}
+
+  .frame{max-width:1440px;margin:0 auto;padding:0 calc(var(--u)*4)}
+  .cols{display:grid;grid-template-columns:repeat(12,1fr);gap:calc(var(--u)*3)}
+
+  header{padding-top:calc(var(--u)*4)}
+  .topbar{display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:2px solid var(--k);padding-bottom:calc(var(--u)*2);
+    font-size:13px;font-weight:500;letter-spacing:.02em}
+  .topbar nav a{color:var(--k);text-decoration:none;margin-left:calc(var(--u)*3)}
+  .topbar nav a:hover{color:var(--r)}
+  .topbar .toggle{cursor:pointer;user-select:none;border:1px solid var(--k);padding:2px 8px;font-size:11px}
+  .topbar .toggle:hover{background:var(--k);color:var(--w)}
+
+  .hero{position:relative;padding:calc(var(--u)*10) 0 calc(var(--u)*14);overflow:hidden}
+  .hero h1{
+    font-size:clamp(56px,13.5vw,196px);font-weight:900;letter-spacing:-.045em;line-height:.9;
+    text-transform:uppercase;
+  }
+  .hero h1 .yr{color:var(--r)}
+  .hero .sub{margin-top:calc(var(--u)*5);display:grid;grid-template-columns:repeat(12,1fr);gap:calc(var(--u)*3);font-size:15px;line-height:calc(var(--u)*3)}
+  .hero .sub .a{grid-column:1/4;font-weight:700}
+  .hero .sub .b{grid-column:4/8}
+  .hero .sub .c{grid-column:9/13;text-align:right;font-variant-numeric:tabular-nums}
+
+  /* Concentric arcs à la Beethoven poster */
+  .arcs{position:absolute;right:-12vw;top:-16vh;width:60vw;max-width:780px;aspect-ratio:1;pointer-events:none}
+  .arcs svg{width:100%;height:100%;animation:spin 90s linear infinite;transform-origin:center}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .kinetic{border-top:2px solid var(--k);border-bottom:2px solid var(--k);
+    padding:calc(var(--u)*8) 0;overflow:hidden;background:var(--k);color:var(--w)}
+  .kline{font-weight:900;text-transform:uppercase;letter-spacing:-.03em;
+    font-size:clamp(40px,8.5vw,120px);line-height:1.02;white-space:nowrap;will-change:transform}
+  .kline.mid{color:var(--r);-webkit-text-stroke:0}
+  .kline.ghost{color:transparent;-webkit-text-stroke:1.5px var(--w)}
+
+  section{padding:calc(var(--u)*14) 0}
+  .sec-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;
+    color:var(--r);margin-bottom:calc(var(--u)*6);display:flex;gap:calc(var(--u)*2);align-items:center}
+  .sec-title::after{content:"";height:1px;background:var(--k);flex:1;opacity:.25}
+
+  .program .row{display:grid;grid-template-columns:repeat(12,1fr);gap:calc(var(--u)*3);
+    border-top:1px solid var(--k);padding:calc(var(--u)*3) 0;align-items:baseline;transition:padding-left .25s cubic-bezier(.3,0,0,1)}
+  .program .row:hover{padding-left:calc(var(--u)*2);color:var(--r)}
+  .program .time{grid-column:1/3;font-variant-numeric:tabular-nums;font-weight:500;font-size:15px}
+  .program .talk{grid-column:3/9;font-size:clamp(20px,3vw,34px);font-weight:700;letter-spacing:-.02em;line-height:1.1}
+  .program .who{grid-column:9/12;font-size:14px;line-height:calc(var(--u)*3);align-self:center}
+  .program .hall{grid-column:12/13;text-align:right;font-size:12px;font-weight:700}
+  .program .row:last-child{border-bottom:1px solid var(--k)}
+
+  .principles .cols>div{border-left:2px solid var(--k);padding-left:calc(var(--u)*3);grid-column:span 4}
+  .principles h3{font-size:56px;font-weight:900;letter-spacing:-.03em;line-height:1;color:var(--r);margin-bottom:calc(var(--u)*2);font-variant-numeric:tabular-nums}
+  .principles p{font-size:15px;line-height:calc(var(--u)*3)}
+  .principles b{display:block;font-size:17px;margin-bottom:var(--u);font-weight:700}
+
+  .poster{background:var(--r);color:var(--w);text-align:left;overflow:hidden;position:relative}
+  .poster .frame{padding-top:calc(var(--u)*12);padding-bottom:calc(var(--u)*12)}
+  .poster h2{font-size:clamp(40px,9vw,130px);font-weight:900;text-transform:uppercase;letter-spacing:-.04em;line-height:.92}
+  .poster p{margin-top:calc(var(--u)*4);font-size:16px;max-width:52ch;line-height:calc(var(--u)*3)}
+  .poster .circle{position:absolute;right:-10vw;bottom:-40vh;width:52vw;aspect-ratio:1;border-radius:50%;
+    background:var(--k);mix-blend-mode:multiply;opacity:.85}
+
+  footer{padding:calc(var(--u)*8) 0;font-size:13px}
+  footer .cols>div{grid-column:span 3;line-height:calc(var(--u)*3)}
+  footer a{color:var(--k);text-decoration:underline;text-decoration-color:var(--r);text-underline-offset:3px}
+  footer a:hover{color:var(--r)}
+  footer b{display:block;margin-bottom:var(--u);text-transform:uppercase;letter-spacing:.1em;font-size:11px}
+
+  .up{opacity:0;transform:translateY(calc(var(--u)*4));transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,0,1)}
+  .up.in{opacity:1;transform:none}
+
+  @media (max-width:900px){
+    .topbar{flex-direction:column;align-items:flex-start;gap:calc(var(--u)*2)}
+    .topbar nav{display:flex;flex-wrap:wrap;gap:calc(var(--u)*2);align-items:center}
+    .topbar nav a{margin-left:0}
+    .hero .sub .a,.hero .sub .b,.hero .sub .c{grid-column:1/13;text-align:left}
+    .program .time{grid-column:1/13}
+    .program .talk{grid-column:1/13}
+    .program .who{grid-column:1/10}
+    .program .hall{grid-column:10/13}
+    .principles .cols>div{grid-column:span 12;margin-bottom:calc(var(--u)*4)}
+    footer .cols>div{grid-column:span 6;margin-bottom:calc(var(--u)*3)}
+    .arcs{opacity:.35}
+  }
+</style>
+</head>
+<body>
+<div id="baseline"></div>
+
+<header class="frame">
+  <div class="topbar">
+    <span><strong>RASTER</strong> — Int. Congress of Grid Systems</span>
+    <nav>
+      <span class="toggle" id="gtoggle" title="Toggle baseline grid (G)">GRID: OFF</span>
+      <a href="#program">Program</a>
+      <a href="#principles">Principles</a>
+      <a href="guide/">Guide</a>
+      <a href="../">Index</a>
+    </nav>
+  </div>
+
+  <div class="hero">
+    <div class="arcs">
+      <svg viewBox="0 0 100 100">
+        <g fill="none" stroke="#e30613">
+          <path d="M50 50 m0,-46 a46,46 0 0 1 39.8,23" stroke-width="7"/>
+          <path d="M50 50 m0,-36 a36,36 0 0 1 31.2,18" stroke-width="5.5"/>
+          <path d="M50 50 m0,-27 a27,27 0 0 1 23.4,13.5" stroke-width="4"/>
+          <path d="M50 50 m0,-19 a19,19 0 0 1 16.5,9.5" stroke-width="3"/>
+          <path d="M50 50 m0,-12 a12,12 0 0 1 10.4,6" stroke-width="2.2"/>
+          <path d="M50 50 m0,-6.5 a6.5,6.5 0 0 1 5.6,3.2" stroke-width="1.6"/>
+        </g>
+        <g fill="none" stroke="#111">
+          <path d="M50 50 m0,46 a46,46 0 0 1 -39.8,-23" stroke-width="2"/>
+          <path d="M50 50 m0,36 a36,36 0 0 1 -31.2,-18" stroke-width="1.4"/>
+          <path d="M50 50 m0,27 a27,27 0 0 1 -23.4,-13.5" stroke-width="1"/>
+        </g>
+      </svg>
+    </div>
+    <h1>Raster<br><span class="yr">2026.</span></h1>
+    <div class="sub">
+      <div class="a">Zürich Kongresshaus<br>14–17 October 2026</div>
+      <div class="b">Four days of objective typography, modular scales, and the quiet heroism of the twelve-column grid. Simultaneous translation into German, French, and CSS.</div>
+      <div class="c">47.3667° N<br>8.5500° E<br>Hall 1–4</div>
+    </div>
+  </div>
+</header>
+
+<div class="kinetic" aria-hidden="true">
+  <div class="kline" data-speed="-0.35">Ordnung ist die halbe Miete — Ordnung ist die halbe Miete —</div>
+  <div class="kline mid" data-speed="0.5">The grid is an attitude · The grid is an attitude ·</div>
+  <div class="kline ghost" data-speed="-0.7">form follows function follows form follows function</div>
+</div>
+
+<section class="frame program" id="program">
+  <div class="sec-title">Program — Day One</div>
+  <div class="row up"><div class="time">09.00</div><div class="talk">The Twelve Column Commandments</div><div class="who">A. Keller — Basel School of Design</div><div class="hall">H1</div></div>
+  <div class="row up"><div class="time">10.30</div><div class="talk">Asymmetry as Discipline, Not Rebellion</div><div class="who">M. Fontana — Studio Fontana, Milano</div><div class="hall">H1</div></div>
+  <div class="row up"><div class="time">13.00</div><div class="talk">Objective Photography &amp; the Death of Mood</div><div class="who">R. Okada — Tokyo University of the Arts</div><div class="hall">H2</div></div>
+  <div class="row up"><div class="time">15.15</div><div class="talk">Tabular Numerals: A Love Story</div><div class="who">S. Lindqvist — Malmö</div><div class="hall">H3</div></div>
+  <div class="row up"><div class="time">17.00</div><div class="talk">Baseline Grids in the Browser: 8px or Death</div><div class="who">Claude — Fable 5, Anthropic</div><div class="hall">H1</div></div>
+</section>
+
+<section class="frame principles" id="principles">
+  <div class="sec-title">Three Principles</div>
+  <div class="cols">
+    <div class="up"><h3>01</h3><b>Clarity precedes beauty.</b><p>If the reader notices the typography before the message, the typographer has failed upward. Every measurement on this page is a multiple of 8px — check with the grid toggle above.</p></div>
+    <div class="up"><h3>02</h3><b>The grid is generous.</b><p>Constraint is not the enemy of expression; it is the price of rhythm. Twelve columns yield 4,095 usable combinations. We have used nine of them here.</p></div>
+    <div class="up"><h3>03</h3><b>Red is a neutral.</b><p>In Swiss hands, #E30613 carries no emotion. It is a structural element, like a beam. This page contains exactly one emotion and it is alignment.</p></div>
+  </div>
+</section>
+
+<div class="poster">
+  <div class="circle"></div>
+  <div class="frame">
+    <h2 class="up">Weniger,<br>aber besser.</h2>
+    <p class="up">Registration is closed, because this conference does not exist. It was composed as a demonstration of the International Typographic Style rendered in native CSS: real baseline grid, real modular scale, kinetic type driven by scroll velocity — and one very disciplined shade of red.</p>
+  </div>
+</div>
+
+<footer class="frame">
+  <div class="cols">
+    <div><b>Congress</b>RASTER 2026<br>A fiction in 12 columns</div>
+    <div><b>Built by</b>Claude (Fable 5)<br>Anthropic</div>
+    <div><b>Colophon</b>Inter Tight 300–900<br>Unit: 8px · Columns: 12</div>
+    <div><b>Elsewhere</b><a href="guide/">How this was made</a><br><a href="../">All 25 sites</a></div>
+  </div>
+</footer>
+
+<script>
+/* baseline grid toggle */
+const tg=document.getElementById('gtoggle');
+function toggleGrid(){
+  document.body.classList.toggle('gridon');
+  tg.textContent='GRID: '+(document.body.classList.contains('gridon')?'ON':'OFF');
+}
+tg.addEventListener('click',toggleGrid);
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='g'&&!e.metaKey&&!e.ctrlKey)toggleGrid()});
+
+/* kinetic lines: position tied to scroll */
+const lines=[...document.querySelectorAll('.kline')];
+function kin(){
+  const y=scrollY;
+  lines.forEach(l=>{
+    const s=parseFloat(l.dataset.speed);
+    l.style.transform=`translateX(${(y*s)%600-300}px)`;
+  });
+  requestAnimationFrame(kin);
+}
+requestAnimationFrame(kin);
+
+/* reveals */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}
+}),{threshold:.25});
+document.querySelectorAll('.up').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
