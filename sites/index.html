@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FABLE 25 — 125 websites built by Claude, seven waves</title>
-<meta name="description" content="125 fundamentally different websites across seven waves — zero-asset procedural, generated imagery + 3D, a screenshot-critique wave built at zero extra cost, and a fourth wave of ten reusable premium-site interaction patterns — designed and built end-to-end by Claude (Fable 5). Every one has a how-it-was-made guide.">
+<title>FABLE 25 — 150 websites built by Claude, eight waves</title>
+<meta name="description" content="150 fundamentally different websites across eight waves — zero-asset procedural, generated imagery + 3D, a screenshot-critique wave built at zero extra cost, and a fourth wave of ten reusable premium-site interaction patterns — designed and built end-to-end by Claude (Fable 5). Every one has a how-it-was-made guide.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;1,6..72,300;1,6..72,500&family=Fragment+Mono&display=swap" rel="stylesheet">
@@ -145,6 +145,7 @@
     <a href="#wave4">see wave 4 ↓</a>
     <a href="#wave6">see wave 6 ↓</a>
     <a href="#wave7">see wave 7 ↓</a>
+    <a href="#wave8">see wave 8 ↓</a>
     <a href="guide/">read the master guide</a>
   </nav>
 </header>
@@ -202,6 +203,14 @@
     <p>Sites 101–125. Things you can play with: physics and math simulations, small instruments, drawing toys, and a reel that sends you to a random site.</p>
   </div>
   <div class="w4-grid" id="w7grid"></div>
+</section>
+
+<section class="wave4" id="wave8">
+  <div class="w4-head">
+    <h2>Wave 8 — graphs and data visualisation</h2>
+    <p>Sites 126–150. Networks, trees, flows and charts you can poke at, a QR code maker, and a map of the whole collection.</p>
+  </div>
+  <div class="w4-grid" id="w8grid"></div>
 </section>
 
 <footer>
@@ -508,6 +517,34 @@ const WAVE7 = [
   ["125-encore", "ENCORE", "Spin the reel, visit a site", "random site picker", "#FFE9A8"]
 ];
 renderWave('w7grid', WAVE7);
+const WAVE8 = [
+  ["126-quirk", "QUIRK", "Turn any link into a pretty QR code", "QR encoder from scratch", "#FF5A36"],
+  ["127-tether", "TETHER", "A network that arranges itself", "force-directed graph", "#FF7AB6"],
+  ["128-roots", "ROOTS", "Paste URLs, grow a tree", "radial tree", "#58a66a"],
+  ["129-chord", "CHORD", "Who talks to whom", "chord diagram", "#FF8552"],
+  ["130-sankey", "SANKEY", "Where a day goes", "flow diagram", "#E4572E"],
+  ["131-wayfinder", "WAYFINDER", "Watch a search find the shortest path", "A* · Dijkstra", "#FFE14D"],
+  ["132-metro", "METRO", "A transit map that plans your trip", "subway map + routing", "#E3262E"],
+  ["133-smallworld", "SMALL WORLD", "Six degrees from a few shortcuts", "small-world network", "#8f7af0"],
+  ["134-treemap", "TREEMAP", "What is eating the disk", "zoomable treemap", "#FF6B4A"],
+  ["135-spanning", "SPANNING", "The cheapest way to connect everything", "minimum spanning tree", "#FFCF5C"],
+  ["136-stream", "STREAM", "A year of listening as a river", "streamgraph", "#EF476F"],
+  ["137-arcs", "ARCS", "A play drawn as who shares the stage", "arc diagram", "#c96a5a"],
+  ["138-matrix", "MATRIX", "The same data, until you sort it", "adjacency matrix", "#FF4D6D"],
+  ["139-sunburst", "SUNBURST", "An orchestra, by the seat", "zoomable sunburst", "#E0A030"],
+  ["140-bundle", "BUNDLE", "Every import in a codebase, combed", "edge bundling", "#58A6FF"],
+  ["141-contagion", "CONTAGION", "How something spreads", "epidemic on a network", "#E5383B"],
+  ["142-percept", "PERCEPT", "Watch a small neural network learn", "live training", "#00D1B2"],
+  ["143-lineage", "LINEAGE", "A commit graph you can grow", "git history", "#3FB950"],
+  ["144-markov", "MARKOV", "A sentence machine you can see inside", "Markov chain", "#E63946"],
+  ["145-orbs", "ORBS", "Planets and moons, to scale", "packed bubbles", "#FFB454"],
+  ["146-parallel", "PARALLEL", "Six dimensions on one sheet", "parallel coordinates", "#d98a5f"],
+  ["147-ridgeline", "RIDGELINE", "A year of weather as twelve mountains", "ridgeline plot", "#D64933"],
+  ["148-daylight", "DAYLIGHT", "A year of sun for any latitude", "radial chart", "#FFCC4D"],
+  ["149-rank", "RANK", "Importance, measured by wandering", "PageRank", "#5c8ff5"],
+  ["150-atlas", "ATLAS", "All 150 sites as one graph", "map of the collection", "#FFD76A"]
+];
+renderWave('w8grid', WAVE8);
 </script>
 </body>
 </html>

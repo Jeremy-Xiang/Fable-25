@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STREAM — a year of listening, as a river</title>
+<meta name="description" content="A streamgraph: seven genres stacked around a wandering centre line so the whole year reads as one river whose width is how much was played. Hover a layer to read it; reshuffle for another year.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fff4e6'/%3E%3Cpath d='M2 16 C8 8 12 10 16 13 S26 6 30 12 V20 C26 26 20 20 16 22 S8 24 2 18 Z' fill='%23ef476f'/%3E%3Cpath d='M2 16 C8 13 12 15 16 16 S26 13 30 15 V18 C26 20 20 18 16 19 S8 19 2 17 Z' fill='%23ffd166'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,800&family=Reddit+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff4e6;--ink:#2b2118;--dim:#9a8b78;--line:rgba(43,33,24,.14)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',sans-serif;height:100vh;overflow:hidden;display:grid;grid-template-rows:auto auto 1fr auto}
+::selection{background:#ef476f;color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid #ef476f;outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.6rem}
+.mark{font-weight:800;font-size:1.4rem;letter-spacing:-.02em}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'Reddit Mono',monospace;font-size:.64rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:#ef476f}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;padding:0 1.6rem .4rem}
+h1{font-weight:800;font-size:clamp(2rem,5.4vw,4rem);line-height:.95;letter-spacing:-.03em}
+h1 em{font-style:normal;color:#ef476f}
+.read{font-family:'Reddit Mono',monospace;font-size:.74rem;text-align:right;color:var(--dim);line-height:1.7}
+.read b{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:1.3rem;color:var(--ink)}
+.wrap{min-height:0}
+#c{width:100%;height:100%;display:block}
+footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;padding:.7rem 1.6rem 1.1rem;font-family:'Reddit Mono',monospace;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+footer a{color:#ef476f}
+footer button{font:inherit;letter-spacing:.14em;text-transform:uppercase;background:var(--ink);color:var(--bg);border:none;border-radius:999px;padding:.55rem 1rem;cursor:pointer}
+footer button:hover{background:#ef476f}
+</style>
+</head>
+<body>
+<header><span class="mark">Stream</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="top"><h1>A year of listening,<br>as a <em>river.</em></h1><div class="read" id="read"><b>52 weeks</b><br>hover a layer</div></div>
+<div class="wrap"><canvas id="c" aria-label="Streamgraph of seven music genres across a year"></canvas></div>
+<footer><span>invented listening data · site 136 / fable 25 · built by claude (fable 5) · <a href="guide/">how it was made</a></span><button id="b">another year</button></footer>
+<script>
+const NAMES=['Ambient','Jazz','Hip-hop','Folk','Techno','Classical','Pop'],COL=['#118ab2','#073b4c','#ef476f','#06d6a0','#7b2cbf','#f78c6b','#ffd166'];
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const T=52,K=NAMES.length,cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,D,cur,tgt,hover=-1,hoverT=-1,geom=[];
+// each genre is a low baseline plus a few bumps: phases when you could not stop playing it
+function make(){return NAMES.map(()=>{const a=new Float32Array(T).fill(.35+Math.random()*.5);for(let b=0;b<3;b++){const c=Math.random()*T,w=3+Math.random()*7,hgt=1+Math.random()*4;for(let t=0;t<T;t++)a[t]+=hgt*Math.exp(-(((t-c)/w)**2))}return a})}
+function resize(){D=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0)}
+function compute(){// stack layers, then shift every column so the stack is centred: that is the whole trick of a streamgraph
+  let max=0;const tot=new Float32Array(T);for(let t=0;t<T;t++){for(let k=0;k<K;k++)tot[t]+=cur[k][t];max=Math.max(max,tot[t])}
+  const sc=(H-70)/max,padX=10;geom=[];for(let k=0;k<K;k++)geom.push({top:[],bot:[]});
+  for(let t=0;t<T;t++){let y=H/2-12+tot[t]*sc/2;const px=padX+t/(T-1)*(W-padX*2);for(let k=0;k<K;k++){const h=cur[k][t]*sc;geom[k].bot.push([px,y]);geom[k].top.push([px,y-h]);y-=h}}}
+function curve(p,rev){const a=rev?[...p].reverse():p;for(let i=0;i<a.length;i++){if(i===0){x.lineTo(a[0][0],a[0][1]);continue}const p0=a[Math.max(0,i-2)],p1=a[i-1],p2=a[i],p3=a[Math.min(a.length-1,i+1)];x.bezierCurveTo(p1[0]+(p2[0]-p0[0])/6,p1[1]+(p2[1]-p0[1])/6,p2[0]-(p3[0]-p1[0])/6,p2[1]-(p3[1]-p1[1])/6,p2[0],p2[1])}}
+function draw(){x.clearRect(0,0,W,H);compute();
+  x.font='11px "Reddit Mono",monospace';x.textAlign='left';x.textBaseline='bottom';
+  for(let m=0;m<12;m++){const px=10+m/12*(W-20);x.fillStyle='rgba(43,33,24,.1)';x.fillRect(px,10,1,H-30);x.fillStyle='#9a8b78';x.fillText(MONTHS[m],px+6,H-4)}
+  for(let k=0;k<K;k++){const g=geom[k];x.beginPath();x.moveTo(g.top[0][0],g.top[0][1]);curve(g.top,false);curve(g.bot,true);x.closePath();x.globalAlpha=hover<0||hover===k?1:.22;x.fillStyle=COL[k];x.fill()}
+  x.globalAlpha=1;
+  // label each layer where it is thickest
+  x.textAlign='center';x.textBaseline='middle';for(let k=0;k<K;k++){let bt=0,bh=0;for(let t=3;t<T-3;t++){const h=geom[k].bot[t][1]-geom[k].top[t][1];if(h>bh){bh=h;bt=t}}
+    if(bh>22&&(hover<0||hover===k)){x.fillStyle=k===1||k===4||k===0||k===2?'#fff':'#2b2118';x.font='800 '+Math.min(22,bh*.42)+'px "Bricolage Grotesque",sans-serif';x.fillText(NAMES[k],geom[k].top[bt][0],(geom[k].top[bt][1]+geom[k].bot[bt][1])/2)}}
+  if(hoverT>=0&&hover>=0){const px=geom[0].top[hoverT][0];x.strokeStyle='#2b2118';x.lineWidth=1.5;x.beginPath();x.moveTo(px,geom[hover].top[hoverT][1]);x.lineTo(px,geom[hover].bot[hoverT][1]);x.stroke()}}
+function frame(){let moving=false;for(let k=0;k<K;k++)for(let t=0;t<T;t++){const d=tgt[k][t]-cur[k][t];if(Math.abs(d)>.004){cur[k][t]+=d*.08;moving=true}}draw();if(moving)requestAnimationFrame(frame)}
+tgt=make();cur=reduce?tgt.map(a=>a.slice()):tgt.map(a=>a.map(v=>v*.25));
+addEventListener('resize',()=>{resize();draw()});resize();if(reduce)draw();else{for(let i=0;i<14;i++)for(let k=0;k<K;k++)for(let t=0;t<T;t++)cur[k][t]+=(tgt[k][t]-cur[k][t])*.08;requestAnimationFrame(frame)}
+document.getElementById('b').addEventListener('click',()=>{tgt=make();if(reduce){cur=tgt.map(a=>a.slice());draw()}else requestAnimationFrame(frame)});
+cv.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,t=Math.max(0,Math.min(T-1,Math.round((mx-10)/(W-20)*(T-1))));let h=-1;
+  for(let k=0;k<K;k++)if(my<=geom[k].bot[t][1]&&my>=geom[k].top[t][1])h=k;hover=h;hoverT=t;
+  document.getElementById('read').innerHTML=h<0?'<b>52 weeks</b><br>hover a layer':'<b style="color:'+COL[h]+'">'+NAMES[h]+'</b><br>week '+(t+1)+' · '+(tgt[h][t]*2.4).toFixed(1)+' hours';draw()});
+cv.addEventListener('pointerleave',()=>{hover=-1;hoverT=-1;document.getElementById('read').innerHTML='<b>52 weeks</b><br>hover a layer';draw()});
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SANKEY — where a day goes</title>
+<meta name="description" content="A flow diagram of twenty-four hours: one river of time splitting into sleep, work, home and out, then into the small things that actually fill a day. Hover any band to follow it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fbf6ee'/%3E%3Cpath d='M4 10 C16 10 16 6 28 6 M4 16 C16 16 16 16 28 16 M4 22 C16 22 16 26 28 26' fill='none' stroke='%23e4572e' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fbf6ee;--ink:#22201c;--dim:#8b8478;--line:rgba(34,32,28,.14)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;height:100vh;overflow:hidden;display:grid;grid-template-rows:auto auto 1fr auto}
+::selection{background:#e4572e;color:#fff}
+a:focus-visible{outline:2px solid #e4572e;outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.6rem}
+.mark{font-family:'DM Serif Display',serif;font-size:1.4rem}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:#e4572e}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:1.4rem;flex-wrap:wrap;padding:.2rem 1.6rem .8rem}
+h1{font-family:'DM Serif Display',serif;font-weight:400;font-size:clamp(2rem,5vw,3.6rem);line-height:1}
+h1 em{color:#e4572e}
+.read{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--dim);text-align:right;line-height:1.7}
+.read b{color:var(--ink);font-weight:400;font-size:1rem;font-family:'DM Sans',sans-serif;font-weight:600}
+#c{width:100%;height:100%;display:block;min-height:0}
+.wrap{min-height:0;padding:0 1.6rem}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:.7rem 1.6rem 1.1rem;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+footer a{color:#e4572e}
+</style>
+</head>
+<body>
+<header><span class="mark">Sankey</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="top"><h1>Where a day <em>goes.</em></h1><div class="read" id="read"><b>24 hours</b><br>hover a band to follow it</div></div>
+<div class="wrap"><canvas id="c" aria-label="Sankey diagram of how 24 hours are spent"></canvas></div>
+<footer><span>an invented, fairly ordinary tuesday · site 130 / fable 25 · built by claude (fable 5)</span><span><a href="guide/">how it was made</a></span></footer>
+<script>
+// [from, to, hours]
+const FLOWS=[['The day','Sleep',7.5],['The day','Work',8.5],['The day','Home',4],['The day','Out',4],
+ ['Sleep','Actually asleep',6.5],['Sleep','Staring at ceiling',1],
+ ['Work','Deep work',3],['Work','Meetings',2.5],['Work','Email',1.5],['Work','Looking busy',1.5],
+ ['Home','Screens',2],['Home','Cooking',1],['Home','Chores',1],
+ ['Out','Commute',1.5],['Out','Friends',1.5],['Out','Gym',1]];
+const COL={'Sleep':'#3d5a80','Work':'#e4572e','Home':'#76b041','Out':'#f3a712'};
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,D,nodes={},links=[],hover=null,appear=reduce?1:0;
+function build(){nodes={};links=[];const N=n=>nodes[n]||(nodes[n]={name:n,in:0,out:0,col:0,ins:[],outs:[]});
+  for(const[a,b,v]of FLOWS){const A=N(a),B=N(b);B.col=A.col+1;const l={a:A,b:B,v};A.out+=v;B.in+=v;A.outs.push(l);B.ins.push(l);links.push(l)}
+  for(const n of Object.values(nodes)){n.v=Math.max(n.in,n.out);n.group=n.col===1?n.name:n.col===2?n.ins[0].a.name:null}}
+function layout(){const cols=[[],[],[]];for(const n of Object.values(nodes))cols[n.col].push(n);
+  const padL=8,padR=170,nw=14,cx=[padL,(W-padR-nw)*.42,W-padR-nw],top=10,avail=H-20;
+  cols.forEach((c,i)=>{const gap=i===0?0:i===1?22:9,scale=(avail-gap*(c.length-1))/24;let y=top;for(const n of c){n.x=cx[i];n.w=nw;n.y=y;n.h=n.v*scale;y+=n.h+gap;n.oy=n.y;n.iy=n.y}});
+  for(const l of links){const s=l.a.h/l.a.v;l.h=l.v*s;l.y0=l.a.oy;l.a.oy+=l.h;l.y1=l.b.iy;l.b.iy+=l.v*(l.b.h/l.b.v);l.h1=l.v*(l.b.h/l.b.v)}}
+function resize(){D=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);layout()}
+function band(l){const x0=l.a.x+l.a.w,x1=l.b.x,mx=(x0+x1)/2;x.beginPath();x.moveTo(x0,l.y0);x.bezierCurveTo(mx,l.y0,mx,l.y1,x1,l.y1);x.lineTo(x1,l.y1+l.h1);x.bezierCurveTo(mx,l.y1+l.h1,mx,l.y0+l.h,x0,l.y0+l.h);x.closePath()}
+const lit=l=>!hover||l===hover||l.b===hover.a||l.a===hover.b||(hover.node&&(l.a===hover.node||l.b===hover.node||l.a.group===hover.node.name));
+function draw(){x.clearRect(0,0,W,H);x.save();x.beginPath();x.rect(0,0,W*appear,H);x.clip();
+  for(const l of links){const c=COL[l.b.group||l.b.name]||'#888';band(l);x.globalAlpha=lit(l)?(hover?.85:.55):.1;x.fillStyle=c;x.fill()}
+  x.globalAlpha=1;
+  for(const n of Object.values(nodes)){x.fillStyle=n.col===0?'#22201c':COL[n.group]||'#22201c';x.fillRect(n.x,n.y,n.w,n.h);
+    x.fillStyle='#22201c';x.textBaseline='middle';
+    if(n.col===2){x.font='600 13px "DM Sans",sans-serif';x.textAlign='left';x.fillText(n.name,n.x+n.w+10,n.y+n.h/2);x.fillStyle='#8b8478';x.font='11px "DM Mono",monospace';x.fillText(n.v+'h',n.x+n.w+10+x.measureText(n.name).width*1.18+10,n.y+n.h/2)}
+    else if(n.col===1){x.font='600 15px "DM Sans",sans-serif';x.textAlign='right';x.fillStyle='#22201c';x.fillText(n.name+'  '+n.v+'h',n.x-10,n.y+n.h/2)}}
+  x.restore()}
+function frame(){if(appear<1){appear=Math.min(1,appear+.022);draw();requestAnimationFrame(frame)}}
+build();addEventListener('resize',()=>{resize();draw()});resize();if(!reduce)appear=.6;draw();if(!reduce)requestAnimationFrame(frame);
+cv.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;let h=null;
+  for(const n of Object.values(nodes))if(n.col&&mx>=n.x-(n.col===1?90:0)&&mx<=n.x+n.w+(n.col===2?150:0)&&my>=n.y&&my<=n.y+n.h)h={node:n,a:n,b:n};
+  if(!h)for(const l of links){band(l);if(x.isPointInPath(mx*D,my*D)){h=l;break}}
+  if(h!==hover&&!(h&&hover&&h.node&&h.node===hover.node)){hover=h;const el=document.getElementById('read');
+    if(!h)el.innerHTML='<b>24 hours</b><br>hover a band to follow it';
+    else if(h.node)el.innerHTML='<b>'+h.node.name+'</b><br>'+h.node.v+' hours · '+(h.node.v/24*100).toFixed(0)+'% of the day';
+    else el.innerHTML='<b>'+h.a.name+' → '+h.b.name+'</b><br>'+h.v+' hours · '+(h.v/24*100).toFixed(0)+'% of the day';draw()}});
+cv.addEventListener('pointerleave',()=>{hover=null;document.getElementById('read').innerHTML='<b>24 hours</b><br>hover a band to follow it';draw()});
+</script>
+</body>
+</html>

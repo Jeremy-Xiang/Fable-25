@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SUNBURST — an orchestra, by the seat</title>
+<meta name="description" content="A sunburst chart of a typical symphony orchestra: sections in the inner ring, instrument families around them, individual desks on the rim. Click any arc and the whole chart opens up around it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23170f0c'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23f2d9a0'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%23c0392b' stroke-width='4' stroke-dasharray='20 3'/%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%23e0a030' stroke-width='3' stroke-dasharray='9 2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,800;1,500&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#f6ecd9;--dim:#a39279;--gold:#e0a030;--line:rgba(246,236,217,.16)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(ellipse at 62% 50%,#2a1a14,#120b09 78%);color:var(--ink);font-family:'Figtree',sans-serif;height:100vh;overflow:hidden;display:grid;grid-template-rows:auto 1fr auto}
+::selection{background:var(--gold);color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.6rem}
+.mark{font-family:'Playfair Display',serif;font-style:italic;font-size:1.5rem;color:var(--gold)}
+nav{display:flex;gap:1.4rem}
+nav a{font-weight:600;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--gold)}
+main{display:grid;grid-template-columns:minmax(0,330px) 1fr;gap:1rem;min-height:0;padding:0 1.6rem;align-items:center}
+h1{font-family:'Playfair Display',serif;font-weight:800;font-size:clamp(2rem,4.4vw,3.4rem);line-height:1}
+h1 em{font-weight:500;color:var(--gold)}
+.lede{font-size:.94rem;line-height:1.6;color:#cdbfa6;margin:1rem 0 1.4rem}
+.read{border-top:1px solid var(--line);padding-top:1rem;min-height:6.4em}
+.read b{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:500;display:block}
+.read span{font-size:.84rem;color:var(--dim);line-height:1.6}
+.read button{margin-top:.7rem;font:inherit;font-weight:600;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;background:none;border:1px solid var(--gold);color:var(--gold);border-radius:999px;padding:.45rem .9rem;cursor:pointer}
+.wrap{height:100%;min-height:0}
+#c{width:100%;height:100%;display:block;cursor:pointer}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:.8rem 1.6rem 1.1rem;font-weight:600;font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+footer a{color:var(--gold)}
+@media(max-width:820px){body{height:auto;min-height:100vh;overflow:auto}main{grid-template-columns:1fr}.wrap{height:94vw}}
+</style>
+</head>
+<body>
+<header><span class="mark">Sunburst</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<main>
+  <section><h1>An orchestra, <em>by the seat.</em></h1>
+    <p class="lede">Roughly ninety players in a full symphony orchestra. The inner ring is the section, the next the family, the rim the desks. Click an arc to open it; click the centre to step back out.</p>
+    <div class="read" id="read"></div></section>
+  <div class="wrap"><canvas id="c" aria-label="Sunburst chart of orchestra seating; click an arc to zoom"></canvas></div>
+</main>
+<footer><span>typical seating; real orchestras vary · site 139 / fable 25 · built by claude (fable 5)</span><span><a href="guide/">how it was made</a></span></footer>
+<script>
+const DATA={Strings:{Violins:{'First violins':16,'Second violins':14},'Lower strings':{Violas:12,Cellos:10,'Double basses':8}},
+ Woodwinds:{Flutes:{Flutes:2,Piccolo:1},Reeds:{Oboes:2,'Cor anglais':1,Clarinets:2,'Bass clarinet':1,Bassoons:2,Contrabassoon:1}},
+ Brass:{Horns:{'French horns':4},'Heavy brass':{Trumpets:3,Trombones:3,Tuba:1}},
+ Percussion:{Tuned:{Timpani:1,Harp:2,Celesta:1},Untuned:{'Snare & bass drum':2,'Cymbals & more':1}}};
+const HUE={Strings:8,Woodwinds:150,Brass:40,Percussion:262};
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mk(name,v,parent,depth,top){const n={name,parent,depth,top};if(typeof v==='number')n.v=v;else{n.kids=Object.entries(v).map(([k,q])=>mk(k,q,n,depth+1,top||k));n.v=n.kids.reduce((s,k)=>s+k.v,0)}return n}
+const root=mk('Orchestra',DATA,null,0,null),all=[];
+(function span(n,a0,a1){n.a0=a0;n.a1=a1;all.push(n);let a=a0;for(const k of n.kids||[]){const s=(a1-a0)*k.v/n.v;span(k,a,a+s);a+=s}})(root,0,1);
+let W,H,D,R,focus=root,view={a0:0,a1:1,d:0},tv={a0:0,a1:1,d:0},hover=null;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);R=Math.min(W,H)/2-14}
+// map a node into the current view: angles are stretched so the focused arc fills the circle, rings shift inward
+const ang=a=>Math.max(0,Math.min(1,(a-view.a0)/(view.a1-view.a0)))*Math.PI*2-Math.PI/2;
+const rad=d=>{const k=d-view.d;return k<=0?0:R*(.2+.8*Math.min(1,k/Math.max(1,3-view.d)))};
+function draw(){x.clearRect(0,0,W,H);
+  for(const n of all){if(n===root)continue;const a0=ang(n.a0),a1=ang(n.a1),r0=rad(n.depth-1+ (n.depth-1<view.d?0:0)),r1=rad(n.depth);if(a1-a0<.002||r1<=R*.2+1)continue;
+    const hue=HUE[n.top],hot=n===hover,lum=30+n.depth*9+((n.name.length*13)%8);x.fillStyle=`hsl(${hue+(n.a0-.5)*26},${hot?80:58}%,${hot?lum+14:lum}%)`;
+    x.beginPath();x.arc(W/2,H/2,Math.max(r0,R*.2)+1.5,a0,a1);x.arc(W/2,H/2,r1,a1,a0,true);x.closePath();x.fill();x.strokeStyle='#120b09';x.lineWidth=1.5;x.stroke();
+    const mid=(a0+a1)/2,rm=(Math.max(r0,R*.2)+r1)/2,arcLen=(a1-a0)*rm;
+    if(arcLen>30&&r1-r0>30){x.save();x.translate(W/2+Math.cos(mid)*rm,H/2+Math.sin(mid)*rm);let rot=mid;const flip=Math.cos(mid)<0;x.rotate(rot+(flip?Math.PI:0));x.fillStyle='rgba(255,246,228,.95)';x.font='600 '+Math.max(10,Math.min(14,arcLen/5))+'px Figtree,sans-serif';x.textAlign='center';x.textBaseline='middle';
+      const room=r1-Math.max(r0,R*.2)-8,label=n.name;if(x.measureText(label).width<room)x.fillText(label,0,0);else if(arcLen>x.measureText(label).width+8){x.rotate(Math.PI/2*(flip?-1:1)*(Math.sin(mid)>0?-1:1)*(flip?-1:1));x.fillText(label,0,0)}x.restore()}}
+  x.fillStyle='#120b09';x.beginPath();x.arc(W/2,H/2,R*.2,0,7);x.fill();x.strokeStyle='rgba(224,160,48,.6)';x.lineWidth=1;x.stroke();
+  x.fillStyle='#f6ecd9';x.textAlign='center';x.textBaseline='middle';x.font='500 '+R*.085+'px "Playfair Display",serif';x.fillText(focus.v,W/2,H/2-R*.02);x.font='600 '+Math.max(9,R*.034)+'px Figtree,sans-serif';x.fillStyle='#a39279';x.fillText(focus===root?'PLAYERS':'↑ BACK',W/2,H/2+R*.075)}
+function frame(){let m=false;for(const k of['a0','a1','d']){const d=tv[k]-view[k];if(Math.abs(d)>.0008){view[k]+=d*.14;m=true}else view[k]=tv[k]}draw();if(m)requestAnimationFrame(frame)}
+function go(n){focus=n;tv={a0:n.a0,a1:n.a1,d:n.depth};say(n);if(reduce){view={...tv};draw()}else requestAnimationFrame(frame)}
+function say(n){const el=document.getElementById('read');el.innerHTML='<b>'+n.name+'</b><span>'+n.v+' player'+(n.v>1?'s':'')+' · '+(n.v/root.v*100).toFixed(0)+'% of the orchestra'+(n.parent&&n.parent!==root?' · '+(n.v/n.parent.v*100).toFixed(0)+'% of '+n.parent.name.toLowerCase():'')+'</span>'}
+function hit(e){const r=cv.getBoundingClientRect(),dx=e.clientX-r.left-W/2,dy=e.clientY-r.top-H/2,d=Math.hypot(dx,dy);if(d<R*.2)return'centre';let a=Math.atan2(dy,dx)+Math.PI/2;if(a<0)a+=Math.PI*2;
+  for(const n of all){if(n===root)continue;const a0=ang(n.a0)+Math.PI/2,a1=ang(n.a1)+Math.PI/2,r0=Math.max(rad(n.depth-1),R*.2),r1=rad(n.depth);if(a1-a0>.002&&a>=a0&&a<=a1&&d>=r0&&d<=r1)return n}return null}
+addEventListener('resize',()=>{resize();draw()});resize();say(root);draw();
+cv.addEventListener('pointermove',e=>{const h=hit(e),n=h&&h!=='centre'?h:null;if(n!==hover){hover=n;say(n||focus);draw()}});
+cv.addEventListener('click',e=>{const h=hit(e);if(h==='centre'){if(focus.parent)go(focus.parent)}else if(h){go(h.kids?h:h.parent===focus&&focus.parent?focus:h.parent)}});
+</script>
+</body>
+</html>

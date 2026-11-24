@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TETHER — a network that arranges itself</title>
+<meta name="description" content="A force-directed graph: every node pushes the others away, every link pulls its ends together, and the layout you see is whatever balance they find. Drag a node, or click empty space to add one.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1021'/%3E%3Cpath d='M9 10 L22 8 L24 22 L11 23 Z M9 10 L24 22' fill='none' stroke='%236b78b8' stroke-width='1.4'/%3E%3Ccircle cx='9' cy='10' r='3' fill='%23ff7ab6'/%3E%3Ccircle cx='22' cy='8' r='3' fill='%2360e0ff'/%3E%3Ccircle cx='24' cy='22' r='3' fill='%23ffd166'/%3E%3Ccircle cx='11' cy='23' r='3' fill='%238cff9e'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#eef0ff;--dim:#8087b5;--line:rgba(238,240,255,.16)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(ellipse at 50% 45%,#171b38,#0a0c1a 75%);color:var(--ink);font-family:'Space Mono',monospace;height:100vh;overflow:hidden}
+::selection{background:#ff7ab6;color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid #60e0ff;outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%;cursor:crosshair;touch-action:none}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.2rem;letter-spacing:.24em}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:#60e0ff}
+.plate{position:fixed;left:1.5rem;bottom:1.3rem;z-index:5;pointer-events:none;background:rgba(10,12,26,.7);padding:.9rem 1.1rem;border:1px solid var(--line);border-radius:12px}
+.plate h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(1.3rem,3vw,2.1rem);line-height:1.05}
+.plate h1 em{font-style:normal;color:#ff7ab6}
+.plate p{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:.6rem;line-height:1.8}
+.plate b{color:var(--ink);font-weight:400}
+.deck{position:fixed;right:1.5rem;bottom:1.3rem;z-index:5;display:flex;gap:.5rem}
+.deck button{font:inherit;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;background:rgba(10,12,26,.8);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:.6rem 1rem;cursor:pointer}
+.deck button:hover{border-color:#60e0ff;color:#60e0ff}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Force-directed network; drag nodes, click empty space to add one"></canvas>
+<header><span class="mark">TETHER</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>A network that<br><em>arranges itself.</em></h1><p>nodes <b id="nn">0</b> · links <b id="nl">0</b> · drag a node · click space to add one</p></div>
+<div class="deck"><button id="bShake">shake</button><button id="bNew">new network</button></div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const COL=['#ff7ab6','#60e0ff','#ffd166','#8cff9e','#b79cff'];
+let W,H,D,nodes=[],links=[],drag=null,hover=null,moved=false;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0)}
+function link(a,b){if(a!==b&&!links.some(l=>(l.a===a&&l.b===b)||(l.a===b&&l.b===a))){links.push({a,b});a.deg++;b.deg++}}
+function build(){nodes=[];links=[];
+  // five communities: dense inside, a few bridges between
+  for(let g=0;g<5;g++){const n=9+Math.random()*7|0,first=nodes.length;
+    for(let i=0;i<n;i++)nodes.push({x:W/2+(Math.random()-.5)*300,y:H/2+(Math.random()-.5)*300,vx:0,vy:0,g,deg:0});
+    for(let i=1;i<n;i++){link(nodes[first+i],nodes[first+(Math.random()*i|0)]);if(Math.random()<.45)link(nodes[first+i],nodes[first+(Math.random()*i|0)])}}
+  for(let i=0;i<7;i++)link(nodes[Math.random()*nodes.length|0],nodes[Math.random()*nodes.length|0]);count()}
+function count(){document.getElementById('nn').textContent=nodes.length;document.getElementById('nl').textContent=links.length}
+function tick(){// repulsion between every pair (fine at this size), springs along links, a gentle pull to the centre
+  for(let i=0;i<nodes.length;i++){const a=nodes[i];
+    for(let j=i+1;j<nodes.length;j++){const b=nodes[j];let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+.01;if(d2>90000)continue;const f=900/d2,d=Math.sqrt(d2);dx/=d;dy/=d;a.vx+=dx*f;a.vy+=dy*f;b.vx-=dx*f;b.vy-=dy*f}
+    a.vx+=(W/2-a.x)*.0016;a.vy+=(H*.47-a.y)*.0022}
+  for(const l of links){const dx=l.b.x-l.a.x,dy=l.b.y-l.a.y,d=Math.hypot(dx,dy)||1,f=(d-46)*.012;l.a.vx+=dx/d*f;l.a.vy+=dy/d*f;l.b.vx-=dx/d*f;l.b.vy-=dy/d*f}
+  for(const n of nodes){if(n===drag){n.vx=n.vy=0;continue}n.vx*=.86;n.vy*=.86;n.x+=n.vx;n.y+=n.vy}}
+function draw(){x.clearRect(0,0,W,H);const near=new Set();if(hover){near.add(hover);for(const l of links){if(l.a===hover)near.add(l.b);if(l.b===hover)near.add(l.a)}}
+  for(const l of links){const hot=hover&&(l.a===hover||l.b===hover);x.strokeStyle=hot?'rgba(255,255,255,.9)':hover?'rgba(128,135,181,.12)':'rgba(128,135,181,.38)';x.lineWidth=hot?1.8:1;x.beginPath();x.moveTo(l.a.x,l.a.y);x.lineTo(l.b.x,l.b.y);x.stroke()}
+  for(const n of nodes){const r=3.5+Math.sqrt(n.deg)*2.2;x.globalAlpha=hover&&!near.has(n)?.25:1;x.fillStyle=COL[n.g];x.shadowBlur=n===hover?20:8;x.shadowColor=COL[n.g];x.beginPath();x.arc(n.x,n.y,r,0,7);x.fill()}
+  x.globalAlpha=1;x.shadowBlur=0}
+function frame(){requestAnimationFrame(frame);tick();tick();draw()}
+const at=e=>{let best=null,bd=22*22;for(const n of nodes){const d=(n.x-e.clientX)**2+(n.y-e.clientY)**2;if(d<bd){bd=d;best=n}}return best};
+addEventListener('resize',resize);resize();build();for(let i=0;i<(reduce?600:260);i++)tick();draw();
+if(!reduce)requestAnimationFrame(frame);
+const settle=()=>{if(reduce){for(let i=0;i<300;i++)tick();draw()}};
+cv.addEventListener('pointerdown',e=>{drag=at(e);moved=false;if(drag)cv.setPointerCapture(e.pointerId)});
+cv.addEventListener('pointermove',e=>{if(drag){drag.x=e.clientX;drag.y=e.clientY;moved=true;if(reduce)draw()}else{hover=at(e);if(reduce)draw()}});
+cv.addEventListener('pointerup',e=>{if(!drag&&!moved){// a new node joins its two nearest neighbours
+    const n={x:e.clientX,y:e.clientY,vx:0,vy:0,deg:0,g:0},by=[...nodes].sort((a,b)=>Math.hypot(a.x-n.x,a.y-n.y)-Math.hypot(b.x-n.x,b.y-n.y));
+    if(by[0])n.g=by[0].g;nodes.push(n);by.slice(0,2).forEach(m=>link(n,m));count()}
+  drag=null;settle()});
+document.getElementById('bNew').addEventListener('click',()=>{build();settle()});
+document.getElementById('bShake').addEventListener('click',()=>{for(const n of nodes){n.vx+=(Math.random()-.5)*40;n.vy+=(Math.random()-.5)*40}settle()});
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATLAS — all one hundred and fifty, as one graph</title>
+<meta name="description" content="The last site is a map of the others: 150 nodes, one per site, pulled into eight constellations by the wave they were built in. Hover to read a name, type to search, click to go there.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2308090f'/%3E%3Cg fill='%23ffd76a'%3E%3Ccircle cx='9' cy='10' r='2'/%3E%3Ccircle cx='15' cy='7' r='1.4'/%3E%3Ccircle cx='12' cy='15' r='1.6'/%3E%3C/g%3E%3Cg fill='%237cc7ff'%3E%3Ccircle cx='22' cy='20' r='2'/%3E%3Ccircle cx='25' cy='14' r='1.4'/%3E%3Ccircle cx='18' cy='25' r='1.6'/%3E%3C/g%3E%3Cpath d='M12 15 L22 20' stroke='%23666' stroke-width='1'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#f3efe6;--dim:#8a8798;--gold:#ffd76a;--line:rgba(243,239,230,.16)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(ellipse at 50% 45%,#161a2e,#07080e 78%);color:var(--ink);font-family:'JetBrains Mono',monospace;height:100vh;overflow:hidden}
+::selection{background:var(--gold);color:#111}
+a:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Fraunces',serif;font-weight:600;font-size:1.4rem;letter-spacing:.14em;color:var(--gold)}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--gold)}
+.plate{position:fixed;left:1.5rem;bottom:1.3rem;z-index:5;max-width:23rem;pointer-events:none}
+.plate h1{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(1.6rem,3.4vw,2.6rem);line-height:1.02}
+.plate h1 em{color:var(--gold)}
+.plate p{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:.7rem 0 .8rem;line-height:1.8}
+.plate input{pointer-events:auto;width:100%;font:inherit;font-size:.78rem;background:rgba(7,8,14,.8);border:1px solid var(--line);color:var(--ink);padding:.65rem .8rem;border-radius:8px}
+.key{position:fixed;right:1.5rem;bottom:1.3rem;z-index:5;display:flex;flex-direction:column;gap:.15rem;background:rgba(7,8,14,.7);border:1px solid var(--line);border-radius:10px;padding:.6rem .7rem}
+.key button{font:inherit;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;background:none;border:none;color:var(--dim);cursor:pointer;display:flex;align-items:center;gap:.5rem;padding:.22rem .3rem;text-align:left}
+.key button:hover,.key button[aria-pressed=true]{color:var(--ink)}
+.key i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.tip{position:fixed;z-index:6;pointer-events:none;background:#f3efe6;color:#111;font-size:.7rem;padding:.4rem .6rem;border-radius:6px;transform:translate(-50%,-150%);white-space:nowrap;opacity:0;transition:opacity .12s}
+.tip b{font-family:'Fraunces',serif;font-weight:600;font-size:.95rem;text-transform:uppercase;letter-spacing:.04em;margin-left:.4rem}
+.cred{position:fixed;top:4rem;left:1.5rem;z-index:5;font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.cred a{color:var(--gold)}
+@media(max-width:700px){.key{display:none}}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Graph of all 150 sites grouped by wave; click a node to visit that site"></canvas>
+<header><span class="mark">ATLAS</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="cred">site 150 / fable 25 · built by claude (fable 5) · <a href="guide/">how it was made</a></div>
+<div class="plate"><h1>All one hundred and fifty,<br><em>as one graph.</em></h1><p>each dot is a site · each cluster a wave · click to visit</p><input id="q" type="text" placeholder="search by name or number…" aria-label="Search sites" autocomplete="off" spellcheck="false"></div>
+<div class="key" id="key"></div>
+<div class="tip" id="tip"></div>
+<script>
+const SITES=["01-lumen", "02-monolith", "03-raw", "04-raster", "05-celeste", "06-orbital", "07-phosphor", "08-gilded", "09-ma", "10-chroma", "11-goo", "12-ascii", "13-spielplatz", "14-obsidienne", "15-missionctrl", "16-papier", "17-nimbus", "18-verba", "19-herbarium", "20-nightledger", "21-neondistrict", "22-tekton", "23-liquida", "24-meadow", "25-resonance", "26-aurora", "27-terrazzo", "28-kintsugi", "29-glacier", "30-mycelium", "31-riso", "32-oscilloscope", "33-tessera", "34-cartograph", "35-orrery", "36-coral", "37-murmuration", "38-facet", "39-manuscript", "40-thunderhead", "41-loom", "42-inkwash", "43-holotype", "44-magneto", "45-dunes", "46-cathedral", "47-cassette", "48-murano", "49-transit", "50-eclipse", "51-mercury", "52-marionette", "53-salvo", "54-censer", "55-automaton", "56-gloaming", "57-drape", "58-revenant", "59-lathe", "60-drift", "61-observatory", "62-zenith", "63-splash", "64-flowmenu", "65-curveloop", "66-magnetic", "67-tilt", "68-decode", "69-morph", "70-shatter", "71-reel", "72-ripple", "73-ironhand", "74-atelier", "75-butter", "76-chromatic", "77-unfold", "78-raymarch", "79-flowfield", "80-typestretch", "81-departures", "82-xerox", "83-contour", "84-system9", "85-refract", "86-pixelsort", "87-tarot", "88-weave", "89-zoom", "90-metamorph", "91-ledwall", "92-origami", "93-antigrav", "94-halftone", "95-caustics", "96-marquee", "97-diorama", "98-inkblot", "99-eras", "100-centenary", "101-petri", "102-morphogen", "103-chaos", "104-tempest", "105-vitrail", "106-kaleido", "107-slingshot", "108-platen", "109-clockclock", "110-hourglass", "111-deepfield", "112-pendula", "113-raincheck", "114-trace", "115-hanabi", "116-twoslits", "117-epicycle", "118-telegraph", "119-labyrinth", "120-islet", "121-pluck", "122-sixfold", "123-thinfilm", "124-tremor", "125-encore", "126-quirk", "127-tether", "128-roots", "129-chord", "130-sankey", "131-wayfinder", "132-metro", "133-smallworld", "134-treemap", "135-spanning", "136-stream", "137-arcs", "138-matrix", "139-sunburst", "140-bundle", "141-contagion", "142-percept", "143-lineage", "144-markov", "145-orbs", "146-parallel", "147-ridgeline", "148-daylight", "149-rank", "150-atlas"];
+const WAVES=[['Wave 1 · procedural',1,25,'#ffd76a'],['Wave 2 · imagery + 3D',26,50,'#ff8fa3'],['Wave 3 · critique loop',51,62,'#7cc7ff'],['Wave 4 · interaction patterns',63,72,'#9ef0c0'],['Wave 5 · from video',73,75,'#f4f1de'],['Wave 6 · road to 100',76,100,'#c7a6ff'],['Wave 7 · toys + sims',101,125,'#ffab5e'],['Wave 8 · graphs',126,150,'#5ee0d4']];
+const cv=document.getElementById('c'),x=cv.getContext('2d'),tip=document.getElementById('tip');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,D,nodes=[],hubs=[],hover=null,focusW=-1,query='',t0=performance.now();
+function resize(){D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);
+  hubs.forEach((h,i)=>{const a=i/WAVES.length*Math.PI*2-Math.PI*.6;h.hx=W*.53+Math.cos(a)*Math.min(W*.33,H*.56);h.hy=H*.47+Math.sin(a)*H*.3})}
+hubs=WAVES.map((w,i)=>({w:i,x:0,y:0,vx:0,vy:0,hub:true,r:0}));
+nodes=SITES.map(s=>{const n=+s.split('-')[0],w=WAVES.findIndex(q=>n>=q[1]&&n<=q[2]);return{slug:s,n,w,name:s.replace(/^\d+-/,''),x:0,y:0,vx:0,vy:0,r:n===150?7.5:5.2}});
+function tick(){const all=nodes;
+  for(const h of hubs){h.x=h.hx;h.y=h.hy}
+  for(let i=0;i<all.length;i++){const a=all[i],h=hubs[a.w];a.vx+=(h.x-a.x)*.006;a.vy+=(h.y-a.y)*.006;
+    for(let j=i+1;j<all.length;j++){const b=all[j];let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+.01;if(d2>8100)continue;const f=(a.w===b.w?150:190)/d2,d=Math.sqrt(d2);dx/=d;dy/=d;a.vx+=dx*f;a.vy+=dy*f;b.vx-=dx*f;b.vy-=dy*f}}
+  for(const a of all){a.vx*=.8;a.vy*=.8;a.x+=a.vx;a.y+=a.vy}}
+const match=n=>!query||n.name.includes(query)||String(n.n)===query||String(n.n).padStart(2,'0')===query;
+function draw(now){x.clearRect(0,0,W,H);const t=(now-t0)/1000;
+  // spokes from each hub, and a faint chain joining the waves in order
+  x.strokeStyle='rgba(243,239,230,.1)';x.lineWidth=1;x.beginPath();hubs.forEach((h,i)=>i?x.lineTo(h.x,h.y):x.moveTo(h.x,h.y));x.stroke();
+  for(const n of nodes){const h=hubs[n.w],on=(focusW<0||focusW===n.w)&&match(n);x.strokeStyle=WAVES[n.w][3];x.globalAlpha=on?.22:.04;x.beginPath();x.moveTo(h.x,h.y);x.lineTo(n.x,n.y);x.stroke()}
+  for(const n of nodes){const on=(focusW<0||focusW===n.w)&&match(n),me=n.n===150;x.globalAlpha=on?1:.12;x.fillStyle=WAVES[n.w][3];x.shadowBlur=on?(n===hover?22:9):0;x.shadowColor=WAVES[n.w][3];
+    const tw=reduce?1:.82+.18*Math.sin(t*1.6+n.n);x.beginPath();x.arc(n.x,n.y,(n===hover?n.r+3:n.r)*tw,0,7);x.fill();
+    if(me){x.shadowBlur=0;x.strokeStyle='#fff';x.lineWidth=1.2;x.beginPath();x.arc(n.x,n.y,12+(reduce?0:Math.sin(t*2)*2),0,7);x.stroke();x.fillStyle='#fff';x.font='10px "JetBrains Mono",monospace';x.textAlign='center';x.fillText('YOU ARE HERE',n.x,n.y+27)}
+    if(query&&on&&query.length>1){x.shadowBlur=0;x.fillStyle='#f3efe6';x.font='10px "JetBrains Mono",monospace';x.textAlign='center';x.fillText(n.name,n.x,n.y-10)}}
+  x.shadowBlur=0;x.globalAlpha=1;x.textAlign='center';
+  hubs.forEach((h,i)=>{x.globalAlpha=focusW<0||focusW===i?1:.25;x.fillStyle=WAVES[i][3];x.font='600 15px Fraunces,serif';const up=h.y<H*.47;x.fillText(WAVES[i][0].split(' · ')[0],h.x,h.y+(up?-1:1)*(22+Math.sqrt(WAVES[i][2]-WAVES[i][1]+1)*17)+(up?0:8))});x.globalAlpha=1}
+function frame(now){requestAnimationFrame(frame);tick();draw(now)}
+resize();nodes.forEach((n,i)=>{const h=hubs[n.w],a=i*2.399;n.x=h.hx+Math.cos(a)*(10+i%9*5);n.y=h.hy+Math.sin(a)*(10+i%9*5)});
+addEventListener('resize',()=>{resize();if(reduce){for(let i=0;i<200;i++)tick();draw(t0)}});
+for(let i=0;i<420;i++)tick();draw(t0);if(!reduce)requestAnimationFrame(frame);
+const key=document.getElementById('key');key.innerHTML=WAVES.map((w,i)=>'<button data-w="'+i+'" aria-pressed="false"><i style="background:'+w[3]+'"></i>'+w[0]+' · '+(w[2]-w[1]+1)+'</button>').join('');
+key.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const w=+b.dataset.w;focusW=focusW===w?-1:w;key.querySelectorAll('button').forEach(q=>q.setAttribute('aria-pressed',+q.dataset.w===focusW));if(reduce)draw(t0)});
+const at=e=>{let b=null,bd=144;for(const n of nodes){const d=(n.x-e.clientX)**2+(n.y-e.clientY)**2;if(d<bd){bd=d;b=n}}return b};
+cv.addEventListener('pointermove',e=>{hover=at(e);cv.style.cursor=hover?'pointer':'default';if(hover){tip.style.left=hover.x+'px';tip.style.top=hover.y+'px';tip.innerHTML='No. '+String(hover.n).padStart(3,'0')+'<b>'+hover.name+'</b>';tip.style.opacity=1}else tip.style.opacity=0;if(reduce)draw(t0)});
+cv.addEventListener('click',e=>{const n=at(e);if(n&&n.n!==150)location.href='../'+n.slug+'/'});
+document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();if(reduce)draw(t0)});
+document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter'){const m=nodes.filter(n=>match(n)&&n.n!==150);if(query&&m.length===1)location.href='../'+m[0].slug+'/'}});
+</script>
+</body>
+</html>

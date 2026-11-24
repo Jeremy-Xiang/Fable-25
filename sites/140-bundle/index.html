@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BUNDLE — every import in a codebase, combed</title>
+<meta name="description" content="Hierarchical edge bundling: forty-eight source files around a circle, every import drawn as a curve pulled toward its package so that hundreds of lines comb into readable cables. Hover a file to see what it uses and what uses it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0f14'/%3E%3Cpath d='M5 9 Q16 16 27 8 M5 12 Q16 16 27 12 M6 23 Q16 16 26 24 M9 27 Q16 16 27 16' fill='none' stroke='%2358a6ff' stroke-width='1.3' opacity='.9'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#e6edf3;--dim:#7d8590;--out:#58a6ff;--in:#f0883e;--line:rgba(230,237,243,.14)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0f14;color:var(--ink);font-family:'Geist',sans-serif;height:100vh;overflow:hidden;display:grid;grid-template-rows:auto 1fr auto}
+::selection{background:var(--out);color:#111}
+a:focus-visible,input:focus-visible{outline:2px solid var(--out);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.6rem}
+.mark{font-weight:800;font-size:1.2rem;letter-spacing:-.01em}
+.mark em{font-style:normal;color:var(--out)}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'Geist Mono',monospace;font-size:.64rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--out)}
+main{display:grid;grid-template-columns:minmax(0,320px) 1fr;gap:1rem;min-height:0;padding:0 1.6rem;align-items:center}
+h1{font-weight:800;font-size:clamp(1.8rem,4vw,3rem);line-height:1.02;letter-spacing:-.03em}
+h1 em{font-style:normal;color:var(--out)}
+.lede{font-size:.9rem;line-height:1.6;color:#aab3bd;margin:1rem 0 1.3rem}
+label{font-family:'Geist Mono',monospace;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between}
+label b{color:var(--ink);font-weight:500}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;background:var(--line);margin:.8rem 0 1.3rem}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--out)}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border:none;border-radius:50%;background:var(--out)}
+.read{font-family:'Geist Mono',monospace;font-size:.72rem;line-height:1.9;color:var(--dim);border-top:1px solid var(--line);padding-top:1rem;min-height:6.6em}
+.read b{color:var(--ink);font-weight:500;font-size:.9rem}
+.o{color:var(--out)}.i{color:var(--in)}
+.wrap{height:100%;min-height:0}
+#c{width:100%;height:100%;display:block}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:.8rem 1.6rem 1.1rem;font-family:'Geist Mono',monospace;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+footer a{color:var(--out)}
+@media(max-width:820px){body{height:auto;min-height:100vh;overflow:auto}main{grid-template-columns:1fr}.wrap{height:96vw}}
+</style>
+</head>
+<body>
+<header><span class="mark">bun<em>dle</em></span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<main>
+  <section><h1>Every import in a codebase, <em>combed.</em></h1>
+    <p class="lede">Forty-eight files in six packages. Straight lines between them would be a hairball; pulling each line toward its package's centre turns the tangle into cables.</p>
+    <label for="t">bundling tension <b id="vt">85%</b></label><input type="range" id="t" min="0" max="100" value="85">
+    <div class="read" id="read"><b>hover a file</b><br><span class="o">blue</span> = what it imports<br><span class="i">orange</span> = what imports it</div></section>
+  <div class="wrap"><canvas id="c" aria-label="Circular dependency diagram with bundled edges"></canvas></div>
+</main>
+<footer><span>an invented app · site 140 / fable 25 · built by claude (fable 5)</span><span><a href="guide/">how it was made</a></span></footer>
+<script>
+const PK={ui:['Button','Modal','Table','Form','Toast','Chart','Nav','Avatar','Tabs'],api:['client','auth','users','orders','billing','search','upload'],store:['session','cart','prefs','cache','history','flags'],
+ utils:['date','money','http','log','retry','hash','i18n','format','debounce'],pages:['Home','Login','Checkout','Account','Admin','Orders','Product','Search','NotFound'],lib:['router','theme','events','worker','analytics','ws','storage','errors']};
+const PCOL={ui:'#d2a8ff',api:'#7ee787',store:'#ffa657',utils:'#79c0ff',pages:'#ff7b72',lib:'#e3b341'};
+let seed=9;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const files=[],pk=Object.keys(PK);pk.forEach((p,pi)=>PK[p].forEach(n=>files.push({p,pi,name:n,out:[],inn:[]})));
+// who is allowed to import whom, roughly: pages use everything, ui uses utils/lib, api uses utils, store uses api
+const RULE={pages:{ui:.42,api:.2,store:.25,lib:.18,utils:.08},ui:{utils:.16,lib:.12,ui:.1},api:{utils:.3,lib:.1,api:.12},store:{api:.3,utils:.12,lib:.12},lib:{utils:.2,lib:.08},utils:{utils:.06}};
+const edges=[];for(const a of files)for(const b of files){if(a===b)continue;if(rnd()<((RULE[a.p]||{})[b.p]||0)){edges.push({a,b});a.out.push(b);b.inn.push(a)}}
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+let W,H,D,R,tension=.85,hover=null;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);R=Math.min(W,H)/2-86;
+  const gap=.07,per=(Math.PI*2-gap*pk.length)/files.length;let a=-Math.PI/2;pk.forEach(p=>{const fs=files.filter(f=>f.p===p),a0=a;for(const f of fs){f.a=a+per/2;f.x=W/2+Math.cos(f.a)*R;f.y=H/2+Math.sin(f.a)*R;a+=per}const mid=(a0+a)/2;fs.forEach(f=>{f.gx=W/2+Math.cos(mid)*R*.52;f.gy=H/2+Math.sin(mid)*R*.52});a+=gap})}
+// the path goes file → its package hub → (centre) → other package hub → file; tension blends that toward a straight line
+function edge(e){const a=e.a,b=e.b,t=tension,L=(p,q)=>p+(q-p)*(1-t),cx=W/2,cy=H/2;
+  const pts=a.p===b.p?[[a.x,a.y],[a.gx,a.gy],[b.x,b.y]]:[[a.x,a.y],[a.gx,a.gy],[cx+(a.gx+b.gx-2*cx)*.22,cy+(a.gy+b.gy-2*cy)*.22],[b.gx,b.gy],[b.x,b.y]];
+  const n=pts.length-1,q=pts.map((p,i)=>[L(p[0],a.x+(b.x-a.x)*i/n),L(p[1],a.y+(b.y-a.y)*i/n)]);
+  x.beginPath();x.moveTo(q[0][0],q[0][1]);if(n===2)x.quadraticCurveTo(q[1][0],q[1][1],q[2][0],q[2][1]);else{x.quadraticCurveTo(q[1][0],q[1][1],(q[1][0]+q[2][0])/2,(q[1][1]+q[2][1])/2);x.quadraticCurveTo(q[2][0],q[2][1],(q[2][0]+q[3][0])/2,(q[2][1]+q[3][1])/2);x.quadraticCurveTo(q[3][0],q[3][1],q[4][0],q[4][1])}x.stroke()}
+function draw(){x.clearRect(0,0,W,H);x.lineWidth=1;
+  for(const e of edges){if(hover&&(e.a===hover||e.b===hover))continue;x.strokeStyle=hover?'rgba(125,133,144,.07)':'rgba(121,192,255,.2)';edge(e)}
+  if(hover){x.lineWidth=1.8;for(const e of edges){if(e.a===hover){x.strokeStyle='#58a6ff';edge(e)}else if(e.b===hover){x.strokeStyle='#f0883e';edge(e)}}}
+  x.textBaseline='middle';
+  for(const f of files){const rel=!hover||f===hover?1:hover.out.includes(f)?2:hover.inn.includes(f)?3:0;x.globalAlpha=rel?1:.25;
+    x.fillStyle=rel===2?'#58a6ff':rel===3?'#f0883e':PCOL[f.p];x.beginPath();x.arc(f.x,f.y,f===hover?5:3,0,7);x.fill();
+    const flip=Math.cos(f.a)<0;x.save();x.translate(f.x,f.y);x.rotate(f.a+(flip?Math.PI:0));x.textAlign=flip?'right':'left';x.font=(f===hover?'500 ':'')+'11px "Geist Mono",monospace';x.fillText(f.name,flip?-9:9,0);x.restore()}
+  x.globalAlpha=1;
+  // package names on an outer ring
+  for(const p of pk){const fs=files.filter(f=>f.p===p),mid=(fs[0].a+fs[fs.length-1].a)/2,rr=R+72;x.save();x.translate(W/2+Math.cos(mid)*rr,H/2+Math.sin(mid)*rr);x.rotate(mid+Math.PI/2+(Math.sin(mid)>0?Math.PI:0));x.fillStyle=PCOL[p];x.font='800 13px Geist,sans-serif';x.textAlign='center';x.fillText(p.toUpperCase(),0,0);x.restore()}}
+addEventListener('resize',()=>{resize();draw()});resize();draw();
+document.getElementById('t').addEventListener('input',e=>{tension=e.target.value/100;document.getElementById('vt').textContent=e.target.value+'%';draw()});
+cv.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;let h=null,bd=26*26;for(const f of files){const lx=f.x+Math.cos(f.a)*22,ly=f.y+Math.sin(f.a)*22,d=Math.min((f.x-mx)**2+(f.y-my)**2,(lx-mx)**2+(ly-my)**2);if(d<bd){bd=d;h=f}}
+  if(h!==hover){hover=h;document.getElementById('read').innerHTML=h?'<b>'+h.p+'/'+h.name+'</b><br><span class="o">imports '+h.out.length+'</span> · <span class="i">imported by '+h.inn.length+'</span><br>'+(h.inn.length>7?'a lot depends on this file':h.out.length>9?'this file depends on a lot':h.inn.length===0?'nothing imports it — an entry point':'a fairly ordinary file'):'<b>hover a file</b><br><span class="o">blue</span> = what it imports<br><span class="i">orange</span> = what imports it';draw()}});
+cv.addEventListener('pointerleave',()=>{hover=null;draw()});
+</script>
+</body>
+</html>

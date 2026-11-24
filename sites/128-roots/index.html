@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROOTS — paste URLs, grow a tree</title>
+<meta name="description" content="Every URL is a path, and a list of paths is a tree. Paste some links and this page grows them into a radial tree: one branch per folder, one leaf per page.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f4f1e6'/%3E%3Cpath d='M16 28 V16 M16 16 Q10 12 8 6 M16 16 Q22 12 24 6 M16 20 Q11 19 7 15 M16 20 Q21 19 25 15' fill='none' stroke='%232f6b3f' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f4f1e6;--ink:#1f2a1f;--dim:#7c8474;--leaf:#2f6b3f;--line:rgba(31,42,31,.16)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:'Geist Mono',monospace;height:100vh;display:grid;grid-template-columns:330px 1fr;grid-template-rows:auto 1fr;overflow:hidden}
+::selection{background:var(--leaf);color:#fff}
+a:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid var(--leaf);outline-offset:3px}
+header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--line)}
+.mark{font-family:'Young Serif',serif;font-size:1.4rem;color:var(--leaf)}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.64rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--leaf)}
+aside{padding:1.4rem 1.5rem;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:.9rem;overflow:auto}
+h1{font-family:'Young Serif',serif;font-weight:400;font-size:1.9rem;line-height:1.08}
+h1 em{font-style:normal;color:var(--leaf)}
+aside p{font-size:.72rem;line-height:1.7;color:#4b5547}
+textarea{flex:1;min-height:150px;font-family:inherit;font-size:.68rem;line-height:1.7;padding:.8rem;border:1px solid var(--ink);background:#fbf9f1;color:var(--ink);resize:none;white-space:pre;overflow:auto}
+.stats{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.stats b{color:var(--ink);font-weight:500}
+.cred{font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.cred a{color:var(--leaf)}
+#c{width:100%;height:100%;display:block}
+main{position:relative;min-width:0;min-height:0}
+@media(max-width:800px){body{grid-template-columns:1fr;grid-template-rows:auto auto 1fr;overflow:auto;height:auto;min-height:100vh}aside{border-right:none;border-bottom:1px solid var(--line)}main{height:90vw}}
+</style>
+</head>
+<body>
+<header><span class="mark">Roots</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<aside>
+  <h1>Paste URLs,<br><em>grow a tree.</em></h1>
+  <p>One link per line. Each folder becomes a branch, each page a leaf. Edit the list and the tree regrows.</p>
+  <textarea id="t" spellcheck="false" aria-label="List of URLs, one per line"></textarea>
+  <div class="stats">sites <b id="sH">0</b> · branches <b id="sB">0</b> · leaves <b id="sL">0</b> · deepest <b id="sD">0</b></div>
+  <div class="cred">site 128 / fable 25 · built by claude (fable 5) · <a href="guide/">how it was made</a></div>
+</aside>
+<main><canvas id="c" aria-label="Radial tree of the URLs in the list"></canvas></main>
+<script>
+const SAMPLE=`example.com/
+example.com/about
+example.com/about/team
+example.com/about/press
+example.com/blog
+example.com/blog/2024/hello-world
+example.com/blog/2024/on-trees
+example.com/blog/2025/spring-notes
+example.com/blog/2025/a-long-walk
+example.com/blog/2025/field-guide
+example.com/shop/seeds/tomato
+example.com/shop/seeds/basil
+example.com/shop/seeds/sunflower
+example.com/shop/tools/trowel
+example.com/shop/tools/shears
+example.com/shop/pots
+example.com/docs/start
+example.com/docs/api/auth
+example.com/docs/api/users
+example.com/docs/api/orders
+example.com/docs/guides/deploy
+example.org/library/botany/ferns
+example.org/library/botany/mosses
+example.org/library/maps
+example.org/contact`;
+const cv=document.getElementById('c'),x=cv.getContext('2d'),ta=document.getElementById('t');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,D,root,flat=[],grow=0,hover=null;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);layout()}
+function parse(){root={name:'',kids:{},depth:0};
+  for(let line of ta.value.split('\n')){line=line.trim().replace(/^[a-z]+:\/\//i,'').replace(/[?#].*$/,'');if(!line)continue;
+    let n=root;for(const seg of line.split('/').filter(Boolean).slice(0,7)){n=n.kids[seg]||(n.kids[seg]={name:seg,kids:{},depth:n.depth+1})}}
+  layout();grow=reduce?1:0}
+function layout(){if(!root)return;flat=[];let leaves=0,deep=0;
+  const count=n=>{const k=Object.values(n.kids);n.c=k;n.leaves=k.length?k.reduce((s,q)=>s+count(q),0):1;return n.leaves};count(root);
+  const total=root.leaves,R=Math.min(W,H)/2-70;
+  // each node gets a slice of the circle proportional to its leaf count; its angle is the middle of the slice
+  const place=(n,a0,a1)=>{n.a=(a0+a1)/2;deep=Math.max(deep,n.depth);flat.push(n);if(!n.c.length)leaves++;let a=a0;for(const k of n.c){const span=(a1-a0)*k.leaves/n.leaves;k.parent=n;place(k,a,a+span);a+=span}};
+  place(root,-Math.PI/2,Math.PI*1.5);
+  for(const n of flat){n.r=deep?n.depth/deep*R:0;n.x=W/2+Math.cos(n.a)*n.r;n.y=H/2+Math.sin(n.a)*n.r}
+  document.getElementById('sH').textContent=root.c.length;document.getElementById('sL').textContent=leaves;document.getElementById('sB').textContent=flat.length-leaves-1;document.getElementById('sD').textContent=deep;root.deep=deep}
+function draw(){x.clearRect(0,0,W,H);if(!root)return;const deep=root.deep||1;
+  const path=new Set();for(let n=hover;n;n=n.parent)path.add(n);
+  for(const n of flat){if(!n.parent)continue;const k=Math.max(0,Math.min(1,grow*(deep+1)-n.depth+1));if(k<=0)continue;const p=n.parent;
+    // curve: leave the parent along its radius, arrive along the child's
+    const mr=(p.r+n.r)/2,c1x=W/2+Math.cos(p.a)*mr,c1y=H/2+Math.sin(p.a)*mr,c2x=W/2+Math.cos(n.a)*mr,c2y=H/2+Math.sin(n.a)*mr;
+    x.strokeStyle=path.has(n)?'#c2410c':`rgba(47,107,63,${.75-n.depth*.07})`;x.lineWidth=path.has(n)?2.6:Math.max(1,5.5-n.depth*1.1);x.lineCap='round';
+    x.setLineDash([400*k,400]);x.beginPath();x.moveTo(p.depth?p.x:W/2,p.depth?p.y:H/2);x.bezierCurveTo(c1x,c1y,c2x,c2y,n.x,n.y);x.stroke()}
+  x.setLineDash([]);
+  for(const n of flat){const k=Math.max(0,Math.min(1,grow*(deep+1)-n.depth));if(k<=0)continue;x.globalAlpha=k;
+    const leaf=!n.c.length;x.fillStyle=path.has(n)?'#c2410c':leaf?'#58a66a':'#1f2a1f';x.beginPath();x.arc(n.x,n.y,n.depth?leaf?4.2:3:7,0,7);x.fill();
+    if(n.depth&&(leaf||n===hover||n.depth===1)){const flip=Math.cos(n.a)<0;x.save();x.translate(n.x,n.y);x.rotate(n.a+(flip?Math.PI:0));x.font=(n.depth===1?'500 12px':'11px')+' "Geist Mono",monospace';x.fillStyle=path.has(n)?'#c2410c':'#1f2a1f';x.textAlign=flip?'right':'left';x.textBaseline='middle';
+      if(leaf||n===hover)x.fillText(n.name.slice(0,18),flip?-9:9,0);else{x.rotate(flip?0:0);x.fillText(n.name.slice(0,16),flip?-9:9,-10)}x.restore()}}
+  x.globalAlpha=1}
+function frame(){requestAnimationFrame(frame);if(grow<1){grow=Math.min(1,grow+.012)}draw()}
+ta.value=SAMPLE;addEventListener('resize',resize);parse();resize();if(!reduce)grow=.75;
+if(reduce){grow=1;draw()}else requestAnimationFrame(frame);
+ta.addEventListener('input',()=>{parse();if(reduce)draw()});
+cv.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;let b=null,bd=18*18;for(const n of flat){const d=(n.x-mx)**2+(n.y-my)**2;if(d<bd){bd=d;b=n}}hover=b;cv.style.cursor=b?'pointer':'default';if(reduce)draw()});
+</script>
+</body>
+</html>

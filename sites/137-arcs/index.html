@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARCS — a play, drawn as who shares the stage</title>
+<meta name="description" content="An arc diagram of an invented three-family drama: every character sits on one line, and an arc joins any two who share a scene. Reorder the line and the plot's structure appears or dissolves.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f6f0e4'/%3E%3Cpath d='M5 22 A8 8 0 0 1 21 22 M11 22 A8 8 0 0 1 27 22 M5 22 A11 11 0 0 1 27 22' fill='none' stroke='%239c2f2f' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,500;0,700;1,500&family=Courier+Prime&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f0e4;--ink:#231d18;--dim:#93897c;--line:rgba(35,29,24,.16)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Cormorant',serif;height:100vh;overflow:hidden;display:grid;grid-template-rows:auto auto 1fr auto}
+::selection{background:#9c2f2f;color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid #9c2f2f;outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.6rem}
+.mark{font-weight:700;font-size:1.5rem;letter-spacing:.2em;text-transform:uppercase}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'Courier Prime',monospace;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:#9c2f2f}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;padding:0 1.6rem .6rem}
+h1{font-weight:500;font-size:clamp(1.8rem,4.4vw,3.2rem);line-height:1}
+h1 em{color:#9c2f2f}
+.deck{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+.deck span{font-family:'Courier Prime',monospace;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-right:.4rem}
+.deck button{font-family:'Courier Prime',monospace;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;background:none;border:1px solid var(--ink);color:var(--ink);padding:.45rem .8rem;cursor:pointer}
+.deck button:hover{background:rgba(35,29,24,.08)}
+.deck button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.wrap{min-height:0}
+#c{width:100%;height:100%;display:block}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:.6rem 1.6rem 1.1rem;font-family:'Courier Prime',monospace;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+footer a{color:#9c2f2f}
+footer b{color:var(--ink);font-weight:400}
+</style>
+</head>
+<body>
+<header><span class="mark">Arcs</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="top"><h1>A play, drawn as who <em>shares the stage.</em></h1>
+  <div class="deck" id="deck"><span>order by</span><button data-o="house" aria-pressed="true">household</button><button data-o="entry" aria-pressed="false">first entrance</button><button data-o="ties" aria-pressed="false">most scenes</button><button data-o="name" aria-pressed="false">name</button></div></div>
+<div class="wrap"><canvas id="c" aria-label="Arc diagram of characters who share scenes"></canvas></div>
+<footer><span id="read"><b>“The Salt Inheritance”</b> — an invented play in five acts · hover a name</span><span>site 137 / fable 25 · built by claude (fable 5) · <a href="guide/">how it was made</a></span></footer>
+<script>
+const HOUSES=[['Varga','#9c2f2f'],['Okafor','#1f5f8b'],['Lindqvist','#4d7c2f'],['The town','#8a6a1f']];
+const CAST=[['Ilona',0],['Miklos',0],['Zsofia',0],['Old Bela',0],['Dani',0],['Chidi',1],['Ngozi',1],['Emeka',1],['Adaeze',1],['Tobe',1],['Astrid',2],['Henrik',2],['Maja',2],['Sven',2],['The Notary',3],['The Priest',3],['Ferryman',3],['Innkeeper',3]];
+// a small deterministic generator so the play is the same every visit
+let seed=11;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const N=CAST.length,nodes=CAST.map(([name,h],i)=>({name,h,i,entry:0,ties:0})),links=[];
+for(let a=0;a<N;a++)for(let b=a+1;b<N;b++){const same=nodes[a].h===nodes[b].h,town=nodes[a].h===3||nodes[b].h===3,p=same?.72:town?.2:.07;if(rnd()<p){const w=1+Math.floor(rnd()*(same?5:2));links.push({a,b,w});nodes[a].ties+=w;nodes[b].ties+=w}}
+links.push({a:4,b:9,w:6},{a:0,b:14,w:3});nodes[4].ties+=6;nodes[9].ties+=6;nodes[0].ties+=3;nodes[14].ties+=3; // the lovers, and the will
+[0,5,14,1,10,6,4,9,11,2,16,7,12,15,3,8,13,17].forEach((id,k)=>nodes[id].entry=k);
+const ORD={house:(a,b)=>a.h-b.h||a.i-b.i,entry:(a,b)=>a.entry-b.entry,ties:(a,b)=>b.ties-a.ties,name:(a,b)=>a.name.localeCompare(b.name)};
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,D,hover=-1,base;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);base=H-92;order(cur,true)}
+let cur='house';
+function order(k,snap){cur=k;const s=[...nodes].sort(ORD[k]);s.forEach((n,i)=>{n.tx=70+i/(N-1)*(W-140);if(snap||reduce||n.x===undefined)n.x=n.tx})}
+function draw(){x.clearRect(0,0,W,H);
+  x.strokeStyle='rgba(35,29,24,.3)';x.lineWidth=1;x.beginPath();x.moveTo(40,base);x.lineTo(W-40,base);x.stroke();
+  const maxSpan=W-140;
+  for(const l of links){const a=nodes[l.a],b=nodes[l.b],hot=hover<0||l.a===hover||l.b===hover,cx=(a.x+b.x)/2,r=Math.abs(a.x-b.x)/2,ry=Math.min(r,(base-20)*Math.sqrt(r*2/maxSpan)+6);
+    x.strokeStyle=a.h===b.h?HOUSES[a.h][1]:'#231d18';x.globalAlpha=hot?(hover<0?.5:.9):.06;x.lineWidth=.8+l.w*.75;x.beginPath();x.ellipse(cx,base,r,ry,0,Math.PI,0);x.stroke()}
+  x.globalAlpha=1;
+  for(const n of nodes){const near=hover<0||n.i===hover||links.some(l=>(l.a===hover&&l.b===n.i)||(l.b===hover&&l.a===n.i));x.globalAlpha=near?1:.25;
+    x.fillStyle=HOUSES[n.h][1];x.beginPath();x.arc(n.x,base,3.5+Math.sqrt(n.ties)*1.1,0,7);x.fill();
+    x.save();x.translate(n.x,base+16);x.rotate(.9);x.fillStyle='#231d18';x.font=(n.i===hover?'700 ':'500 ')+'17px Cormorant,serif';x.textBaseline='middle';x.fillText(n.name,0,0);x.restore()}
+  x.globalAlpha=1;
+  // key
+  x.font='12px "Courier Prime",monospace';x.textBaseline='middle';let kx=44;for(const[h,c]of HOUSES){x.fillStyle=c;x.fillRect(kx,14,10,10);x.fillStyle='#93897c';x.fillText(h.toUpperCase(),kx+16,20);kx+=x.measureText(h.toUpperCase()).width+40}}
+function frame(){let moving=false;for(const n of nodes){const d=n.tx-n.x;if(Math.abs(d)>.3){n.x+=d*.12;moving=true}else n.x=n.tx}draw();if(moving)requestAnimationFrame(frame)}
+addEventListener('resize',()=>{resize();draw()});resize();draw();
+document.getElementById('deck').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;document.querySelectorAll('#deck button').forEach(q=>q.setAttribute('aria-pressed',q===b));order(b.dataset.o);requestAnimationFrame(frame)});
+cv.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;let h=-1,bd=30;if(my>base-30)for(const n of nodes){const d=Math.abs(n.x+ (my-base)*.5-mx);if(d<bd){bd=d;h=n.i}}
+  if(h!==hover){hover=h;const n=nodes[h];document.getElementById('read').innerHTML=h<0?'<b>“The Salt Inheritance”</b> — an invented play in five acts · hover a name':'<b>'+n.name+'</b> · '+HOUSES[n.h][0]+' · shares '+n.ties+' scenes with '+links.filter(l=>l.a===h||l.b===h).length+' others';draw()}});
+cv.addEventListener('pointerleave',()=>{hover=-1;draw()});
+</script>
+</body>
+</html>

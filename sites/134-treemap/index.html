@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TREEMAP — what is eating the disk</title>
+<meta name="description" content="A squarified treemap of an imaginary laptop's hard drive: every rectangle is a file, its area is its size, and folders nest inside folders. Click any folder to zoom into it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23111'/%3E%3Crect x='4' y='4' width='14' height='24' fill='%23ff6b4a'/%3E%3Crect x='19' y='4' width='9' height='13' fill='%234ac6ff'/%3E%3Crect x='19' y='18' width='9' height='10' fill='%23ffd24a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Commit+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#f2f0ea;--dim:#8f8c84;--line:rgba(242,240,234,.16)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#111;color:var(--ink);font-family:'Familjen Grotesk',sans-serif;height:100vh;overflow:hidden;display:grid;grid-template-rows:auto auto 1fr auto}
+::selection{background:#ff6b4a;color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid #ffd24a;outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.4rem}
+.mark{font-weight:700;font-size:1.25rem;letter-spacing:.02em}
+.mark em{font-style:normal;color:#ff6b4a}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'Commit Mono',monospace;font-size:.64rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:#ffd24a}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;padding:0 1.4rem .8rem}
+h1{font-weight:700;font-size:clamp(1.6rem,4vw,2.8rem);line-height:1;letter-spacing:-.02em}
+h1 em{font-style:normal;color:#ff6b4a}
+.crumb{font-family:'Commit Mono',monospace;font-size:.74rem;color:var(--dim);display:flex;gap:.3rem;flex-wrap:wrap;align-items:center}
+.crumb button{font:inherit;background:none;border:none;color:var(--ink);cursor:pointer;padding:.2rem .3rem;border-bottom:1px solid var(--line)}
+.crumb button:hover{color:#ffd24a}
+.crumb b{color:#ffd24a;font-weight:400;margin-left:.6rem}
+.wrap{min-height:0;padding:0 1.4rem}
+#c{width:100%;height:100%;display:block;cursor:zoom-in}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:.8rem 1.4rem 1.1rem;font-family:'Commit Mono',monospace;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+footer a{color:#ffd24a}
+</style>
+</head>
+<body>
+<header><span class="mark">TREE<em>MAP</em></span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="top"><h1>What is eating <em>the disk.</em></h1><div class="crumb" id="crumb"></div></div>
+<div class="wrap"><canvas id="c" aria-label="Treemap of files by size; click a folder to zoom in"></canvas></div>
+<footer><span>an invented laptop · click a folder to zoom, the path above to go back · site 134 / fable 25 · built by claude (fable 5)</span><span><a href="guide/">how it was made</a></span></footer>
+<script>
+// name: size in MB, or name: {children}
+const DISK={Photos:{'2021':{'summer.zip':5200,'raw':{'IMG_0412.dng':48,'IMG_0413.dng':47,'IMG_0420.dng':51,'pano.tif':310}},'2023':{'wedding':{'ceremony.mov':8400,'toasts.mov':3100,'stills':2600},'phone-backup':4100},'2024':{'hike.mov':2900,'screenshots':740,'cat':{'cat-1.jpg':6,'cat-2.jpg':7,'cat-being-weird.mov':1250}}},
+ Music:{'library':7300,'voice-memos':410,'stems':{'drums.wav':620,'bass.wav':380,'final-FINAL-v7.wav':540}},
+ Code:{'node_modules':9800,'thesis':{'data':3300,'figures':180,'draft.tex':2},'side-project':{'.git':950,'src':14,'build':420},'dotfiles':1},
+ System:{'caches':6100,'logs':870,'swap':4096,'fonts':640},
+ Downloads:{'installer.dmg':1800,'installer (1).dmg':1800,'installer (2).dmg':1800,'tax-2022.pdf':3,'movie.mkv':4700,'unknown.bin':920},
+ Documents:{'taxes':45,'scans':690,'novel':{'chapter-1.docx':1,'chapter-1-old.docx':1,'notes.txt':1},'slides.key':830}};
+const HUE={Photos:14,Music:288,Code:196,System:48,Downloads:340,Documents:140};
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mk(name,v,parent,top){const n={name,parent,top:top||name};if(typeof v==='number'){n.size=v}else{n.kids=Object.entries(v).map(([k,q])=>mk(k,q,n,parent?n.top:k));n.size=n.kids.reduce((s,k)=>s+k.size,0);n.kids.sort((a,b)=>b.size-a.size)}return n}
+const root=mk('disk',DISK,null,'disk');root.kids.forEach(k=>{const f=q=>{q.top=k.name;(q.kids||[]).forEach(f)};f(k)});
+let W,H,D,cur=root,rects=[],hover=null,anim=1;
+const fmt=mb=>mb>=1000?(mb/1024).toFixed(1)+' GB':mb+' MB';
+// squarify: lay out children in rows along the short side, adding to a row while it makes the worst rectangle squarer
+function squarify(items,X,Y,w,h,out){let rest=items.slice(),total=rest.reduce((s,i)=>s+i.size,0);
+  while(rest.length){const short=Math.min(w,h),scale=w*h/total;let row=[],sum=0,best=Infinity;
+    for(const it of rest){const s2=sum+it.size,len=s2*scale/short;let worst=0;for(const r of[...row,it]){const side=r.size*scale/len;worst=Math.max(worst,Math.max(len/side,side/len))}
+      if(worst>best)break;best=worst;row.push(it);sum=s2}
+    const len=sum*scale/short;let off=0;for(const r of row){const side=r.size*scale/len;out.push(w>=h?{n:r,x:X,y:Y+off,w:len,h:side}:{n:r,x:X+off,y:Y,w:side,h:len});off+=side}
+    if(w>=h){X+=len;w-=len}else{Y+=len;h-=len}total-=sum;rest=rest.slice(row.length)}}
+function layout(){rects=[];const rec=(n,X,Y,w,h,depth)=>{if(!n.kids||w<26||h<26||depth>3){rects.push({n,x:X,y:Y,w,h,leaf:true,depth});return}
+    rects.push({n,x:X,y:Y,w,h,leaf:false,depth});const pad=depth?3:0,headH=depth?17:0,out=[];squarify(n.kids,X+pad,Y+pad+headH,w-pad*2,h-pad*2-headH,out);for(const r of out)rec(r.n,r.x,r.y,r.w,r.h,depth+1)};
+  rec(cur,0,0,W,H,0)}
+function resize(){D=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);layout()}
+function draw(){x.fillStyle='#111';x.fillRect(0,0,W,H);x.save();const s=.9+.1*anim;x.translate(W/2,H/2);x.scale(s,s);x.translate(-W/2,-H/2);x.globalAlpha=anim;
+  for(const r of rects){if(r.depth===0)continue;const hue=HUE[r.n.top]??0;
+    if(r.leaf){const lum=44+((r.n.name.length*37)%18);x.fillStyle=`hsl(${hue},${r.n===hover?86:66}%,${r.n===hover?lum+10:lum}%)`;x.fillRect(r.x+1,r.y+1,Math.max(0,r.w-2),Math.max(0,r.h-2));
+      if(r.w>54&&r.h>30){x.fillStyle='rgba(10,10,10,.86)';x.font='500 12px "Familjen Grotesk",sans-serif';x.textBaseline='top';x.save();x.beginPath();x.rect(r.x,r.y,r.w-4,r.h);x.clip();x.fillText(r.n.name+(r.n.kids?' /':''),r.x+6,r.y+6);if(r.h>46){x.font='10px "Commit Mono",monospace';x.fillStyle='rgba(10,10,10,.6)';x.fillText(fmt(r.n.size),r.x+6,r.y+22)}x.restore()}}
+    else{x.fillStyle=`hsl(${hue},40%,${12+r.depth*4}%)`;x.fillRect(r.x+.5,r.y+.5,r.w-1,r.h-1);x.fillStyle=`hsl(${hue},70%,78%)`;x.font='700 11px "Familjen Grotesk",sans-serif';x.textBaseline='top';x.save();x.beginPath();x.rect(r.x,r.y,r.w-4,18);x.clip();x.fillText(r.n.name+'  '+fmt(r.n.size),r.x+6,r.y+5);x.restore()}}
+  x.restore()}
+function crumb(){const path=[];for(let n=cur;n;n=n.parent)path.unshift(n);const el=document.getElementById('crumb');
+  el.innerHTML=path.map((n,i)=>'<button data-i="'+i+'">'+n.name+'</button>').join('/')+'<b>'+fmt(cur.size)+(hover?' · '+hover.name+' '+fmt(hover.size)+' ('+(hover.size/cur.size*100).toFixed(1)+'%)':'')+'</b>';
+  el.querySelectorAll('button').forEach(b=>b.onclick=()=>go(path[+b.dataset.i]))}
+function go(n){cur=n;hover=null;layout();crumb();anim=reduce?1:0;if(reduce)draw();else requestAnimationFrame(tick)}
+function tick(){anim=Math.min(1,anim+.08);draw();if(anim<1)requestAnimationFrame(tick)}
+const hit=e=>{const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;let h=null;for(const q of rects)if(q.depth&&mx>=q.x&&mx<q.x+q.w&&my>=q.y&&my<q.y+q.h)h=q;return h};
+addEventListener('resize',()=>{resize();draw()});resize();crumb();draw();
+cv.addEventListener('pointermove',e=>{const h=hit(e),n=h?h.n:null;if(n!==hover){hover=n;crumb();draw()}});
+cv.addEventListener('click',e=>{const h=hit(e);if(!h)return;let n=h.n;if(!n.kids)n=n.parent;// zoom to the folder one level below the current view
+  while(n.parent&&n.parent!==cur)n=n.parent;if(n&&n!==cur&&n.kids)go(n);else if(h.n.parent&&h.n.parent!==cur&&h.n.parent.kids)go(h.n.parent)});
+</script>
+</body>
+</html>

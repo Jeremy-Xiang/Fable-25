@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPANNING — the cheapest way to connect everything</title>
+<meta name="description" content="Scatter islands across a dark sea and watch Prim's algorithm lay cable between them: always the shortest new link, never a loop, until every island is connected with the least cable possible.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23061a2b'/%3E%3Cpath d='M6 22 L13 10 L22 14 L26 24 M13 10 L18 5' fill='none' stroke='%23ffcf5c' stroke-width='1.8'/%3E%3Cg fill='%23fff'%3E%3Ccircle cx='6' cy='22' r='2.2'/%3E%3Ccircle cx='13' cy='10' r='2.2'/%3E%3Ccircle cx='22' cy='14' r='2.2'/%3E%3Ccircle cx='26' cy='24' r='2.2'/%3E%3Ccircle cx='18' cy='5' r='2.2'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Overpass+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#eaf4fb;--dim:#6f93ad;--gold:#ffcf5c;--line:rgba(234,244,251,.16)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(ellipse at 50% 50%,#0b2c47,#04121f 80%);color:var(--ink);font-family:'Overpass Mono',monospace;height:100vh;overflow:hidden}
+::selection{background:var(--gold);color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%;cursor:crosshair}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Marcellus',serif;font-size:1.4rem;letter-spacing:.18em}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--gold)}
+.plate{position:fixed;left:1.5rem;bottom:1.3rem;z-index:5;pointer-events:none;background:rgba(4,18,31,.74);border:1px solid var(--line);padding:.9rem 1.1rem}
+.plate h1{font-family:'Marcellus',serif;font-weight:400;font-size:clamp(1.3rem,3vw,2.1rem);line-height:1.1}
+.plate h1 em{font-style:normal;color:var(--gold)}
+.plate p{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:.6rem;line-height:1.8}
+.plate b{color:var(--ink);font-weight:600}
+.deck{position:fixed;right:1.5rem;bottom:1.3rem;z-index:5;display:flex;gap:.5rem}
+.deck button{font:inherit;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;background:rgba(4,18,31,.8);border:1px solid var(--line);color:var(--ink);padding:.6rem 1rem;cursor:pointer}
+.deck button:hover{border-color:var(--gold);color:var(--gold)}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Islands being connected by a minimum spanning tree; click the sea to add an island"></canvas>
+<header><span class="mark">SPANNING</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>The cheapest way to<br><em>connect everything.</em></h1><p>islands <b id="ni">0</b> · cable laid <b id="len">0</b> km · saving vs. naive chain <b id="sav">–</b><br>click the sea to add an island</p></div>
+<div class="deck"><button id="bRe">lay it again</button><button id="bNew">new archipelago</button></div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,D,pts=[],tree=[],inTree,best,parent,grow=0,cand=null,wait=0;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0)}
+function scatter(){pts=[];let tries=0;while(pts.length<44&&tries++<4000){const p={x:60+Math.random()*(W-120),y:80+Math.random()*(H-200),r:2.5+Math.random()*3};if(pts.every(q=>Math.hypot(q.x-p.x,q.y-p.y)>46))pts.push(p)}begin()}
+const d=(a,b)=>Math.hypot(pts[a].x-pts[b].x,pts[a].y-pts[b].y);
+function begin(){const n=pts.length;tree=[];inTree=new Uint8Array(n);best=new Float32Array(n).fill(Infinity);parent=new Int32Array(n).fill(-1);inTree[0]=1;for(let j=1;j<n;j++){best[j]=d(0,j);parent[j]=0}grow=0;cand=null;wait=0;
+  document.getElementById('ni').textContent=n;stat()}
+// Prim: of every island not yet connected, take the one closest to the network
+function next(){let k=-1,m=Infinity;for(let j=0;j<pts.length;j++)if(!inTree[j]&&best[j]<m){m=best[j];k=j}if(k<0)return false;
+  inTree[k]=1;tree.push({a:parent[k],b:k,len:m,t:0});for(let j=0;j<pts.length;j++)if(!inTree[j]){const q=d(k,j);if(q<best[j]){best[j]=q;parent[j]=k}}return true}
+function stat(){const total=tree.reduce((s,e)=>s+e.len,0);document.getElementById('len').textContent=Math.round(total/4);
+  if(tree.length===pts.length-1&&pts.length>2){// compare with just visiting each nearest unvisited island in turn
+    const seen=new Uint8Array(pts.length);let c=0,chain=0;seen[0]=1;for(let i=1;i<pts.length;i++){let k=-1,m=Infinity;for(let j=0;j<pts.length;j++)if(!seen[j]&&d(c,j)<m){m=d(c,j);k=j}chain+=m;seen[k]=1;c=k}
+    document.getElementById('sav').textContent=Math.max(0,Math.round((1-total/chain)*100))+'%'}else document.getElementById('sav').textContent='–'}
+function draw(t){x.clearRect(0,0,W,H);
+  // faint candidate links: what each unconnected island is currently considering
+  x.strokeStyle='rgba(111,147,173,.22)';x.lineWidth=1;x.setLineDash([3,6]);for(let j=0;j<pts.length;j++)if(!inTree[j]&&parent[j]>=0&&best[j]<240){x.beginPath();x.moveTo(pts[j].x,pts[j].y);x.lineTo(pts[parent[j]].x,pts[parent[j]].y);x.stroke()}
+  x.setLineDash([]);x.lineCap='round';
+  for(const e of tree){const a=pts[e.a],b=pts[e.b];x.strokeStyle='#ffcf5c';x.lineWidth=2;x.shadowBlur=10;x.shadowColor='rgba(255,207,92,.7)';x.beginPath();x.moveTo(a.x,a.y);x.lineTo(a.x+(b.x-a.x)*e.t,a.y+(b.y-a.y)*e.t);x.stroke()}
+  x.shadowBlur=0;
+  pts.forEach((p,i)=>{const on=inTree[i]&&(i===0||tree.find(e=>e.b===i)?.t>=1||i===0);x.fillStyle=on?'#fff':'#5f8098';x.beginPath();x.arc(p.x,p.y,p.r+(on?1:0),0,7);x.fill();
+    if(on&&!reduce){x.strokeStyle=`rgba(255,255,255,${.25+.2*Math.sin(t*2+i)})`;x.lineWidth=1;x.beginPath();x.arc(p.x,p.y,p.r+5,0,7);x.stroke()}})}
+function frame(now){requestAnimationFrame(frame);const last=tree[tree.length-1];
+  if(!last||last.t>=1){if(++wait>2){wait=0;if(next())stat()}}else last.t=Math.min(1,last.t+Math.max(.06,14/last.len));
+  draw(now/1000)}
+function finish(){while(next());tree.forEach(e=>e.t=1);stat();draw(0)}
+addEventListener('resize',()=>{resize();scatter();if(reduce)finish()});resize();scatter();
+if(reduce)finish();else{for(let i=0;i<16;i++){next();tree[tree.length-1].t=1}stat();requestAnimationFrame(frame)}
+cv.addEventListener('click',e=>{pts.push({x:e.clientX,y:e.clientY,r:4});begin();if(reduce)finish()});
+document.getElementById('bRe').addEventListener('click',()=>{begin();if(reduce)finish()});
+document.getElementById('bNew').addEventListener('click',()=>{scatter();if(reduce)finish()});
+</script>
+</body>
+</html>

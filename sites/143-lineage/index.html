@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LINEAGE — a commit graph you can grow</title>
+<meta name="description" content="Version history as a railway diagram: commit, branch and merge with three buttons and watch the graph lay its own track. Left alone, an imaginary team keeps shipping.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1117'/%3E%3Cpath d='M6 22 H26 M10 22 C14 22 12 10 18 10 H22 C26 10 24 22 28 22' fill='none' stroke='%233fb950' stroke-width='2'/%3E%3Ccircle cx='6' cy='22' r='3' fill='%2358a6ff'/%3E%3Ccircle cx='20' cy='10' r='3' fill='%233fb950'/%3E%3Ccircle cx='26' cy='22' r='3' fill='%2358a6ff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;600;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#e6edf3;--dim:#7d8590;--line:rgba(230,237,243,.14);--blue:#58a6ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:var(--ink);font-family:'Mona Sans','Segoe UI',sans-serif;height:100vh;overflow:hidden;display:grid;grid-template-rows:auto auto 1fr auto}
+::selection{background:var(--blue);color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.6rem}
+.mark{font-family:'Fira Code',monospace;font-weight:500;font-size:1.05rem}
+.mark em{font-style:normal;color:#3fb950}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'Fira Code',monospace;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--blue)}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;padding:0 1.6rem .8rem}
+h1{font-weight:800;font-size:clamp(1.7rem,4vw,2.9rem);line-height:1;letter-spacing:-.03em}
+h1 em{font-style:normal;color:#3fb950}
+.deck{display:flex;gap:.4rem;flex-wrap:wrap}
+.deck button{font-family:'Fira Code',monospace;font-size:.72rem;background:#161b22;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:.6rem .9rem;cursor:pointer}
+.deck button:hover{border-color:var(--blue)}
+.deck button:disabled{opacity:.35;cursor:default}
+.wrap{min-height:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+#c{width:100%;height:100%;display:block}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:.8rem 1.6rem 1.1rem;font-family:'Fira Code',monospace;font-size:.64rem;color:var(--dim)}
+footer b{color:var(--ink);font-weight:400}
+footer a{color:var(--blue)}
+</style>
+</head>
+<body>
+<header><span class="mark">git log <em>--graph</em></span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="top"><h1>History, as a <em>railway.</em></h1>
+  <div class="deck"><button id="bC">commit</button><button id="bB">branch</button><button id="bS">switch</button><button id="bM">merge → main</button></div></div>
+<div class="wrap"><canvas id="c" aria-label="Commit graph with branches and merges"></canvas></div>
+<footer><span>on <b id="cur">main</b> · <b id="n">0</b> commits · <b id="last">–</b></span><span>LINEAGE · site 143 / fable 25 · built by claude (fable 5) · <a href="guide/">how it was made</a></span></footer>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const COL=['#58a6ff','#3fb950','#f778ba','#d29922','#a371f7','#ff7b72','#39c5cf'];
+const BN=['feature/login','fix/typo','feature/dark-mode','refactor/api','spike/webgl','fix/safari','feature/search','chore/deps','hotfix/prod'];
+const MSG=['fix typo','fix the fix','wip','add tests','remove tests','it works on my machine','rename everything','address review','actually address review','bump version','make it faster','make it correct','tidy up','add loading state','oops','docs','handle null','handle undefined too','delete dead code','final','final v2'];
+let W,H,D,commits=[],branches=[],cur,col=0,scroll=0,tscroll=0,user=false,idle=0,bi=0;
+const STEP=62,LANE=46;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0)}
+const hash=()=>Math.random().toString(16).slice(2,9);
+function commit(br,msg,p2){const c={id:hash(),col:col++,lane:br.lane,parents:[br.head,p2].filter(Boolean),msg:msg||MSG[Math.random()*MSG.length|0],color:br.color,t:reduce?1:0};commits.push(c);br.head=c;br.n++;
+  document.getElementById('n').textContent=commits.length;document.getElementById('last').textContent=c.id+' '+c.msg;return c}
+function freeLane(){for(let l=1;l<6;l++)if(!branches.some(b=>b.lane===l&&!b.dead))return l;return-1}
+function branch(){const l=freeLane();if(l<0)return false;const b={name:BN[bi++%BN.length],lane:l,color:COL[(bi)%COL.length||1],head:cur.head,n:0};branches.push(b);cur=b;return true}
+function merge(){if(cur===branches[0]||!cur.n)return false;const b=cur;commit(branches[0],'merge '+b.name,b.head);b.dead=true;cur=branches[0];return true}
+function sw(){const live=branches.filter(b=>!b.dead);cur=live[(live.indexOf(cur)+1)%live.length]}
+function ui(){document.getElementById('cur').textContent=cur.name;document.getElementById('cur').style.color=cur.color;document.getElementById('bM').disabled=cur===branches[0]||!cur.n;document.getElementById('bB').disabled=freeLane()<0;
+  tscroll=Math.max(0,col*STEP-(W-220))}
+function init(){branches=[{name:'main',lane:0,color:COL[0],head:null,n:0}];cur=branches[0];commit(cur,'initial commit');commit(cur,'add readme')}
+const X=c=>90+c.col*STEP-scroll,Y=l=>H/2-LANE*1.2+ (l%2?-1:1)*Math.ceil(l/2)*LANE+ (l?0:0);
+function draw(){x.clearRect(0,0,W,H);
+  // lane guides
+  for(const b of branches){if(b.dead)continue;x.strokeStyle='rgba(230,237,243,.05)';x.lineWidth=1;x.beginPath();x.moveTo(0,Y(b.lane));x.lineTo(W,Y(b.lane));x.stroke()}
+  x.lineWidth=3;x.lineCap='round';
+  for(const c of commits){c.t=Math.min(1,c.t+.09);for(const p of c.parents){const x0=X(p),y0=Y(p.lane),x1=X(c),y1=Y(c.lane);x.strokeStyle=p.lane===c.lane?c.color:(c.parents[1]===p?p.color:c.color);x.globalAlpha=c.t;
+      x.beginPath();x.moveTo(x0,y0);if(y0===y1)x.lineTo(x0+(x1-x0)*c.t,y1);else{const mx=x0+Math.min(STEP,x1-x0)*.5;x.bezierCurveTo(mx,y0,x1-Math.min(STEP,x1-x0)*.5,y1,x1,y1)}x.stroke()}}
+  x.globalAlpha=1;
+  for(const c of commits){const px=X(c),py=Y(c.lane);if(px<-40||px>W+40)continue;const merge=c.parents.length>1;x.fillStyle='#0d1117';x.strokeStyle=c.color;x.lineWidth=3;x.beginPath();x.arc(px,py,(merge?9:7)*c.t,0,7);x.fill();x.stroke();if(merge){x.fillStyle=c.color;x.beginPath();x.arc(px,py,3.5,0,7);x.fill()}
+    x.fillStyle='#7d8590';x.font='10px "Fira Code",monospace';x.textAlign='center';x.fillText(c.id.slice(0,5),px,py+24)}
+  for(const b of branches){if(b.dead||!b.head)continue;const px=X(b.head),py=Y(b.lane);x.font='500 11px "Fira Code",monospace';const w=x.measureText(b.name).width+16;x.fillStyle=b===cur?b.color:'#161b22';x.strokeStyle=b.color;x.lineWidth=1.2;x.beginPath();x.roundRect(px+14,py-34,w,20,6);x.fill();x.stroke();x.fillStyle=b===cur?'#0d1117':b.color;x.textAlign='left';x.textBaseline='middle';x.fillText(b.name,px+22,py-24);x.textBaseline='alphabetic'}}
+// with nobody at the controls, the imaginary team keeps working
+function auto(){const live=branches.filter(b=>!b.dead),r=Math.random();
+  if(cur!==branches[0]&&cur.n>=2&&r<.4)merge();else if(live.length<3&&r<.3)branch()&&commit(cur);else if(r<.45&&live.length>1){sw();commit(cur)}else commit(cur);ui()}
+function frame(){requestAnimationFrame(frame);scroll+=(tscroll-scroll)*.08;if(!user&&++idle>50){idle=0;auto()}draw()}
+addEventListener('resize',()=>{resize();ui();draw()});resize();init();for(let i=0;i<13;i++)auto();commits.forEach(c=>c.t=1);ui();scroll=tscroll;draw();
+if(!reduce)requestAnimationFrame(frame);
+const act=f=>()=>{user=true;f();ui();if(reduce){scroll=tscroll;draw()}};
+document.getElementById('bC').addEventListener('click',act(()=>commit(cur)));
+document.getElementById('bB').addEventListener('click',act(()=>{branch()&&commit(cur,'start '+cur.name)}));
+document.getElementById('bS').addEventListener('click',act(sw));
+document.getElementById('bM').addEventListener('click',act(merge));
+</script>
+</body>
+</html>

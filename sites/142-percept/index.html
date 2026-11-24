@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PERCEPT — watch a small neural network learn</title>
+<meta name="description" content="A neural network with twenty-odd neurons learning to separate two colours of dots, live. One side shows its wiring thicken and flip sign; the other shows the boundary it is drawing bend into place.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101216'/%3E%3Cg stroke='%23555' stroke-width='1'%3E%3Cpath d='M7 10 L16 7 M7 10 L16 16 M7 10 L16 25 M7 22 L16 7 M7 22 L16 16 M7 22 L16 25 M16 7 L25 16 M16 16 L25 16 M16 25 L25 16'/%3E%3C/g%3E%3Cg fill='%2300d1b2'%3E%3Ccircle cx='7' cy='10' r='2.6'/%3E%3Ccircle cx='7' cy='22' r='2.6'/%3E%3C/g%3E%3Cg fill='%23ff9f1c'%3E%3Ccircle cx='16' cy='7' r='2.6'/%3E%3Ccircle cx='16' cy='16' r='2.6'/%3E%3Ccircle cx='16' cy='25' r='2.6'/%3E%3C/g%3E%3Ccircle cx='25' cy='16' r='3' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#eef0f3;--dim:#8a909c;--a:#00d1b2;--b:#ff9f1c;--line:rgba(238,240,243,.14)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#101216;color:var(--ink);font-family:'Sora',sans-serif;height:100vh;overflow:hidden;display:grid;grid-template-rows:auto auto 1fr auto}
+::selection{background:var(--a);color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--a);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.6rem}
+.mark{font-weight:800;font-size:1.2rem;letter-spacing:.14em}
+.mark em{font-style:normal;color:var(--a)}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--a)}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;padding:0 1.6rem .9rem}
+h1{font-weight:800;font-size:clamp(1.6rem,3.6vw,2.7rem);line-height:1.02;letter-spacing:-.02em}
+h1 em{font-style:normal;color:var(--b)}
+.deck{display:flex;gap:.4rem;flex-wrap:wrap}
+.deck button{font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;background:none;border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:.5rem .9rem;cursor:pointer}
+.deck button:hover{border-color:var(--a)}
+.deck button[aria-pressed=true]{background:var(--ink);color:#101216}
+main{display:grid;grid-template-columns:1.25fr 1fr;gap:1.2rem;min-height:0;padding:0 1.6rem}
+.pane{min-height:0;min-width:0;position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.pane canvas{width:100%;height:100%;display:block}
+.pane span{position:absolute;left:.9rem;top:.7rem;font-family:'JetBrains Mono',monospace;font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);background:rgba(16,18,22,.7);padding:.15rem .4rem;border-radius:4px}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:.8rem 1.6rem 1.1rem;font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+footer b{color:var(--ink);font-weight:500}
+footer a{color:var(--a)}
+@media(max-width:820px){body{height:auto;min-height:100vh;overflow:auto}main{grid-template-columns:1fr}.pane{height:80vw}}
+</style>
+</head>
+<body>
+<header><span class="mark">PER<em>CEPT</em></span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="top"><h1>Watch a small network <em>learn.</em></h1>
+  <div class="deck" id="deck"><button data-d="rings" aria-pressed="true">rings</button><button data-d="xor" aria-pressed="false">checkers</button><button data-d="spiral" aria-pressed="false">spirals</button><button data-d="moons" aria-pressed="false">moons</button><button id="bRe">start over</button></div></div>
+<main>
+  <div class="pane"><canvas id="net" aria-label="Diagram of the network's neurons and weights"></canvas><span>the wiring · thick = strong · teal = positive, orange = negative</span></div>
+  <div class="pane"><canvas id="map" aria-label="The decision boundary the network has learned so far"></canvas><span>what it believes · hover to probe a point</span></div>
+</main>
+<footer><span>step <b id="st">0</b> · error <b id="er">–</b> · right on <b id="ac">–</b> of the dots</span><span>site 142 / fable 25 · built by claude (fable 5) · <a href="guide/">how it was made</a></span></footer>
+<script>
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const nc=document.getElementById('net'),nx=nc.getContext('2d'),mc=document.getElementById('map'),mx=mc.getContext('2d');
+const SIZES=[2,8,6,1];let Wt,Bs,act,data=[],kind='rings',steps=0,probe=[.3,.2],D;
+const rn=()=>(Math.random()*2-1);
+function initNet(){Wt=[];Bs=[];for(let l=1;l<SIZES.length;l++){const s=Math.sqrt(2/SIZES[l-1]);Wt.push(Array.from({length:SIZES[l]},()=>Array.from({length:SIZES[l-1]},()=>rn()*s*1.4)));Bs.push(Array.from({length:SIZES[l]},()=>rn()*.2))}steps=0}
+function makeData(){data=[];for(let i=0;i<220;i++){let px,py,c;
+    if(kind==='rings'){c=i%2;const r=c?.72+rn()*.1:.26*Math.sqrt(Math.random())+.02,a=Math.random()*6.283;px=Math.cos(a)*r;py=Math.sin(a)*r}
+    else if(kind==='xor'){px=rn()*.85;py=rn()*.85;c=(px>0)!==(py>0)?1:0;px+=Math.sign(px)*.07;py+=Math.sign(py)*.07}
+    else if(kind==='spiral'){c=i%2;const t=Math.random()*1,r=.1+t*.75,a=t*5.2+c*Math.PI;px=Math.cos(a)*r+rn()*.025;py=Math.sin(a)*r+rn()*.025}
+    else{c=i%2;const a=Math.random()*Math.PI;px=(c?.3-Math.cos(a)*.55:-.3+Math.cos(a)*.55)+rn()*.05;py=(c?-.12-Math.sin(a)*.5+.38:.12+Math.sin(a)*.5-.38)+rn()*.05}
+    data.push([px,py,c])}}
+function forward(inp){act=[inp];let a=inp;for(let l=0;l<Wt.length;l++){const last=l===Wt.length-1;a=Wt[l].map((w,j)=>{let z=Bs[l][j];for(let i=0;i<a.length;i++)z+=w[i]*a[i];return last?1/(1+Math.exp(-z)):Math.tanh(z)});act.push(a)}return a[0]}
+// one pass of plain gradient descent on a random handful of dots
+function train(n){const lr=kind==='spiral'?.06:.05;for(let k=0;k<n;k++){const[px,py,c]=data[Math.random()*data.length|0];const out=forward([px,py]);let delta=[out-c];
+    for(let l=Wt.length-1;l>=0;l--){const prev=act[l],nd=new Array(prev.length).fill(0);
+      for(let j=0;j<Wt[l].length;j++){for(let i=0;i<prev.length;i++){nd[i]+=Wt[l][j][i]*delta[j];Wt[l][j][i]-=lr*delta[j]*prev[i]}Bs[l][j]-=lr*delta[j]}
+      if(l>0)delta=nd.map((d,i)=>d*(1-prev[i]*prev[i]))}}steps+=n}
+function fit(c){const r=c.getBoundingClientRect();c.width=r.width*D;c.height=r.height*D;return[r.width,r.height]}
+let NW,NH,MW,MH;
+function resize(){D=Math.min(devicePixelRatio||1,2);[NW,NH]=fit(nc);nx.setTransform(D,0,0,D,0,0);[MW,MH]=fit(mc);mx.setTransform(D,0,0,D,0,0)}
+function drawNet(){nx.clearRect(0,0,NW,NH);forward(probe);const pos=SIZES.map((n,l)=>Array.from({length:n},(_,j)=>[NW*(.1+.8*l/(SIZES.length-1)),NH*(.56+(j-(n-1)/2)*(.78/Math.max(n,4)))]));
+  for(let l=0;l<Wt.length;l++)for(let j=0;j<Wt[l].length;j++)for(let i=0;i<Wt[l][j].length;i++){const w=Wt[l][j][i];nx.strokeStyle=w>0?'#00d1b2':'#ff9f1c';nx.globalAlpha=Math.min(.95,.08+Math.abs(w)*.33);nx.lineWidth=Math.min(6,.4+Math.abs(w)*1.9);nx.beginPath();nx.moveTo(...pos[l][i]);nx.lineTo(...pos[l+1][j]);nx.stroke()}
+  nx.globalAlpha=1;const LAB=['x','y'];
+  pos.forEach((layer,l)=>layer.forEach((p,j)=>{const a=act[l][j],last=l===SIZES.length-1,v=last?a*2-1:Math.max(-1,Math.min(1,a));
+    nx.fillStyle='#101216';nx.beginPath();nx.arc(p[0],p[1],last?17:12,0,7);nx.fill();nx.fillStyle=v>0?`rgba(0,209,178,${Math.abs(v)})`:`rgba(255,159,28,${Math.abs(v)})`;nx.fill();nx.strokeStyle='#eef0f3';nx.lineWidth=1.4;nx.stroke();
+    if(l===0||last){nx.fillStyle='#eef0f3';nx.font='500 11px "JetBrains Mono",monospace';nx.textAlign='center';nx.textBaseline='middle';nx.fillText(last?(a*100).toFixed(0)+'%':LAB[j],p[0],p[1])}}));
+  nx.fillStyle='#8a909c';nx.font='10px "JetBrains Mono",monospace';nx.textAlign='center';['INPUT','8 NEURONS','6 NEURONS','GUESS'].forEach((t,l)=>nx.fillText(t,NW*(.1+.8*l/3),NH-16))}
+function drawMap(){const G=44,side=Math.min(MW,MH)-28,ox=(MW-side)/2,oy=(MH-side)/2+6,c=side/G;mx.clearRect(0,0,MW,MH);
+  for(let j=0;j<G;j++)for(let i=0;i<G;i++){const o=forward([(i+.5)/G*2-1,(j+.5)/G*2-1]),v=o*2-1;mx.fillStyle=v>0?`rgba(255,159,28,${.1+Math.abs(v)*.55})`:`rgba(0,209,178,${.1+Math.abs(v)*.55})`;mx.fillRect(ox+i*c,oy+j*c,c+.6,c+.6)}
+  let ok=0,err=0;for(const[px,py,cl]of data){const o=forward([px,py]);if((o>.5)==(cl===1))ok++;err+=(o-cl)**2;mx.fillStyle=cl?'#ff9f1c':'#00d1b2';mx.strokeStyle='#101216';mx.lineWidth=1.2;mx.beginPath();mx.arc(ox+(px+1)/2*side,oy+(py+1)/2*side,3.6,0,7);mx.fill();mx.stroke()}
+  mx.strokeStyle='#fff';mx.lineWidth=1.6;mx.beginPath();mx.arc(ox+(probe[0]+1)/2*side,oy+(probe[1]+1)/2*side,8,0,7);mx.stroke();
+  document.getElementById('st').textContent=steps.toLocaleString();document.getElementById('er').textContent=(err/data.length).toFixed(3);document.getElementById('ac').textContent=(ok/data.length*100).toFixed(0)+'%';mc._g=[ox,oy,side]}
+function frame(){requestAnimationFrame(frame);train(260);drawMap();drawNet()}
+function begin(){initNet();makeData();if(reduce){train(120000);drawMap();drawNet()}}
+addEventListener('resize',()=>{resize();drawMap();drawNet()});resize();begin();
+if(!reduce){train(9000);requestAnimationFrame(frame)}
+document.getElementById('deck').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.d){kind=b.dataset.d;document.querySelectorAll('#deck button[data-d]').forEach(q=>q.setAttribute('aria-pressed',q===b))}begin()});
+mc.addEventListener('pointermove',e=>{const r=mc.getBoundingClientRect(),g=mc._g;if(!g)return;probe=[Math.max(-1,Math.min(1,(e.clientX-r.left-g[0])/g[2]*2-1)),Math.max(-1,Math.min(1,(e.clientY-r.top-g[1])/g[2]*2-1))];if(reduce){drawMap();drawNet()}});
+</script>
+</body>
+</html>

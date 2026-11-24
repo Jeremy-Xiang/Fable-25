@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORBS — the solar system's round things, to scale</title>
+<meta name="description" content="A packed bubble chart of the planets, big moons and dwarf planets, sized by their real radii. Switch between true scale, where Jupiter crushes everything, and a gentler scale where the small worlds can be read. Drag them around.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0b12'/%3E%3Ccircle cx='13' cy='14' r='9' fill='%23e8a15a'/%3E%3Ccircle cx='24' cy='22' r='4' fill='%236fb7e9'/%3E%3Ccircle cx='24' cy='9' r='2' fill='%23c9c9c9'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#f1eee6;--dim:#8b8798;--line:rgba(241,238,230,.16);--hot:#ffb454}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0b12;color:var(--ink);font-family:'Chakra Petch',sans-serif;height:100vh;overflow:hidden}
+::selection{background:var(--hot);color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--hot);outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-weight:700;font-size:1.3rem;letter-spacing:.3em}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--hot)}
+.plate{position:fixed;left:1.5rem;bottom:1.3rem;z-index:5;pointer-events:none;max-width:24rem}
+.plate h1{font-weight:700;font-size:clamp(1.4rem,3.2vw,2.3rem);line-height:1.05;text-transform:uppercase;letter-spacing:.02em}
+.plate h1 em{font-style:normal;color:var(--hot)}
+.plate p{font-family:'Space Mono',monospace;font-size:.66rem;color:var(--dim);margin-top:.6rem;line-height:1.7;min-height:3.4em}
+.plate b{color:var(--ink);font-weight:400}
+.deck{position:fixed;right:1.5rem;bottom:1.3rem;z-index:5;display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end}
+.deck button{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;background:rgba(11,11,18,.85);border:1px solid var(--line);color:var(--ink);padding:.6rem .9rem;cursor:pointer}
+.deck button:hover{border-color:var(--hot)}
+.deck button[aria-pressed=true]{background:var(--hot);color:#0b0b12;border-color:var(--hot)}
+.key{position:fixed;right:1.5rem;top:4.2rem;z-index:5;font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);line-height:2;pointer-events:none;text-align:right}
+.key i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-left:.5rem}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Packed bubbles of solar system bodies sized by radius; drag to move them"></canvas>
+<header><span class="mark">ORBS</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="key">gas giant<i style="background:#e8a15a"></i><br>ice giant<i style="background:#6fb7e9"></i><br>rocky planet<i style="background:#d96c4f"></i><br>moon<i style="background:#c9c9c9"></i><br>dwarf planet<i style="background:#b18cf2"></i></div>
+<div class="plate"><h1>Round things,<br><em>to scale.</em></h1><p id="read">mean radii in kilometres · hover one · drag to shove them about</p></div>
+<div class="deck" id="deck"><button data-s="true" aria-pressed="false">true scale</button><button data-s="soft" aria-pressed="true">readable scale</button><button data-g="1" aria-pressed="false">sort by kind</button></div>
+<script>
+// name, mean radius (km), kind, parent
+const B=[['Jupiter',69911,0],['Saturn',58232,0],['Uranus',25362,1],['Neptune',24622,1],['Earth',6371,2],['Venus',6052,2],['Mars',3390,2],['Mercury',2440,2],
+ ['Ganymede',2634,3,'Jupiter'],['Titan',2575,3,'Saturn'],['Callisto',2410,3,'Jupiter'],['Io',1822,3,'Jupiter'],['Moon',1737,3,'Earth'],['Europa',1561,3,'Jupiter'],['Triton',1353,3,'Neptune'],
+ ['Titania',789,3,'Uranus'],['Rhea',764,3,'Saturn'],['Oberon',761,3,'Uranus'],['Iapetus',735,3,'Saturn'],['Charon',606,3,'Pluto'],
+ ['Pluto',1188,4],['Eris',1163,4],['Ceres',470,4]];
+const COL=['#e8a15a','#6fb7e9','#d96c4f','#c9c9c9','#b18cf2'],KIND=['gas giant','ice giant','rocky planet','moon','dwarf planet'];
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,D,mode='soft',group=false,orbs=[],drag=null,hover=null;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);size()}
+function size(){const m=Math.min(W,H);for(const o of orbs)o.tr=mode==='true'?o.km/69911*m*.24:Math.pow(o.km/69911,.42)*m*.15}
+orbs=B.map(([name,km,kind,parent],i)=>({name,km,kind,parent,x:0,y:0,vx:0,vy:0,r:2,tr:2}));
+function tick(){for(const o of orbs){o.r+=(o.tr-o.r)*.12;const tx=group?W*(.2+.15*o.kind):W*.52,ty=H*.46;if(o!==drag){o.vx+=(tx-o.x)*.0022;o.vy+=(ty-o.y)*.0034}}
+  // push overlapping circles apart, a few passes per frame
+  for(let it=0;it<4;it++)for(let i=0;i<orbs.length;i++)for(let j=i+1;j<orbs.length;j++){const a=orbs[i],b=orbs[j];let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||.01;const min=a.r+b.r+3;if(d<min){const push=(min-d)/2;dx/=d;dy/=d;const ma=a===drag?0:b.r/(a.r+b.r),mb=b===drag?0:a.r/(a.r+b.r);a.x-=dx*push*2*ma;a.y-=dy*push*2*ma;b.x+=dx*push*2*mb;b.y+=dy*push*2*mb}}
+  for(const o of orbs){if(o===drag)continue;o.vx*=.86;o.vy*=.86;o.x+=o.vx;o.y+=o.vy}}
+function draw(){x.clearRect(0,0,W,H);for(const o of orbs){const g=x.createRadialGradient(o.x-o.r*.35,o.y-o.r*.35,o.r*.05,o.x,o.y,o.r);g.addColorStop(0,'#fff');g.addColorStop(.18,COL[o.kind]);g.addColorStop(1,'rgba(0,0,0,.55)');
+    x.fillStyle=COL[o.kind];x.beginPath();x.arc(o.x,o.y,Math.max(1.2,o.r),0,7);x.fill();x.globalAlpha=.55;x.fillStyle=g;x.fill();x.globalAlpha=1;
+    if(o===hover){x.strokeStyle='#fff';x.lineWidth=1.5;x.beginPath();x.arc(o.x,o.y,o.r+4,0,7);x.stroke()}
+    if(o.r>17||o===hover){x.fillStyle=o.r>17?'rgba(11,11,18,.9)':'#f1eee6';x.font='600 '+Math.max(10,Math.min(20,o.r*.3))+'px "Chakra Petch",sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(o.name,o.x,o.r>17?o.y:o.y-o.r-12)}}}
+function frame(){requestAnimationFrame(frame);tick();draw()}
+addEventListener('resize',resize);resize();orbs.forEach((o,i)=>{const a=i*2.4;o.x=W/2+Math.cos(a)*(40+i*14);o.y=H/2+Math.sin(a)*(40+i*9);o.r=o.tr});
+for(let i=0;i<400;i++)tick();draw();if(!reduce)requestAnimationFrame(frame);
+const settle=()=>{if(reduce){for(let i=0;i<400;i++)tick();draw()}};
+const at=e=>{let b=null;for(const o of orbs)if(Math.hypot(o.x-e.clientX,o.y-e.clientY)<Math.max(8,o.r))b=o;return b};
+cv.addEventListener('pointerdown',e=>{drag=at(e);if(drag)cv.setPointerCapture(e.pointerId)});
+cv.addEventListener('pointermove',e=>{if(drag){drag.x=e.clientX;drag.y=e.clientY;if(reduce){for(let i=0;i<20;i++)tick();draw()}return}const h=at(e);if(h!==hover){hover=h;
+  document.getElementById('read').innerHTML=h?'<b>'+h.name+'</b> · '+KIND[h.kind]+(h.parent?' of '+h.parent:'')+'<br>radius '+h.km.toLocaleString()+' km · '+(h.km/6371<1?(6371/h.km).toFixed(1)+'× smaller than Earth':h.km===6371?'that is us':(h.km/6371).toFixed(1)+'× Earth'):'mean radii in kilometres · hover one · drag to shove them about';if(reduce)draw()}});
+addEventListener('pointerup',()=>{drag=null;settle()});
+document.getElementById('deck').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.s){mode=b.dataset.s;document.querySelectorAll('#deck button[data-s]').forEach(q=>q.setAttribute('aria-pressed',q===b));size()}else{group=!group;b.setAttribute('aria-pressed',group)}settle()});
+</script>
+</body>
+</html>

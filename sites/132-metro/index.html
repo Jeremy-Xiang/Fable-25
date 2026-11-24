@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>METRO — a transit map that plans your trip</title>
+<meta name="description" content="A subway map for a city that does not exist: six lines drawn in the classic 45-degree style, trains running, and a route planner — click two stations and the map finds the fewest stops between them.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fdfcf8'/%3E%3Cpath d='M4 22 H14 L24 12 H28' fill='none' stroke='%23e3262e' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M10 4 V28' stroke='%231f5fbf' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='10' cy='22' r='3.5' fill='%23fff' stroke='%23111' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fdfcf8;--ink:#14161a;--dim:#7a7f88;--line:rgba(20,22,26,.14)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Hanken Grotesk',sans-serif;height:100vh;overflow:hidden;display:grid;grid-template-rows:auto 1fr auto}
+::selection{background:#1f5fbf;color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid #1f5fbf;outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:3px solid var(--ink)}
+.mark{font-weight:800;font-size:1.35rem;letter-spacing:-.01em;display:flex;align-items:center;gap:.6rem}
+.mark i{width:22px;height:22px;border-radius:50%;border:5px solid #e3262e;display:inline-block}
+nav{display:flex;gap:1.4rem}
+nav a{font-weight:600;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:#e3262e}
+.wrap{min-height:0;position:relative}
+#c{width:100%;height:100%;display:block;cursor:pointer}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:1.2rem;flex-wrap:wrap;padding:.9rem 1.5rem 1.1rem;border-top:1px solid var(--line)}
+h1{font-weight:800;font-size:clamp(1.2rem,2.6vw,1.9rem);letter-spacing:-.02em}
+.trip{font-size:.9rem;line-height:1.5;max-width:44rem}
+.trip b{font-weight:800}
+.trip span{display:inline-block;padding:.05rem .5rem;border-radius:999px;color:#fff;font-weight:600;font-size:.74rem;margin:0 .15rem}
+.cred{font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.cred a{color:#e3262e}
+</style>
+</head>
+<body>
+<header><span class="mark"><i></i>Metro</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="wrap"><canvas id="c" aria-label="Transit map; click two stations to plan a route"></canvas></div>
+<div class="bar"><h1>A map that plans your trip.</h1><div class="trip" id="trip">Click a station to start, then another to finish.</div>
+  <div class="cred">an invented city · site 132 / fable 25 · built by claude (fable 5) · <a href="guide/">how it was made</a></div></div>
+<script>
+const LINES=[
+ {n:'Red',c:'#e3262e',p:[[1,6],[4,6],[7,6],[10,6],[13,6],[16,6],[19,6]]},
+ {n:'Blue',c:'#1f5fbf',p:[[4,1],[4,3],[4,6],[4,9],[6,11],[9,11]]},
+ {n:'Green',c:'#1c9a55',p:[[1,3],[4,3],[7,3],[10,6],[13,9],[16,9],[19,9]]},
+ {n:'Yellow',c:'#e8a80c',p:[[10,1],[10,3],[10,6],[10,9],[12,11]]},
+ {n:'Purple',c:'#7b3fb5',p:[[13,2],[16,2],[16,6],[16,9],[14,11],[12,11]]},
+ {n:'Orange',c:'#ef6a1a',p:[[2,11],[4,9],[7,9],[10,9],[13,9],[16,6],[19,3]]}];
+const NAMES=['Alder Row','Bellfounder','Cinder Lane','Dovecote','Elm Wharf','Foundry','Gasworks','Harbour Steps','Ironmonger','Juniper','Kiln Road','Lantern Hill','Mill Pond','Needle Street','Old Quay','Pilot Rest','Quarry Bank','Ropewalk','Saltmarket','Tanners','Union Yard','Vineyard','Weir Bridge','Yew Court','Abbey Mead','Brickfields','Copper Beech','Drover Gate','Eastcheap','Fennel Hill','Glasshouse','Haymarket','Inkwell','Jetty'];
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,D,U,OX,OY,st={},list=[],from=null,to=null,route=null,hover=null;
+// stations are keyed by grid coordinate, so two lines through the same point share one station
+let ni=0;for(const L of LINES)L.p.forEach((q,i)=>{const k=q.join(',');const s=st[k]||(st[k]={k,gx:q[0],gy:q[1],lines:[],adj:[],name:k==='10,6'?'Central':NAMES[ni++]});if(!s.lines.includes(L))s.lines.push(L);
+  if(i){const a=st[L.p[i-1].join(',')];a.adj.push({s,L});s.adj.push({s:a,L})}});
+list=Object.values(st);
+function resize(){D=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);U=Math.min(W/21,H/13.2);OX=(W-U*20)/2;OY=(H-U*12)/2-U*.1;for(const s of list){s.x=OX+s.gx*U;s.y=OY+s.gy*U}}
+function plan(a,b){// breadth-first search over stations = fewest stops
+  const prev=new Map([[a,null]]),q=[a];while(q.length){const s=q.shift();if(s===b)break;for(const e of s.adj)if(!prev.has(e.s)){prev.set(e.s,{s,L:e.L});q.push(e.s)}}
+  if(!prev.has(b))return null;const legs=[];for(let s=b;prev.get(s);s=prev.get(s).s)legs.unshift({a:prev.get(s).s,b:s,L:prev.get(s).L});
+  // prefer staying on the current line when two lines serve the same hop
+  for(let i=1;i<legs.length;i++){const prevL=legs[i-1].L,alt=legs[i].a.adj.find(e=>e.s===legs[i].b&&e.L===prevL);if(alt)legs[i].L=prevL}return legs}
+function draw(t){x.clearRect(0,0,W,H);const on=new Set();if(route)for(const l of route){on.add(l.a.k+'>'+l.b.k);on.add(l.b.k+'>'+l.a.k)}
+  // river, for a sense of place
+  x.strokeStyle='#d6e8f5';x.lineWidth=U*1.1;x.lineCap='round';x.lineJoin='round';x.beginPath();x.moveTo(OX-U,OY+U*7.6);x.lineTo(OX+U*5.5,OY+U*7.6);x.lineTo(OX+U*8.5,OY+U*4.6);x.lineTo(OX+U*14.5,OY+U*4.6);x.lineTo(OX+U*17.5,OY+U*7.6);x.lineTo(OX+U*21,OY+U*7.6);x.stroke();
+  for(const L of LINES){for(let i=1;i<L.p.length;i++){const a=st[L.p[i-1].join(',')],b=st[L.p[i].join(',')],hot=route&&on.has(a.k+'>'+b.k)&&route.some(l=>l.L===L&&((l.a===a&&l.b===b)||(l.a===b&&l.b===a)));
+      x.strokeStyle=L.c;x.globalAlpha=route?(hot?1:.16):1;x.lineWidth=hot?U*.34:U*.24;x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke()}
+    if(!reduce&&!route){// one train per line, shuttling end to end
+      const n=L.p.length-1,f=(t*.12+LINES.indexOf(L)*.37)%2,u=(f>1?2-f:f)*n,i=Math.min(n-1,Math.floor(u)),k=u-i,a=st[L.p[i].join(',')],b=st[L.p[i+1].join(',')];
+      x.globalAlpha=1;x.fillStyle='#14161a';x.beginPath();x.arc(a.x+(b.x-a.x)*k,a.y+(b.y-a.y)*k,U*.16,0,7);x.fill()}}
+  x.globalAlpha=1;x.textBaseline='middle';
+  for(const s of list){const inter=s.lines.length>1,hot=s===from||s===to,inRoute=route&&route.some(l=>l.a===s||l.b===s);x.globalAlpha=route&&!inRoute?.3:1;
+    x.fillStyle='#fff';x.strokeStyle=hot?'#14161a':inter?'#14161a':s.lines[0].c;x.lineWidth=hot?U*.14:U*.09;x.beginPath();x.arc(s.x,s.y,hot?U*.3:inter?U*.24:U*.16,0,7);x.fill();x.stroke();
+    if(hot){x.fillStyle='#14161a';x.beginPath();x.arc(s.x,s.y,U*.12,0,7);x.fill()}
+    x.fillStyle='#14161a';x.font=(inter||hot||s===hover?'800 ':'400 ')+Math.max(9,U*.3)+'px "Hanken Grotesk",sans-serif';const below=s.gy>=9||(s.gy===6&&s.gx%6===1);x.textAlign='left';
+    x.save();x.translate(s.x,s.y);x.rotate(-.5);x.fillText(s.name,U*.34,below?U*.02:-U*.02);x.restore()}
+  x.globalAlpha=1}
+function frame(now){requestAnimationFrame(frame);draw(now/1000)}
+function say(){const el=document.getElementById('trip');if(!from){el.textContent='Click a station to start, then another to finish.';return}if(!to){el.innerHTML='From <b>'+from.name+'</b> — now pick where you are going.';return}
+  if(!route){el.textContent='No route.';return}let out='<b>'+from.name+'</b>',cur=null,n=0,changes=-1;
+  for(const l of route){if(l.L!==cur){if(cur)out+=' '+n+' stop'+(n>1?'s':'')+' to <b>'+l.a.name+'</b>, change';out+=' <span style="background:'+l.L.c+'">'+l.L.n+'</span>';cur=l.L;n=0;changes++}n++}
+  el.innerHTML=out+' '+n+' stop'+(n>1?'s':'')+' to <b>'+to.name+'</b> · '+route.length+' stops, '+changes+' change'+(changes===1?'':'s')}
+const pick=e=>{const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;let b=null,bd=(U*.6)**2;for(const s of list){const d=(s.x-mx)**2+(s.y-my)**2;if(d<bd){bd=d;b=s}}return b};
+addEventListener('resize',()=>{resize();draw(0)});resize();
+if(reduce)draw(0);else requestAnimationFrame(frame);
+cv.addEventListener('pointermove',e=>{hover=pick(e);if(reduce)draw(0)});
+cv.addEventListener('click',e=>{const s=pick(e);if(!s){from=to=route=null}else if(!from||to){from=s;to=null;route=null}else if(s!==from){to=s;route=plan(from,to)}say();if(reduce)draw(0)});
+</script>
+</body>
+</html>
