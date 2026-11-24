@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIX-FOLD — no two alike, drawn while you watch</title>
+<meta name="description" content="A generative snowflake grows from a seed: one random arm, mirrored and rotated six times, so every click crystallises a flake that has never existed before.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1730'/%3E%3Cg stroke='%23dff1ff' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M16 4 V28 M5.6 10 L26.4 22 M5.6 22 L26.4 10'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Italiana&family=Sometype+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#eaf5ff;--dim:#7f97bd;--ice:#9fd6ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(ellipse at 50% 40%,#16305c,#070d1e 75%);color:var(--ink);font-family:'Sometype Mono',monospace;height:100vh;overflow:hidden}
+::selection{background:var(--ice);color:#07102a}
+a:focus-visible{outline:2px solid var(--ice);outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%;cursor:pointer}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Italiana',serif;font-size:1.5rem;letter-spacing:.14em}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--ice)}
+.plate{position:fixed;left:0;right:0;bottom:1.4rem;z-index:5;pointer-events:none;text-align:center}
+.plate h1{font-family:'Italiana',serif;font-weight:400;font-size:clamp(1.4rem,3.2vw,2.3rem);letter-spacing:.04em}
+.plate p{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-top:.5rem}
+.plate b{color:var(--ice);font-weight:500}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="A generative snowflake; click to grow a new one"></canvas>
+<header><span class="mark">SIX-FOLD</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>No two alike, drawn while you watch.</h1><p>specimen <b id="n">No. 0001</b> · click anywhere to crystallise another</p></div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,D,segs=[],grown=0,count=0,flakes=[],spin=0;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);
+  flakes=[];for(let i=0;i<90;i++)flakes.push({x:Math.random()*W,y:Math.random()*H,r:.6+Math.random()*2,v:.2+Math.random()*.7,p:Math.random()*6.3})}
+// one arm = a spine plus side branches; each segment is [x1,y1,x2,y2,width] in unit space, pointing up
+function design(){segs=[];const R=1;segs.push([0,0,0,-R,.034]);
+  const nb=3+Math.random()*4|0;
+  for(let i=0;i<nb;i++){const at=.18+.72*(i+Math.random()*.5)/nb,len=(.12+Math.random()*.3)*(1-at*.55),ang=(.75+Math.random()*.5);
+    const ex=Math.sin(ang)*len,ey=-at-Math.cos(ang)*len;segs.push([0,-at,ex,ey,.022]);
+    if(Math.random()<.6){const m=.45+Math.random()*.3,sl=len*.42;segs.push([ex*m,-at+(ey+at)*m,ex*m+sl*.2,-at+(ey+at)*m-sl,.014]);segs.push([ex*m,-at+(ey+at)*m,ex*m+sl,-at+(ey+at)*m+sl*.1,.014])}}
+  if(Math.random()<.7){const hr=.1+Math.random()*.14;segs.push([0,-hr,hr*.866,-hr*.5,.02])}   // a hexagonal plate near the core
+  if(Math.random()<.5)segs.push([0,-R,.07,-R+.09,.02]);
+  grown=reduce?1:0;count++;document.getElementById('n').textContent='No. '+String(count).padStart(4,'0')}
+function drawFlake(cx,cy,S,g){x.save();x.translate(cx,cy);x.rotate(spin);x.lineCap='round';x.shadowBlur=18;x.shadowColor='rgba(159,214,255,.7)';
+  for(let a=0;a<6;a++){x.save();x.rotate(a*Math.PI/3);
+    for(const m of[1,-1]){x.save();x.scale(m,1);
+      segs.forEach((s,i)=>{// spine first, then branches in order, so it looks like growth
+        const start=i===0?0:.25+.6*i/segs.length,k=Math.max(0,Math.min(1,(g-start)/(i===0?.7:.25)));if(k<=0)return;
+        x.strokeStyle=`rgba(234,245,255,${i?.9:1})`;x.lineWidth=Math.max(1,s[4]*S);x.beginPath();x.moveTo(s[0]*S,s[1]*S);x.lineTo((s[0]+(s[2]-s[0])*k)*S,(s[1]+(s[3]-s[1])*k)*S);x.stroke()});
+      x.restore()}
+    x.restore()}
+  x.restore()}
+function frame(){requestAnimationFrame(frame);x.clearRect(0,0,W,H);
+  x.fillStyle='rgba(234,245,255,.7)';for(const f of flakes){if(!reduce){f.y+=f.v;f.x+=Math.sin(f.y*.01+f.p)*.3;if(f.y>H+4){f.y=-4;f.x=Math.random()*W}}x.globalAlpha=.25+f.r*.2;x.beginPath();x.arc(f.x,f.y,f.r,0,7);x.fill()}
+  x.globalAlpha=1;if(!reduce){grown=Math.min(1,grown+.012);spin+=.0012}
+  drawFlake(W/2,H*.46,Math.min(W,H)*.34,grown)}
+addEventListener('resize',resize);resize();design();if(!reduce)grown=.8;
+requestAnimationFrame(frame);
+cv.addEventListener('click',design);
+</script>
+</body>
+</html>

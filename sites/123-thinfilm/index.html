@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THIN FILM — soap bubbles, colour by interference</title>
+<meta name="description" content="Soap bubbles shaded by a fragment shader: the swirling colour comes from the thickness of the film, the way it does in real soap. Click one to pop it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e9eef7'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%23ff7ad9' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%235ad1ff' stroke-width='1.4'/%3E%3Ccircle cx='12' cy='12' r='1.8' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Outfit:wght@300;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1c2233;--dim:#6b7590;--pink:#e0489e}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#dfe6f2;color:var(--ink);font-family:'Outfit',sans-serif;height:100vh;overflow:hidden}
+::selection{background:var(--pink);color:#fff}
+a:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
+#gl{position:fixed;inset:0;width:100%;height:100%;cursor:pointer}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Gloock',serif;font-size:1.35rem}
+nav{display:flex;gap:1.4rem}
+nav a{font-weight:500;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--pink)}
+.plate{position:fixed;left:1.5rem;bottom:1.3rem;z-index:5;pointer-events:none}
+.plate h1{font-family:'Gloock',serif;font-weight:400;font-size:clamp(1.7rem,4vw,3rem);line-height:1}
+.plate h1 em{font-style:italic;color:var(--pink)}
+.plate p{font-weight:500;font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-top:.6rem}
+.plate b{color:var(--ink)}
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="Soap bubbles; click one to pop it"></canvas>
+<header><span class="mark">Thin Film</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>Colour from<br><em>almost nothing.</em></h1><p>click a bubble to pop it · popped <b id="n">0</b></p></div>
+<script>
+const cv=document.getElementById('gl'),gl=cv.getContext('webgl');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NB=10;
+const VS=`attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`;
+const FS=`precision highp float;uniform vec2 res;uniform float t;uniform vec4 B[${NB}];
+float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
+void main(){vec2 uv=gl_FragCoord.xy/res.y;float ar=res.x/res.y;
+  vec3 col=mix(vec3(.80,.85,.93),vec3(.93,.90,.95),uv.y)+.05*n(uv*2.+t*.03);
+  for(int i=0;i<${NB};i++){vec4 b=B[i];if(b.z<=0.)continue;vec2 d=uv-b.xy;float r=length(d)/b.z;if(r>1.02)continue;
+    float z=sqrt(max(0.,1.-r*r));                                  // sphere height: 1 at the centre, 0 at the rim
+    // film thickness: thicker at the bottom (gravity), stirred by noise
+    float th=1.6+2.4*(1.-z)+.9*n(d/b.z*2.2+vec2(t*.12,-t*.2)+b.w)+d.y/b.z*.9;
+    vec3 film=.5+.5*cos(6.2832*(th*vec3(1.,1.18,1.42)));            // each wavelength cancels at a different thickness
+    float rim=smoothstep(.55,1.,r);
+    float a=mix(.16,.92,rim)*smoothstep(1.02,.985,r);
+    vec3 c=mix(col,film,a);
+    c+=vec3(1.)*smoothstep(.13,.02,length(d/b.z-vec2(-.38,.42)))*.85; // window highlight
+    c+=vec3(1.)*smoothstep(.07,.0,length(d/b.z-vec2(.42,-.46)))*.4;
+    col=mix(col,c,b.w>90.?clamp(b.w-90.,0.,1.):1.);}
+  gl_FragColor=vec4(col,1.);}`;
+function sh(ty,s){const o=gl.createShader(ty);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(o));return o}
+const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);gl.useProgram(pr);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const al=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(al);gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+const uRes=gl.getUniformLocation(pr,'res'),uT=gl.getUniformLocation(pr,'t'),uB=gl.getUniformLocation(pr,'B');
+let AR=1,bub=[],popped=0;const data=new Float32Array(NB*4);
+function resize(){const d=Math.min(devicePixelRatio||1,1.5);cv.width=innerWidth*d;cv.height=innerHeight*d;gl.viewport(0,0,cv.width,cv.height);gl.uniform2f(uRes,cv.width,cv.height);AR=innerWidth/innerHeight}
+function born(b,anywhere){b.r=.07+Math.random()*.13;b.x=Math.random()*AR;b.y=anywhere?Math.random():-b.r-Math.random()*.4;b.vy=.0007+Math.random()*.0012;b.seed=Math.random()*40;b.grow=anywhere?1:0;b.pop=0}
+addEventListener('resize',resize);resize();for(let i=0;i<NB;i++){const b={};born(b,true);bub.push(b)}
+function frame(now){requestAnimationFrame(frame);const t=now/1000;
+  bub.forEach((b,i)=>{if(!reduce){b.y+=b.vy;b.x+=Math.sin(t*.6+b.seed)*.0006;b.grow=Math.min(1,b.grow+.02)}
+    if(b.pop>0){b.pop+=.12;if(b.pop>1)born(b,false)}if(b.y-b.r>1.05)born(b,false);
+    const rr=b.r*b.grow*(b.pop>0?1+b.pop*.35:1);data.set([b.x,b.y,b.pop>.5?0:rr,b.seed],i*4)});
+  gl.uniform4fv(uB,data);gl.uniform1f(uT,reduce?3:t);gl.drawArrays(gl.TRIANGLES,0,3)}
+requestAnimationFrame(frame);
+cv.addEventListener('pointerdown',e=>{const ux=e.clientX/innerHeight,uy=1-e.clientY/innerHeight;
+  for(let i=NB-1;i>=0;i--){const b=bub[i];if(!b.pop&&Math.hypot(ux-b.x,uy-b.y)<b.r){b.pop=.01;popped++;document.getElementById('n').textContent=popped;break}}});
+</script>
+</body>
+</html>

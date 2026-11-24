@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LABYRINTH — it builds itself, then finds the way out</title>
+<meta name="description" content="A maze that carves itself with a wandering backtracker, floods with a search that colours every corridor by distance, then lays a red thread from entrance to exit. Then it starts again.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230e0d0b'/%3E%3Cpath d='M6 6 H26 V26 H10 V10 H22 V22 H14 V14 H18' fill='none' stroke='%23efe6d2' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;800&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#efe6d2;--dim:#8d8472;--red:#e23b2e}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0e0d0b;color:var(--ink);font-family:'Spline Sans Mono',monospace;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+::selection{background:var(--red);color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid var(--red);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem}
+.mark{font-family:'Cinzel',serif;font-weight:800;font-size:1.15rem;letter-spacing:.34em}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--red)}
+main{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 1.5rem}
+#c{max-width:100%;max-height:100%;cursor:pointer}
+footer{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.6rem;padding:.9rem 1.5rem 1.1rem}
+footer h1{font-family:'Cinzel',serif;font-weight:500;font-size:clamp(.95rem,2vw,1.3rem);letter-spacing:.08em}
+footer h1 em{font-style:normal;color:var(--red)}
+footer p{font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+footer b{color:var(--ink);font-weight:500}
+footer a{color:var(--red)}
+</style>
+</head>
+<body>
+<header><span class="mark">LABYRINTH</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<main><canvas id="c" aria-label="A maze generating and solving itself; click for a new one"></canvas></main>
+<footer><h1>It builds itself, then <em>finds the way out.</em></h1><p><b id="phase">carving</b> · thread <b id="len">0</b> cells · click for a new maze · site 119 / fable 25 · built by claude (fable 5) · <a href="guide/">how it was made</a></p></footer>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let C,R,S,walls,seen,stack,dist,queue,path,phase,wait,maxd,pi;
+// walls bitmask per cell: 1=N 2=E 4=S 8=W
+const DX=[0,1,0,-1],DY=[-1,0,1,0],BIT=[1,2,4,8],OPP=[4,8,1,2];
+function init(){const m=cv.parentElement;const aw=m.clientWidth-48,ah=m.clientHeight-8;S=Math.max(14,Math.min(26,Math.floor(aw/46)));C=Math.floor(aw/S);R=Math.floor(ah/S);
+  const D=Math.min(devicePixelRatio||1,2);cv.width=(C*S+2)*D;cv.height=(R*S+2)*D;cv.style.width=C*S+2+'px';cv.style.height=R*S+2+'px';x.setTransform(D,0,0,D,1,1);
+  walls=new Uint8Array(C*R).fill(15);seen=new Uint8Array(C*R);stack=[0];seen[0]=1;dist=new Int32Array(C*R).fill(-1);queue=[];path=[];phase='carving';wait=0;maxd=1;pi=0}
+function carve(){if(!stack.length){phase='searching';dist[0]=0;queue=[0];return}
+  const c=stack[stack.length-1],cx=c%C,cy=c/C|0,opt=[];
+  for(let d=0;d<4;d++){const nx=cx+DX[d],ny=cy+DY[d];if(nx>=0&&ny>=0&&nx<C&&ny<R&&!seen[ny*C+nx])opt.push(d)}
+  if(!opt.length){stack.pop();return carve()}
+  const d=opt[Math.random()*opt.length|0],n=(cy+DY[d])*C+cx+DX[d];walls[c]&=~BIT[d];walls[n]&=~OPP[d];seen[n]=1;stack.push(n)}
+function search(){const next=[];for(const c of queue){const cx=c%C,cy=c/C|0;
+    for(let d=0;d<4;d++){if(walls[c]&BIT[d])continue;const n=(cy+DY[d])*C+cx+DX[d];if(dist[n]<0){dist[n]=dist[c]+1;maxd=Math.max(maxd,dist[n]);next.push(n)}}}
+  queue=next;if(dist[C*R-1]>=0&&!queue.length){// walk back downhill from the exit
+    let c=C*R-1;path=[c];while(c!==0){const cx=c%C,cy=c/C|0;for(let d=0;d<4;d++){if(walls[c]&BIT[d])continue;const n=(cy+DY[d])*C+cx+DX[d];if(dist[n]===dist[c]-1){c=n;break}}path.push(c)}
+    path.reverse();phase='threading';pi=0}}
+function draw(){x.fillStyle='#0e0d0b';x.fillRect(-1,-1,C*S+2,R*S+2);
+  for(let i=0;i<C*R;i++){const cx=i%C,cy=i/C|0;
+    if(dist[i]>=0){const k=dist[i]/maxd;x.fillStyle=`hsl(${205-k*170},${46}%,${15+k*9}%)`;x.fillRect(cx*S,cy*S,S,S)}
+    else if(!seen[i]){x.fillStyle='#161411';x.fillRect(cx*S,cy*S,S,S)}}
+  if(phase==='carving'&&stack.length){const c=stack[stack.length-1];x.fillStyle='#efe6d2';x.fillRect((c%C)*S+3,(c/C|0)*S+3,S-6,S-6)}
+  x.strokeStyle='#efe6d2';x.lineWidth=1.6;x.lineCap='square';x.beginPath();
+  for(let i=0;i<C*R;i++){const px=(i%C)*S,py=(i/C|0)*S,w=walls[i];
+    if(w&1){x.moveTo(px,py);x.lineTo(px+S,py)}if(w&8){x.moveTo(px,py);x.lineTo(px,py+S)}
+    if((w&2)&&i%C===C-1){x.moveTo(px+S,py);x.lineTo(px+S,py+S)}if((w&4)&&(i/C|0)===R-1){x.moveTo(px,py+S);x.lineTo(px+S,py+S)}}
+  x.stroke();
+  if(path.length){x.strokeStyle='#e23b2e';x.lineWidth=Math.max(3,S*.22);x.lineCap='round';x.lineJoin='round';x.beginPath();
+    for(let i=0;i<Math.min(pi,path.length);i++){const c=path[i],px=(c%C)*S+S/2,py=(c/C|0)*S+S/2;i?x.lineTo(px,py):x.moveTo(px,py)}x.stroke()}
+  document.getElementById('phase').textContent=phase;document.getElementById('len').textContent=Math.min(pi,path.length)}
+function advance(){if(phase==='carving')for(let k=0;k<6&&phase==='carving';k++)carve();
+  else if(phase==='searching')search();
+  else if(phase==='threading'){pi+=2;if(pi>=path.length+2){phase='solved';wait=0}}
+  else if(++wait>200)init()}
+function frame(){requestAnimationFrame(frame);advance();draw()}
+init();
+if(reduce){while(phase!=='solved')advance();pi=path.length;draw()}
+else{for(let i=0;i<70;i++)advance();requestAnimationFrame(frame)}
+cv.addEventListener('click',()=>{init();if(reduce){while(phase!=='solved')advance();pi=path.length;draw()}});
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{init();if(reduce){while(phase!=='solved')advance();pi=path.length;draw()}},200)});
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TWO SLITS — watch a wave interfere with itself</title>
+<meta name="description" content="A ripple tank in the browser: a plane wave meets a wall with two gaps and the far side fills with interference fringes. Switch the wall, drop pebbles, see the pattern rebuild.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23052a33'/%3E%3Cpath d='M16 3 V11 M16 14 V18 M16 21 V29' stroke='%23e8fbff' stroke-width='2.4'/%3E%3Cpath d='M20 12.5 a6 6 0 0 1 0 7 M24 10 a10 10 0 0 1 0 12' fill='none' stroke='%235fe0f0' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#e8fbff;--dim:#7fb4bf;--cy:#5fe0f0;--line:rgba(232,251,255,.2)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#031a20;color:var(--ink);font-family:'IBM Plex Mono',monospace;height:100vh;overflow:hidden}
+::selection{background:var(--cy);color:#031a20}
+a:focus-visible,button:focus-visible{outline:2px solid var(--cy);outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%;cursor:crosshair}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none;background:linear-gradient(rgba(3,26,32,.75),transparent)}
+header *{pointer-events:auto}
+.mark{font-family:'Fraunces',serif;font-size:1.3rem}
+.mark em{color:var(--cy)}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--cy)}
+.plate{position:fixed;left:1.5rem;bottom:1.3rem;z-index:5;pointer-events:none;background:rgba(3,26,32,.8);border:1px solid var(--line);padding:.9rem 1.1rem;max-width:21rem}
+.plate h1{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(1.2rem,2.6vw,1.8rem);line-height:1.15}
+.plate h1 em{color:var(--cy)}
+.plate p{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:.6rem;line-height:1.8}
+.deck{position:fixed;right:1.5rem;bottom:1.3rem;z-index:5;display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end}
+.deck button{font:inherit;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;background:rgba(3,26,32,.85);border:1px solid var(--line);color:var(--ink);padding:.6rem .9rem;cursor:pointer}
+.deck button:hover{border-color:var(--cy)}
+.deck button[aria-pressed=true]{background:var(--cy);color:#031a20;border-color:var(--cy)}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Ripple tank simulation; click to drop a pebble"></canvas>
+<header><span class="mark">Two <em>Slits</em></span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>A wave, interfering<br>with <em>itself.</em></h1><p>plane wave from the left · wall in the middle<br>click the water to drop a pebble</p></div>
+<div class="deck" id="deck"><button data-m="2" aria-pressed="true">two slits</button><button data-m="1" aria-pressed="false">one slit</button><button data-m="0" aria-pressed="false">no wall</button><button data-m="5" aria-pressed="false">five slits</button></div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const GW=320,GH=200;cv.width=GW;cv.height=GH;
+let u=new Float32Array(GW*GH),v=new Float32Array(GW*GH),wall=new Uint8Array(GW*GH),mode=2,tick=0;
+const img=x.createImageData(GW,GH);
+const WX=GW*.36|0;
+function build(){wall.fill(0);u.fill(0);v.fill(0);tick=0;if(!mode)return;
+  const gaps=[];const gap=7;
+  if(mode===1)gaps.push(GH/2);else for(let i=0;i<mode;i++)gaps.push(GH/2+(i-(mode-1)/2)*(mode===2?34:22));
+  for(let y=0;y<GH;y++){let open=false;for(const g of gaps)if(Math.abs(y-g)<gap/2)open=true;if(!open){wall[y*GW+WX]=1;wall[y*GW+WX+1]=1}}}
+function step(){tick++;
+  // drive: a whole column oscillates = plane wave
+  const s=Math.sin(tick*.21)*1.0;for(let y=1;y<GH-1;y++)u[y*GW+2]=s;
+  for(let y=1;y<GH-1;y++)for(let i=y*GW+1,e=y*GW+GW-1;i<e;i++){
+    if(wall[i]){u[i]=0;v[i]=0;continue}
+    v[i]+=(u[i-1]+u[i+1]+u[i-GW]+u[i+GW]-4*u[i])*.24}
+  for(let y=1;y<GH-1;y++){for(let xx=1;xx<GW-1;xx++){const i=y*GW+xx;
+      // sponge edges swallow the wave so it doesn't echo back
+      const edge=Math.min(GW-1-xx,y,GH-1-y),d=edge<16?.90+edge*.00625:.9995;v[i]*=d;u[i]=(u[i]+v[i])*(edge<16?d:1)}}}
+function draw(){const d=img.data;
+  for(let i=0;i<GW*GH;i++){const o=i*4;
+    if(wall[i]){d[o]=232;d[o+1]=251;d[o+2]=255;d[o+3]=255;continue}
+    const a=Math.max(-1,Math.min(1,u[i]*1.3)),p=Math.max(0,a),n=Math.max(0,-a);
+    d[o]=5+p*230-n*4;d[o+1]=52+p*200-n*36;d[o+2]=64+p*190-n*30;d[o+3]=255}
+  x.putImageData(img,0,0)}
+function frame(){requestAnimationFrame(frame);step();step();draw()}
+build();for(let i=0;i<(reduce?900:500);i++)step();draw();
+if(!reduce)requestAnimationFrame(frame);
+cv.addEventListener('pointerdown',e=>{const gx=e.clientX/innerWidth*GW|0,gy=e.clientY/innerHeight*GH|0;
+  for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){const X=gx+dx,Y=gy+dy;if(X>1&&Y>1&&X<GW-1&&Y<GH-1&&!wall[Y*GW+X])u[Y*GW+X]+=2.4*Math.exp(-(dx*dx+dy*dy)/6)}
+  if(reduce){for(let i=0;i<40;i++)step();draw()}});
+document.getElementById('deck').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;mode=+b.dataset.m;
+  document.querySelectorAll('#deck button').forEach(q=>q.setAttribute('aria-pressed',q===b));build();if(reduce){for(let i=0;i<900;i++)step();draw()}});
+</script>
+</body>
+</html>

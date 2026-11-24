@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHAOS THEORY — sixty pendulums that start as one</title>
+<meta name="description" content="Sixty double pendulums released a ten-thousandth of a radian apart. For a few seconds they move as one — then sensitive dependence tears them into a rainbow.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2308080c'/%3E%3Cpath d='M16 5 L22 14 L12 24' fill='none' stroke='%23ff7ac6' stroke-width='2'/%3E%3Ccircle cx='12' cy='24' r='3' fill='%2379e2ff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#08080c;--ink:#f1eef7;--dim:#85819a;--hot:#ff7ac6;--line:rgba(241,238,247,.12)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'JetBrains Mono',monospace;height:100vh;overflow:hidden}
+::selection{background:var(--hot);color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--hot);outline-offset:3px}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.2rem 1.5rem}
+.mark{font-family:'Instrument Serif',serif;font-size:1.3rem}
+.mark em{color:var(--hot)}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--hot)}
+.plate{position:fixed;left:1.5rem;bottom:1.4rem;z-index:5;pointer-events:none;max-width:24rem}
+.plate h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:clamp(1.5rem,3.4vw,2.4rem);line-height:1.15}
+.plate h1 em{color:var(--hot)}
+.plate p{font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-top:.7rem;line-height:1.9}
+.plate b{color:var(--ink);font-weight:500}
+.deck{position:fixed;right:1.5rem;bottom:1.4rem;z-index:5;display:flex;gap:.5rem}
+.deck button{font:inherit;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;background:rgba(8,8,12,.8);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:.6rem 1.05rem;cursor:pointer}
+.deck button:hover{border-color:var(--hot);color:var(--hot)}
+</style>
+</head>
+<body>
+<canvas id="trail" aria-hidden="true"></canvas><canvas id="arms" aria-label="Sixty double pendulums diverging"></canvas>
+<header><span class="mark">Chaos <em>Theory</em></span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>Sixty pendulums<br>that start as <em>one.</em></h1><p>released 0.0001 rad apart · t = <b id="tt">0.0</b>s<br>spread between first and last: <b id="sp">0.000</b></p></div>
+<div class="deck"><button id="bDrop">release again</button><button id="bHigh">release higher</button></div>
+<script>
+const tc=document.getElementById('trail'),tx=tc.getContext('2d'),ac=document.getElementById('arms'),ax=ac.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,L,ox,oy;const N=60,G=9.81;let P=[],t=0,start=2.25;
+function resize(){W=tc.width=ac.width=innerWidth;H=tc.height=ac.height=innerHeight;L=Math.min(W,H)*.2;ox=W/2;oy=H*.4;tx.fillStyle='#08080c';tx.fillRect(0,0,W,H)}
+function release(){P=[];for(let i=0;i<N;i++)P.push({a:start,b:start+i*1e-4,wa:0,wb:0,px:null,py:null});t=0;tx.fillStyle='#08080c';tx.fillRect(0,0,W,H)}
+function sim(dt){for(const p of P){const d=p.a-p.b,den=3-Math.cos(2*d);
+    const aa=(-3*G*Math.sin(p.a)-G*Math.sin(p.a-2*p.b)-2*Math.sin(d)*(p.wb*p.wb+p.wa*p.wa*Math.cos(d)))/den;
+    const ab=(2*Math.sin(d)*(2*p.wa*p.wa+2*G*Math.cos(p.a)+p.wb*p.wb*Math.cos(d)))/den;
+    p.wa+=aa*dt;p.wb+=ab*dt;p.a+=p.wa*dt;p.b+=p.wb*dt}t+=dt}
+function tip(p){const x1=ox+Math.sin(p.a)*L,y1=oy+Math.cos(p.a)*L;return[x1,y1,x1+Math.sin(p.b)*L,y1+Math.cos(p.b)*L]}
+function frame(){requestAnimationFrame(frame);
+  for(let s=0;s<8;s++)sim(.0022);
+  tx.fillStyle='rgba(8,8,12,.035)';tx.fillRect(0,0,W,H);
+  ax.clearRect(0,0,W,H);tx.lineWidth=1.3;
+  P.forEach((p,i)=>{const[x1,y1,x2,y2]=tip(p);const hue=300+i*4.2;
+    if(p.px!==null){tx.strokeStyle=`hsla(${hue},90%,68%,.75)`;tx.beginPath();tx.moveTo(p.px,p.py);tx.lineTo(x2,y2);tx.stroke()}
+    p.px=x2;p.py=y2;
+    ax.strokeStyle='rgba(241,238,247,.16)';ax.lineWidth=1;ax.beginPath();ax.moveTo(ox,oy);ax.lineTo(x1,y1);ax.lineTo(x2,y2);ax.stroke();
+    ax.fillStyle=`hsl(${hue},90%,70%)`;ax.beginPath();ax.arc(x2,y2,3,0,7);ax.fill()});
+  ax.fillStyle='#f1eef7';ax.beginPath();ax.arc(ox,oy,4,0,7);ax.fill();
+  const a=tip(P[0]),b=tip(P[N-1]);
+  document.getElementById('tt').textContent=t.toFixed(1);
+  document.getElementById('sp').textContent=(Math.hypot(a[2]-b[2],a[3]-b[3])/L).toFixed(3)}
+addEventListener('resize',()=>{resize();P.forEach(p=>p.px=null)});
+resize();release();
+if(reduce){for(let i=0;i<5200;i++)sim(.0022);P.forEach(p=>{const q=tip(p);p.px=q[2];p.py=q[3]})}
+requestAnimationFrame(frame);
+document.getElementById('bDrop').addEventListener('click',release);
+document.getElementById('bHigh').addEventListener('click',()=>{start=2.2+Math.random()*.85;release()});
+</script>
+</body>
+</html>

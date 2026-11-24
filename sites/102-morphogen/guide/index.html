@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%23E63946%22/></svg>">
+<title>How MORPHOGEN was made — guide</title>
+<meta name="description" content="How the MORPHOGEN site was designed and built: Gray–Scott reaction–diffusion: two chemicals that draw coral, mazes and spots">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#E63946; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0c; color:#f3efe9; font-family:'Bricolage Grotesque', sans-serif; font-size:1.05rem; line-height:1.72; padding:0 1.5rem}
+  .wrap{max-width:680px; margin:0 auto; padding:9vh 0 12vh}
+  .crumb{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem}
+  .crumb a{color:#8f8b8d; text-decoration:none; border-bottom:1px solid #262327; padding-bottom:2px}
+  .crumb a:hover{color:var(--accent); border-color:var(--accent)}
+  .kicker{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem}
+  h1{font-weight:800; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.08; margin-bottom:.6rem; letter-spacing:-.01em}
+  .sub{color:#a19c9d; font-size:1.12rem; margin-bottom:3.6rem}
+  h2{font-size:1.05rem; font-weight:800; letter-spacing:.01em; margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #211d20; display:flex; align-items:baseline; gap:.75rem}
+  h2 .no{font-family:'JetBrains Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none; margin-bottom:1rem}
+  ul li{padding-left:1.6rem; position:relative; margin-bottom:.85rem}
+  ul li::before{content:'—'; position:absolute; left:0; color:var(--accent)}
+  code{font-family:'JetBrains Mono', monospace; font-size:.88em; background:#17141a; padding:.1em .4em; border-radius:4px}
+  .meta{font-family:'JetBrains Mono', monospace; font-size:.8rem; line-height:1.9; color:#cfc9cb; background:#141216; border:1px solid #211d20; border-left:3px solid var(--accent); padding:1.1rem 1.4rem; border-radius:6px}
+  .foot{margin-top:5rem; padding-top:2.4rem; border-top:1px solid #211d20; font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:#7a757a; line-height:2.4}
+  .foot a{color:var(--accent); text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent); color:#111}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to MORPHOGEN</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 102 · Wave 7 · how it was made</div>
+  <h1>MORPHOGEN</h1>
+  <p class="sub">Gray–Scott reaction–diffusion: two chemicals that draw coral, mazes and spots</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Turing's idea of how a leopard gets its spots, running on the CPU. Two invisible reagents diffuse and react; change two numbers and the same equations produce coral, fingerprints, dividing cells or travelling waves.</p>
+
+  <h2><span class="no">02</span> How it works</h2>
+  <ul>
+    <li>A 220×130 grid of two float fields, updated with a 5-point Laplacian several times per frame.</li>
+    <li>Recipes are just named <code>(feed, kill)</code> pairs.</li>
+    <li>Dragging paints reagent B into the field, which seeds new growth.</li>
+    <li>The field is written to an <code>ImageData</code> and scaled up by CSS, which smooths it for free.</li></ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <ul>
+    <li>Paper, navy and one red — a printed scientific plate rather than a neon demo.</li>
+    <li>A serif headline with mono parameter readouts.</li></ul>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <ul>
+    <li>First render was an empty sheet because the seed patches were too small to survive; larger initial blobs fixed it.</li></ul>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <ul>
+    <li>Simulating at low resolution and letting CSS upscale is the performance trick behind most of this wave.</li>
+    <li>Expose presets, not raw sliders, when a parameter space is mostly dead.</li></ul>
+
+  <div class="meta">stack — one HTML file · canvas 2D · float32 fields<br>signature — five patterns from one equation</div>
+
+  <div class="foot">
+    site 102 / fable 25 · built by claude (fable 5), commissioned by jeremy xiang<br>
+    <a href="../">launch MORPHOGEN</a> · <a href="../../">the other sites</a>
+  </div>
+</div>
+</body>
+</html>

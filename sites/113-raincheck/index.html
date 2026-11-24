@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAIN CHECK — write on the window</title>
+<meta name="description" content="A fogged window on a rainy night: drops gather and run, clearing streaks through the condensation, and your finger writes in the fog before it slowly mists back over.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23141a24'/%3E%3Cpath d='M16 6 C12 13 10 16 10 20 a6 6 0 0 0 12 0 C22 16 20 13 16 6 Z' fill='%239cc7e8'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shadows+Into+Light&family=Karla:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#eef3f8;--dim:#9fb0c2}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0f16;color:var(--ink);font-family:'Karla',sans-serif;height:100vh;overflow:hidden}
+::selection{background:#9cc7e8;color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid #9cc7e8;outline-offset:3px}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+#fog{cursor:crosshair;touch-action:none}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Shadows Into Light',cursive;font-size:1.5rem;letter-spacing:.06em;text-shadow:0 1px 8px #000}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);text-decoration:none;opacity:.8;text-shadow:0 1px 6px #000}
+nav a:hover{opacity:1}
+.plate{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);z-index:5;pointer-events:none;text-align:center;text-shadow:0 1px 10px #000}
+.plate h1{font-family:'Shadows Into Light',cursive;font-weight:400;font-size:clamp(1.5rem,3.6vw,2.4rem)}
+.plate p{font-size:.64rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-top:.3rem}
+.deck{position:fixed;right:1.5rem;bottom:1.3rem;z-index:5}
+.deck button{font:inherit;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;background:rgba(11,15,22,.6);border:1px solid rgba(238,243,248,.3);color:var(--ink);border-radius:999px;padding:.6rem 1.05rem;cursor:pointer}
+.deck button:hover{border-color:#9cc7e8;color:#9cc7e8}
+</style>
+</head>
+<body>
+<canvas id="city" aria-hidden="true"></canvas><canvas id="fog" aria-label="Fogged window; drag to wipe the condensation"></canvas>
+<header><span class="mark">rain check</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>write on the window.</h1><p>the fog comes back · the rain doesn't care</p></div>
+<div class="deck"><button id="bBreath">breathe on the glass</button></div>
+<script>
+const city=document.getElementById('city'),cx=city.getContext('2d'),fog=document.getElementById('fog'),fx=fog.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,lights=[],drops=[];
+function resize(){W=city.width=fog.width=innerWidth;H=city.height=fog.height=innerHeight;lights=[];
+  const cols=['255,190,110','255,120,90','120,190,255','255,230,170','190,140,255','110,230,190'];
+  for(let i=0;i<70;i++)lights.push({x:Math.random()*W,y:H*(.15+Math.random()*.75),r:18+Math.random()*56,c:cols[Math.random()*cols.length|0],p:Math.random()*6.3});
+  fx.globalCompositeOperation='source-over';fx.clearRect(0,0,W,H);fx.fillStyle='rgba(176,192,208,.6)';fx.fillRect(0,0,W,H);
+  drops=[];for(let i=0;i<34;i++)spawn(true)}
+function spawn(any){drops.push({x:Math.random()*W,y:any?Math.random()*H:-10,r:2.5+Math.random()*4.5,v:0,wait:Math.random()*240|0,wob:Math.random()*6.3})}
+function drawCity(t){cx.fillStyle='#18212f';cx.fillRect(0,0,W,H);cx.filter='blur(14px)';
+  for(const l of lights){const a=.6+.3*Math.sin(t*.8+l.p);cx.fillStyle=`rgba(${l.c},${a})`;cx.beginPath();cx.arc(l.x,l.y,l.r,0,7);cx.fill()}
+  cx.filter='none'}
+function wipe(x1,y1,x2,y2,w,a){fx.globalCompositeOperation='destination-out';fx.strokeStyle='rgba(0,0,0,'+(a||.9)+')';fx.lineWidth=w;fx.lineCap='round';fx.beginPath();fx.moveTo(x1,y1);fx.lineTo(x2,y2);fx.stroke();fx.globalCompositeOperation='source-over'}
+function frame(now,pre){if(!pre)requestAnimationFrame(frame);const t=now/1000;
+  if(!pre)drawCity(reduce?0:t);
+  // fog slowly returns
+  if(!reduce&&!pre){fx.fillStyle='rgba(176,192,208,.004)';fx.fillRect(0,0,W,H)}
+  for(const d of drops){
+    if(d.wait>0){d.wait--}else{d.v=Math.min(7,d.v+.05+d.r*.012);const ny=d.y+d.v,nx=d.x+Math.sin(d.y*.03+d.wob)*.6;
+      wipe(d.x,d.y,nx,ny,d.r*1.1,.5);d.x=nx;d.y=ny;if(Math.random()<.012){d.v*=.3;d.wait=20+Math.random()*90|0}}
+    // the bead itself: a tiny lens with a highlight
+    if(pre)continue;
+    const g=fx.createRadialGradient(d.x-d.r*.3,d.y-d.r*.3,0,d.x,d.y,d.r*1.2);g.addColorStop(0,'rgba(255,255,255,.75)');g.addColorStop(.5,'rgba(170,200,225,.28)');g.addColorStop(1,'rgba(20,30,45,.28)');
+    fx.fillStyle=g;fx.beginPath();fx.arc(d.x,d.y,d.r*1.2,0,7);fx.fill()}
+  drops=drops.filter(d=>d.y<H+20);while(drops.length<34)spawn(false)}
+addEventListener('resize',resize);resize();
+for(let i=0;i<110;i++)frame(0,true); // pre-run so the glass is already streaked
+if(reduce){wipe(W*.3,H*.4,W*.7,H*.4,26)}
+requestAnimationFrame(frame);
+let last=null;
+fog.addEventListener('pointerdown',e=>{last=[e.clientX,e.clientY];wipe(last[0],last[1],last[0]+.1,last[1],30)});
+fog.addEventListener('pointermove',e=>{if(!last)return;wipe(last[0],last[1],e.clientX,e.clientY,30);last=[e.clientX,e.clientY]});
+addEventListener('pointerup',()=>last=null);
+document.getElementById('bBreath').addEventListener('click',()=>{fx.fillStyle='rgba(176,192,208,.6)';fx.fillRect(0,0,W,H)});
+</script>
+</body>
+</html>

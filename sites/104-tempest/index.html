@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TEMPEST — call the lightning</title>
+<meta name="description" content="A storm you conduct: click anywhere and a fractal bolt forks down to that spot, lights the skyline, and rolls its thunder in a beat late.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0d1a'/%3E%3Cpath d='M18 4 L10 17 H16 L13 28 L23 13 H17 Z' fill='%23d9d4ff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Overpass+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0d1a;--ink:#e8e6ff;--dim:#8087a8;--volt:#b9a8ff;--line:rgba(232,230,255,.14)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Overpass Mono',monospace;height:100vh;overflow:hidden}
+::selection{background:var(--volt);color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--volt);outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%;cursor:crosshair}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:1.4rem;letter-spacing:.14em}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--volt)}
+.plate{position:fixed;left:1.5rem;top:5.2rem;z-index:5;pointer-events:none}
+.plate h1{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:clamp(2.2rem,7vw,5rem);line-height:.92;text-transform:uppercase;letter-spacing:.01em}
+.plate h1 em{font-style:normal;color:var(--volt)}
+.plate p{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-top:.9rem;line-height:1.9}
+.plate b{color:var(--ink);font-weight:600}
+.deck{position:fixed;right:1.5rem;bottom:1.3rem;z-index:5;display:flex;gap:.5rem}
+.deck button{font:inherit;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;background:rgba(10,13,26,.8);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:.6rem 1.05rem;cursor:pointer}
+.deck button:hover,.deck button.on{border-color:var(--volt);color:var(--volt)}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Storm scene; click to call a lightning strike"></canvas>
+<header><span class="mark">TEMPEST</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>Call the<br><em>lightning.</em></h1><p>click anywhere to strike · strikes <b id="n">0</b><br>last bolt <b id="km">—</b> away</p></div>
+<div class="deck"><button id="bSnd">thunder: off</button></div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,sky=[],flash=0,bolts=[],count=0,rain=[];
+function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight;sky=[];let bx=0;
+  while(bx<W){const bw=26+Math.random()*60,bh=H*(.06+Math.random()*.2);sky.push([bx,bw,bh,Math.random()]);bx+=bw+2}
+  rain=[];for(let i=0;i<260;i++)rain.push([Math.random()*W,Math.random()*H,8+Math.random()*14])}
+function bolt(x1,y1,x2,y2,disp,depth,out){
+  if(disp<4){out.push([x1,y1,x2,y2,depth]);return}
+  const mx=(x1+x2)/2+(Math.random()-.5)*disp,my=(y1+y2)/2+(Math.random()-.5)*disp*.4;
+  bolt(x1,y1,mx,my,disp/2,depth,out);bolt(mx,my,x2,y2,disp/2,depth,out);
+  if(depth<3&&Math.random()<.32){const a=Math.atan2(y2-y1,x2-x1)+(Math.random()-.5)*1.4,len=Math.hypot(x2-x1,y2-y1)*(.5+Math.random()*.5);
+    bolt(mx,my,mx+Math.cos(a)*len,my+Math.sin(a)*len,disp/2,depth+1,out)}}
+let ac=null,snd=false;
+function thunder(delay,gain){if(!snd)return;try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+  const len=ac.sampleRate*3.2,buf=ac.createBuffer(1,len,ac.sampleRate),d=buf.getChannelData(0);let v=0;
+  for(let i=0;i<len;i++){v=v*.985+(Math.random()*2-1)*.06;d[i]=v*Math.pow(1-i/len,2.2)*(1+.6*Math.sin(i/1800))}
+  const s=ac.createBufferSource();s.buffer=buf;const g=ac.createGain();g.gain.value=gain;const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=320;
+  s.connect(f).connect(g).connect(ac.destination);s.start(ac.currentTime+delay)}catch(e){}}
+function strike(px,py){const segs=[];bolt(px+(Math.random()-.5)*W*.3,-10,px,py,Math.min(260,py*.5),0,segs);
+  bolts.push({segs,life:1});flash=1;count++;const dist=.4+Math.random()*4.5;
+  document.getElementById('n').textContent=count;document.getElementById('km').textContent=dist.toFixed(1)+' km';
+  thunder(dist*.35,Math.max(.15,.9-dist*.15))}
+let idle=0;
+function frame(){requestAnimationFrame(frame);
+  const g=x.createLinearGradient(0,0,0,H);const f=flash*.5;
+  g.addColorStop(0,`rgb(${10+f*120},${13+f*110},${26+f*150})`);g.addColorStop(1,`rgb(${22+f*90},${24+f*80},${48+f*110})`);
+  x.fillStyle=g;x.fillRect(0,0,W,H);
+  x.strokeStyle='rgba(190,200,240,.28)';x.lineWidth=1;x.beginPath();
+  for(const r of rain){x.moveTo(r[0],r[1]);x.lineTo(r[0]-r[2]*.18,r[1]+r[2]);if(!reduce){r[1]+=r[2]*1.6;r[0]-=r[2]*.28}if(r[1]>H){r[1]=-20;r[0]=Math.random()*(W+80)}}
+  x.stroke();
+  for(const b of bolts){x.shadowBlur=18;x.shadowColor='#b9a8ff';
+    for(const s of b.segs){x.strokeStyle=`rgba(240,236,255,${b.life*(s[4]?.55:1)})`;x.lineWidth=Math.max(.6,(3.2-s[4])*b.life);x.beginPath();x.moveTo(s[0],s[1]);x.lineTo(s[2],s[3]);x.stroke()}
+    x.shadowBlur=0;b.life-=.045}
+  bolts=bolts.filter(b=>b.life>0);
+  for(const s of sky){x.fillStyle=`rgb(${6+flash*26},${7+flash*26},${14+flash*40})`;x.fillRect(s[0],H-s[2],s[1],s[2]);
+    x.fillStyle=`rgba(255,214,140,${.5+.3*s[3]})`;for(let wy=H-s[2]+8;wy<H-8;wy+=14)for(let wx=s[0]+5;wx<s[0]+s[1]-6;wx+=10)if(Math.sin(wx*12.9+wy*78.2+s[3]*40)>.72)x.fillRect(wx,wy,3,5)}
+  flash*=.88;
+  if(!reduce&&++idle>260+Math.random()*400){idle=0;strike(W*(.15+Math.random()*.7),H*(.45+Math.random()*.35))}}
+addEventListener('resize',resize);resize();
+cv.addEventListener('pointerdown',e=>{idle=0;strike(e.clientX,e.clientY)});
+const bS=document.getElementById('bSnd');bS.addEventListener('click',()=>{snd=!snd;bS.textContent='thunder: '+(snd?'on':'off');bS.classList.toggle('on',snd)});
+strike(W*.62,H*.7);requestAnimationFrame(frame);
+</script>
+</body>
+</html>

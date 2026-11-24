@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISLET — a small island you can sculpt</title>
+<meta name="description" content="An isometric voxel island drawn on a 2D canvas: click a tile to raise the land, shift-click to dig, and watch beaches, meadows, cliffs and snowcaps follow the height you give them.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23bfe3f2'/%3E%3Cpath d='M16 8 L27 14 L16 20 L5 14 Z' fill='%236cc070'/%3E%3Cpath d='M5 14 L16 20 V26 L5 20 Z' fill='%23a37a4c'/%3E%3Cpath d='M27 14 L16 20 V26 L27 20 Z' fill='%23805c36'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;800&family=Nunito:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#17364a;--dim:#4f7a90;--coral:#ff7a59}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:linear-gradient(#cfeaf6,#a9d8ee);color:var(--ink);font-family:'Nunito',sans-serif;height:100vh;overflow:hidden}
+::selection{background:var(--coral);color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid var(--coral);outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%;cursor:pointer}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:1.5rem}
+.mark em{font-style:normal;color:var(--coral)}
+nav{display:flex;gap:1.4rem}
+nav a{font-weight:700;font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--coral)}
+.plate{position:fixed;left:1.5rem;bottom:1.3rem;z-index:5;pointer-events:none}
+.plate h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:clamp(1.5rem,3.4vw,2.5rem);line-height:1}
+.plate h1 em{font-style:normal;color:var(--coral)}
+.plate p{font-weight:700;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-top:.5rem}
+.deck{position:fixed;right:1.5rem;bottom:1.3rem;z-index:5;display:flex;gap:.5rem}
+.deck button{font:inherit;font-weight:700;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;background:#fff;border:none;color:var(--ink);border-radius:999px;padding:.65rem 1.1rem;cursor:pointer;box-shadow:0 4px 0 rgba(23,54,74,.18)}
+.deck button:hover{background:var(--coral);color:#fff}
+.deck button[aria-pressed=true]{background:var(--ink);color:#fff}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Isometric island; click to raise land, shift-click to lower"></canvas>
+<header><span class="mark">is<em>let</em></span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>A small island<br>you can <em>sculpt.</em></h1><p>click to raise · shift-click or dig mode to lower</p></div>
+<div class="deck"><button id="bDig" aria-pressed="false">dig mode</button><button id="bNew">new island</button></div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const N=22;let W,H,TW,TH,ZH,OX,OY,h=new Float32Array(N*N),tgt=new Int8Array(N*N),hover=-1,dig=false,seed=7;
+function rnd(a,b){const s=Math.sin(a*127.1+b*311.7+seed*74.7)*43758.5453;return s-Math.floor(s)}
+function noise(px,py){const ix=Math.floor(px),iy=Math.floor(py),fx=px-ix,fy=py-iy,sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);
+  return(rnd(ix,iy)*(1-sx)+rnd(ix+1,iy)*sx)*(1-sy)+(rnd(ix,iy+1)*(1-sx)+rnd(ix+1,iy+1)*sx)*sy}
+function gen(){seed=Math.random()*999;for(let j=0;j<N;j++)for(let i=0;i<N;i++){const dx=(i-N/2+.5)/(N/2),dy=(j-N/2+.5)/(N/2),r=Math.hypot(dx,dy);
+    const n=noise(i*.22,j*.22)*.7+noise(i*.55,j*.55)*.3;tgt[j*N+i]=Math.max(0,Math.round((n*1.5-r*r*1.1)*8))}}
+function resize(){const D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);
+  TW=Math.min(W/(N+3),H/(N*.62+4)*1.9);TH=TW/2;ZH=TH*.55;OX=W/2;OY=H*.5-N*TH/2+TH*2}
+const tileTop=(i,j,z)=>[OX+(i-j)*TW/2,OY+(i+j)*TH/2-z*ZH];
+function col(z){if(z<=0)return null;if(z<=1)return[236,214,160];if(z<=4)return[112,190,112];if(z<=6)return[78,150,96];if(z<=8)return[150,146,140];return[244,248,250]}
+const rgb=(c,k)=>`rgb(${c[0]*k|0},${c[1]*k|0},${c[2]*k|0})`;
+function draw(t){x.clearRect(0,0,W,H);
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){const k=j*N+i,z=h[k];
+    if(z<.05){const[px,py]=tileTop(i,j,0),w=.5+.5*Math.sin(t*1.4+i*.7+j*.5);x.fillStyle=`rgba(${70+w*26|0},${160+w*22|0},${214+w*14|0},.9)`;
+      x.beginPath();x.moveTo(px,py);x.lineTo(px+TW/2,py+TH/2);x.lineTo(px,py+TH);x.lineTo(px-TW/2,py+TH/2);x.fill();
+      if(k===hover){x.fillStyle='rgba(255,255,255,.35)';x.fill()}continue}
+    const c=col(Math.round(z))||[236,214,160],[px,py]=tileTop(i,j,z),base=tileTop(i,j,0)[1];
+    const side=z>8?[150,146,140]:z>1?[150,112,72]:[214,190,138];
+    x.fillStyle=rgb(side,.95);x.beginPath();x.moveTo(px-TW/2,py+TH/2);x.lineTo(px,py+TH);x.lineTo(px,base+TH);x.lineTo(px-TW/2,base+TH/2);x.fill();
+    x.fillStyle=rgb(side,.72);x.beginPath();x.moveTo(px+TW/2,py+TH/2);x.lineTo(px,py+TH);x.lineTo(px,base+TH);x.lineTo(px+TW/2,base+TH/2);x.fill();
+    x.fillStyle=rgb(c,k===hover?1.14:1);x.beginPath();x.moveTo(px,py);x.lineTo(px+TW/2,py+TH/2);x.lineTo(px,py+TH);x.lineTo(px-TW/2,py+TH/2);x.fill();
+    // a little tree on some meadow tiles
+    if(z>=2&&z<=5&&rnd(i*3.1,j*1.7)>.72&&Math.abs(z-tgt[k])<.2){const cx=px,cy=py+TH/2;x.fillStyle='#6b4a2c';x.fillRect(cx-1.5,cy-TH*.5,3,TH*.5);
+      x.fillStyle='#2f7d4f';x.beginPath();x.moveTo(cx,cy-TH*1.9);x.lineTo(cx+TW*.2,cy-TH*.4);x.lineTo(cx-TW*.2,cy-TH*.4);x.fill()}}}
+function pick(mx,my){// front-most tile whose top diamond contains the pointer
+  for(let s=2*N-2;s>=0;s--)for(let i=Math.min(N-1,s);i>=Math.max(0,s-N+1);i--){const j=s-i,[px,py]=tileTop(i,j,h[j*N+i]);
+    if(Math.abs(mx-px)/(TW/2)+Math.abs(my-(py+TH/2))/(TH/2)<=1)return j*N+i}
+  return-1}
+function frame(now){requestAnimationFrame(frame);for(let k=0;k<N*N;k++)h[k]+=(tgt[k]-h[k])*(reduce?1:.16);draw(reduce?0:now/1000)}
+function edit(k,down){if(k<0)return;const i=k%N,j=k/N|0;
+  for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const a=i+di,b=j+dj;if(a<0||b<0||a>=N||b>=N)continue;const amt=(di||dj)?(Math.abs(di)+Math.abs(dj)===1?1:0):2;
+    tgt[b*N+a]=Math.max(0,Math.min(11,tgt[b*N+a]+(down?-amt:amt)))}}
+addEventListener('resize',resize);resize();gen();if(reduce)h.set(tgt);
+requestAnimationFrame(frame);
+cv.addEventListener('pointermove',e=>hover=pick(e.clientX,e.clientY));
+cv.addEventListener('pointerdown',e=>{hover=pick(e.clientX,e.clientY);edit(hover,e.shiftKey||dig)});
+document.getElementById('bNew').addEventListener('click',()=>{if(!reduce)h.fill(0);gen()});
+document.getElementById('bDig').addEventListener('click',e=>{dig=!dig;e.target.setAttribute('aria-pressed',dig)});
+</script>
+</body>
+</html>

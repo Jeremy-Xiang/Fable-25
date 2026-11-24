@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TREMOR — a seismograph for your hands</title>
+<meta name="description" content="A paper-drum seismograph that records you: every mouse movement, scroll and keystroke shakes the needle, and the trace scrolls away like a station log.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f3efe4'/%3E%3Cpath d='M3 16 H10 L12 8 L15 26 L18 5 L21 22 L23 16 H29' fill='none' stroke='%23c62828' stroke-width='1.8' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;900&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f3efe4;--ink:#1d1b18;--dim:#857f72;--red:#c62828;--line:rgba(29,27,24,.14)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:'Courier Prime',monospace;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+::selection{background:var(--red);color:#fff}
+a:focus-visible{outline:2px solid var(--red);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:2px solid var(--ink)}
+.mark{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:1.5rem;letter-spacing:.14em}
+.mark em{font-style:normal;color:var(--red)}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--red)}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;padding:1.2rem 1.5rem .8rem}
+h1{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:clamp(2rem,6vw,4.6rem);line-height:.9;text-transform:uppercase}
+h1 em{font-style:normal;color:var(--red)}
+.read{display:flex;gap:1.6rem;text-align:right}
+.read div{font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.read b{display:block;font-family:'Big Shoulders Display',sans-serif;font-weight:600;font-size:2.2rem;color:var(--ink);letter-spacing:.02em;line-height:1}
+.read b.hot{color:var(--red)}
+#c{flex:1;min-height:0;width:100%;display:block;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:.8rem 1.5rem 1rem;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+footer a{color:var(--red)}
+</style>
+</head>
+<body>
+<header><span class="mark">TRE<em>MOR</em></span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="top"><h1>A seismograph<br>for <em>your hands.</em></h1>
+  <div class="read"><div><b id="mag">0.0</b>magnitude</div><div><b id="peak">0.0</b>peak today</div><div><b id="ev">0</b>events</div></div></div>
+<canvas id="c" aria-label="Seismograph trace driven by your mouse, scroll and keyboard"></canvas>
+<footer><span>move · scroll · type — the needle is listening · site 124 / fable 25 · built by claude (fable 5)</span><span><a href="guide/">how it was made</a></span></footer>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,D,trace=[],energy=0,pos=0,vel=0,peak=0,events=0,quiet=0,user=false,ph=0,inEvent=false;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0)}
+function sample(){// the needle is a damped spring kicked by noise scaled by recent activity
+  ph+=.9;const kick=(Math.random()-.5)*(.5+energy*9)+Math.sin(ph)*energy*2.5;
+  vel+=kick-pos*.35;vel*=.72;pos+=vel;energy*=.95;
+  trace.push(pos);if(trace.length>W/2+4)trace.shift();
+  const mag=Math.min(9.9,Math.log10(1+energy*60)*3.6);
+  if(mag>3&&!inEvent){inEvent=true;events++;document.getElementById('ev').textContent=events}if(mag<1.5)inEvent=false;
+  peak=Math.max(peak,mag);const m=document.getElementById('mag');m.textContent=mag.toFixed(1);m.classList.toggle('hot',mag>4);document.getElementById('peak').textContent=peak.toFixed(1)}
+function draw(){x.fillStyle='#f3efe4';x.fillRect(0,0,W,H);
+  x.strokeStyle='rgba(29,27,24,.09)';x.lineWidth=1;x.beginPath();for(let gy=H/2%28;gy<H;gy+=28){x.moveTo(0,gy);x.lineTo(W,gy)}
+  const off=(trace.length*2)%56;for(let gx=W-off;gx>0;gx-=56){x.moveTo(gx,0);x.lineTo(gx,H)}x.stroke();
+  x.strokeStyle='rgba(29,27,24,.3)';x.beginPath();x.moveTo(0,H/2);x.lineTo(W,H/2);x.stroke();
+  const penX=W-70,sc=H/2/60;
+  x.strokeStyle='#c62828';x.lineWidth=1.5;x.lineJoin='round';x.beginPath();
+  for(let i=0;i<trace.length;i++){const px=penX-(trace.length-1-i)*2,py=H/2+Math.max(-58,Math.min(58,trace[i]))*sc;i?x.lineTo(px,py):x.moveTo(px,py)}x.stroke();
+  // the pen arm
+  const py=H/2+Math.max(-58,Math.min(58,trace[trace.length-1]||0))*sc;
+  x.strokeStyle='#1d1b18';x.lineWidth=3;x.beginPath();x.moveTo(W+10,H/2);x.lineTo(penX,py);x.stroke();x.fillStyle='#1d1b18';x.beginPath();x.arc(penX,py,4.5,0,7);x.fill()}
+function frame(){requestAnimationFrame(frame);sample();
+  // if nobody is here, the earth moves on its own now and then
+  if(!user&&++quiet>150){quiet=-40-Math.random()*120;energy+=.5+Math.random()*1.6}
+  draw()}
+addEventListener('resize',resize);resize();
+for(let i=0;i<W/2;i++){if(i===(W/2*.45|0))energy+=1.8;if(i===(W/2*.8|0))energy+=.7;sample()}
+events=2;document.getElementById('ev').textContent=events;draw();
+if(!reduce)requestAnimationFrame(frame);
+const shake=a=>{user=true;energy=Math.min(4,energy+a);if(reduce){for(let i=0;i<30;i++)sample();draw()}};
+addEventListener('pointermove',e=>shake(Math.min(.25,Math.hypot(e.movementX||0,e.movementY||0)*.004)));
+addEventListener('wheel',e=>shake(Math.min(.8,Math.abs(e.deltaY)*.004)),{passive:true});
+addEventListener('keydown',()=>shake(.5));addEventListener('pointerdown',()=>shake(.9));
+</script>
+</body>
+</html>

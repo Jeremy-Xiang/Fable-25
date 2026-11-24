@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PETRI — four rules, endless weather</title>
+<meta name="description" content="Conway's Game of Life as a living culture dish: draw cells, stamp gliders and guns, and watch age stain the colony from lime to amber.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c120e'/%3E%3Crect x='14' y='6' width='5' height='5' fill='%23b6f24a'/%3E%3Crect x='20' y='13' width='5' height='5' fill='%23b6f24a'/%3E%3Crect x='8' y='20' width='5' height='5' fill='%23b6f24a'/%3E%3Crect x='14' y='20' width='5' height='5' fill='%23b6f24a'/%3E%3Crect x='20' y='20' width='5' height='5' fill='%23b6f24a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik+Mono+One&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c120e;--ink:#e9f2e2;--dim:#7d8f7c;--lime:#b6f24a;--line:rgba(233,242,226,.12)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace;height:100vh;overflow:hidden}
+::selection{background:var(--lime);color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%;cursor:crosshair;touch-action:none}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none;background:linear-gradient(rgba(12,18,14,.92),rgba(12,18,14,0))}
+header *{pointer-events:auto}
+.mark{font-family:'Rubik Mono One',sans-serif;font-size:.95rem;letter-spacing:.08em}
+.mark em{font-style:normal;color:var(--lime)}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--lime)}
+.plate{position:fixed;left:1.5rem;bottom:1.3rem;z-index:5;pointer-events:none;background:rgba(12,18,14,.82);padding:.8rem 1rem;border:1px solid var(--line);border-radius:10px}
+.plate h1{font-family:'Rubik Mono One',sans-serif;font-size:clamp(1rem,2.2vw,1.4rem);line-height:1.25}
+.plate p{font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-top:.5rem;line-height:1.8}
+.plate b{color:var(--lime);font-weight:500}
+.deck{position:fixed;right:1.5rem;bottom:1.3rem;z-index:5;display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;max-width:min(560px,60vw)}
+.deck button{font:inherit;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;background:rgba(12,18,14,.85);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:.55rem .95rem;cursor:pointer}
+.deck button:hover,.deck button.on{border-color:var(--lime);color:var(--lime)}
+@media(max-width:700px){.plate{display:none}.deck{max-width:calc(100vw - 3rem)}}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Game of Life grid; drag to draw living cells"></canvas>
+<header><span class="mark">PE<em>TRI</em></span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>Four rules.<br>Endless weather.</h1><p>generation <b id="gen">0</b> · alive <b id="pop">0</b><br>drag to seed · age stains lime → amber</p></div>
+<div class="deck" role="group" aria-label="Culture controls">
+  <button id="bPlay" class="on">pause</button><button id="bStep">step</button>
+  <button data-s="glider">glider</button><button data-s="gun">glider gun</button><button data-s="pulsar">pulsar</button><button data-s="acorn">acorn</button>
+  <button id="bRand">soup</button><button id="bClear">sterilize</button>
+</div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CELL=8;let cols,rows,cur,nxt,W,H;
+function alloc(){W=cv.width=innerWidth;H=cv.height=innerHeight;cols=Math.ceil(W/CELL);rows=Math.ceil(H/CELL);cur=new Uint8Array(cols*rows);nxt=new Uint8Array(cols*rows)}
+const PAL=[];for(let a=0;a<64;a++)PAL.push(`hsl(${82-a*.95},${78}%,${62-a*.18}%)`);
+const STAMPS={
+ glider:[[1,0],[2,1],[0,2],[1,2],[2,2]],
+ acorn:[[1,0],[3,1],[0,2],[1,2],[4,2],[5,2],[6,2]],
+ pulsar:(()=>{const p=[];const a=[2,3,4,8,9,10],b=[0,5,7,12];for(const i of a)for(const j of b){p.push([i,j]);p.push([j,i])}return p})(),
+ gun:[[0,4],[0,5],[1,4],[1,5],[10,4],[10,5],[10,6],[11,3],[11,7],[12,2],[12,8],[13,2],[13,8],[14,5],[15,3],[15,7],[16,4],[16,5],[16,6],[17,5],[20,2],[20,3],[20,4],[21,2],[21,3],[21,4],[22,1],[22,5],[24,0],[24,1],[24,5],[24,6],[34,2],[34,3],[35,2],[35,3]],
+};
+function stamp(name,cx,cy){for(const[px,py]of STAMPS[name]){const i=((cy+py+rows)%rows)*cols+((cx+px+cols)%cols);cur[i]=1}}
+function soup(){for(let i=0;i<cur.length;i++)cur[i]=Math.random()<.16?1:0}
+let gen=0;
+function step(){
+  for(let y=0;y<rows;y++){const yu=(y-1+rows)%rows*cols,yd=(y+1)%rows*cols,yc=y*cols;
+    for(let xx=0;xx<cols;xx++){const xl=(xx-1+cols)%cols,xr=(xx+1)%cols;
+      const n=(cur[yu+xl]>0)+(cur[yu+xx]>0)+(cur[yu+xr]>0)+(cur[yc+xl]>0)+(cur[yc+xr]>0)+(cur[yd+xl]>0)+(cur[yd+xx]>0)+(cur[yd+xr]>0);
+      const a=cur[yc+xx];
+      nxt[yc+xx]=a?(n===2||n===3?Math.min(63,a+1):0):(n===3?1:0)}}
+  [cur,nxt]=[nxt,cur];gen++}
+function draw(){
+  x.fillStyle='#0c120e';x.fillRect(0,0,W,H);let pop=0;
+  for(let y=0;y<rows;y++)for(let xx=0;xx<cols;xx++){const a=cur[y*cols+xx];if(a){pop++;x.fillStyle=PAL[a];x.fillRect(xx*CELL+1,y*CELL+1,CELL-2,CELL-2)}}
+  document.getElementById('gen').textContent=gen;document.getElementById('pop').textContent=pop}
+let playing=!reduce,acc=0;
+function loop(){requestAnimationFrame(loop);if(playing&&(++acc%4===0))step();draw()}
+alloc();soup();stamp('gun',6,8);requestAnimationFrame(loop);
+addEventListener('resize',()=>{alloc();soup()});
+let down=false;
+function paint(e){const cx=Math.floor(e.clientX/CELL),cy=Math.floor(e.clientY/CELL);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(Math.random()<.6)cur[((cy+dy+rows)%rows)*cols+((cx+dx+cols)%cols)]=1}
+cv.addEventListener('pointerdown',e=>{down=true;paint(e)});cv.addEventListener('pointermove',e=>{if(down)paint(e)});addEventListener('pointerup',()=>down=false);
+const bPlay=document.getElementById('bPlay');
+bPlay.addEventListener('click',()=>{playing=!playing;bPlay.textContent=playing?'pause':'play';bPlay.classList.toggle('on',playing)});
+document.getElementById('bStep').addEventListener('click',step);
+document.getElementById('bRand').addEventListener('click',()=>{soup();gen=0});
+document.getElementById('bClear').addEventListener('click',()=>{cur.fill(0);gen=0});
+document.querySelectorAll('[data-s]').forEach(b=>b.addEventListener('click',()=>stamp(b.dataset.s,(cols/2-8)|0,(rows/2-6)|0)));
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TELEGRAPH — your words, in dots and dashes</title>
+<meta name="description" content="Type a message and a brass lamp keys it out in Morse code: light, optional tone, and a paper tape that scrolls past with every dot and dash inked on it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a1512'/%3E%3Ccircle cx='8' cy='16' r='3' fill='%23f2c14e'/%3E%3Crect x='14' y='13' width='12' height='6' rx='3' fill='%23f2c14e'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Special+Elite&family=Cutive+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#2a1512;--ink:#f3e7d0;--dim:#b09a80;--brass:#f2c14e;--line:rgba(243,231,208,.2)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(ellipse at 50% 30%,#3a1f1a,#1c0d0b 75%);color:var(--ink);font-family:'Cutive Mono',monospace;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+::selection{background:var(--brass);color:#111}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem}
+.mark{font-family:'Playfair Display SC',serif;font-weight:700;font-size:1.25rem;letter-spacing:.16em;color:var(--brass)}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--brass)}
+main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.6rem;padding:0 1.2rem}
+h1{font-family:'Playfair Display SC',serif;font-weight:400;font-size:clamp(1.5rem,3.8vw,2.6rem);text-align:center;letter-spacing:.04em}
+h1 em{font-style:normal;color:var(--brass)}
+.lamp{width:110px;height:110px;border-radius:50%;background:radial-gradient(circle at 38% 34%,#5a4a2a,#2b2110 70%);border:5px solid #8a6a2a;box-shadow:inset 0 0 20px #000,0 12px 30px rgba(0,0,0,.5);transition:background .04s,box-shadow .04s}
+.lamp.on{background:radial-gradient(circle at 40% 36%,#fffbe6,#f2c14e 55%,#c9861a);box-shadow:0 0 70px 24px rgba(242,193,78,.55),0 0 160px 60px rgba(242,193,78,.2)}
+.now{font-family:'Special Elite',monospace;font-size:1.2rem;letter-spacing:.3em;min-height:1.6em;text-align:center}
+.now b{color:var(--brass);font-weight:400}
+.tapewrap{width:100%;overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#efe4c8;height:54px;position:relative;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+#tape{position:absolute;inset:0;width:100%;height:100%}
+form{display:flex;gap:.5rem;width:min(100%,560px)}
+input[type=text]{flex:1;font-family:'Special Elite',monospace;font-size:1rem;background:rgba(0,0,0,.3);border:1px solid var(--line);color:var(--ink);padding:.75rem .9rem;letter-spacing:.06em}
+button{font-family:'Cutive Mono',monospace;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;background:none;border:1px solid var(--brass);color:var(--brass);padding:.7rem 1rem;cursor:pointer}
+button:hover,button[aria-pressed=true]{background:var(--brass);color:#2a1512}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:1rem 1.5rem 1.2rem;font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+footer a{color:var(--brass)}
+</style>
+</head>
+<body>
+<header><span class="mark">Telegraph</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<main>
+  <h1>Your words, in <em>dots and dashes.</em></h1>
+  <div class="lamp" id="lamp" role="img" aria-label="Signal lamp"></div>
+  <div class="now" id="now" aria-live="off">&nbsp;</div>
+  <div class="tapewrap"><canvas id="tape" aria-hidden="true"></canvas></div>
+  <form id="f"><input type="text" id="msg" maxlength="60" placeholder="type a message and press send" aria-label="Message to send" autocomplete="off"><button type="submit">send</button><button type="button" id="snd" aria-pressed="false">tone</button></form>
+</main>
+<footer><span>site 118 / fable 25 · built by claude (fable 5)</span><span><a href="guide/">how it was made</a></span></footer>
+<script>
+const M={A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..',0:'-----',1:'.----',2:'..---',3:'...--',4:'....-',5:'.....',6:'-....',7:'--...',8:'---..',9:'----.','.':'.-.-.-',',':'--..--','?':'..--..'};
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const lamp=document.getElementById('lamp'),now=document.getElementById('now'),tp=document.getElementById('tape'),tx=tp.getContext('2d');
+const UNIT=5;                      // frames per dot
+let queue=[],on=false,left=0,marks=[],scroll=0,ac=null,osc=null,gain=null,user=false,auto=0;
+const AUTO=['WHAT HATH GOD WROUGHT','SOS','HELLO WORLD','COME AT ONCE'];
+function enqueue(text){queue=[];text=text.toUpperCase();
+  for(const ch of text){if(ch===' '){queue.push({on:false,n:7,ch:' '});continue}const code=M[ch];if(!code)continue;
+    [...code].forEach((s,i)=>{queue.push({on:true,n:s==='.'?1:3,ch,code,first:i===0});queue.push({on:false,n:1})});
+    queue.push({on:false,n:2})}
+  queue.push({on:false,n:14,end:true})}
+function tone(v){if(!gain)return;gain.gain.setTargetAtTime(v?.12:0,ac.currentTime,.004)}
+function resize(){tp.width=tp.clientWidth;tp.height=tp.clientHeight}
+function tick(){requestAnimationFrame(tick);
+  if(left<=0){const q=queue.shift();
+    if(q){on=q.on;left=q.n*UNIT;if(q.first)now.innerHTML=q.ch+' &nbsp;<b>'+q.code.replace(/\./g,'·').replace(/-/g,'—')+'</b>';if(q.end&&!user){enqueue(AUTO[++auto%AUTO.length])}}
+    else{on=false;left=UNIT}
+    lamp.classList.toggle('on',on);tone(on)}
+  left--;scroll+=2.2;if(on)marks.push(scroll);
+  tx.fillStyle='#efe4c8';tx.fillRect(0,0,tp.width,tp.height);
+  tx.fillStyle='rgba(60,40,20,.12)';for(let px=-(scroll%40);px<tp.width;px+=40)tx.fillRect(px,0,1,tp.height);
+  tx.fillStyle='#2a1512';const y=tp.height/2-4,pen=tp.width*.72;
+  for(const m of marks){const px=pen-(scroll-m);if(px>-4)tx.fillRect(px,y,2.4,8)}
+  marks=marks.filter(m=>scroll-m<pen+10);
+  tx.fillStyle='#a33';tx.fillRect(pen+2,0,1.5,tp.height)}
+addEventListener('resize',resize);resize();enqueue(AUTO[0]);
+if(reduce){now.innerHTML='W &nbsp;<b>· — —</b>';let s=0;for(const q of queue){for(let i=0;i<q.n*UNIT;i++){s+=2.2;if(q.on)marks.push(s)}}scroll=s;queue=[];
+  tx.fillStyle='#efe4c8';tx.fillRect(0,0,tp.width,tp.height);tx.fillStyle='#2a1512';for(const m of marks){const px=tp.width*.72-(scroll-m);if(px>0)tx.fillRect(px,tp.height/2-4,2.4,8)}}
+else requestAnimationFrame(tick);
+document.getElementById('f').addEventListener('submit',e=>{e.preventDefault();const v=document.getElementById('msg').value.trim();if(!v)return;user=true;enqueue(v);left=0;if(reduce)now.textContent=[...v.toUpperCase()].map(c=>M[c]||' ').join('  ').replace(/\./g,'·').replace(/-/g,'—')});
+document.getElementById('snd').addEventListener('click',e=>{if(!ac){ac=new(window.AudioContext||window.webkitAudioContext)();osc=ac.createOscillator();gain=ac.createGain();osc.frequency.value=620;gain.gain.value=0;osc.connect(gain).connect(ac.destination);osc.start();e.target.setAttribute('aria-pressed','true')}
+  else{const s=ac.state==='running';s?ac.suspend():ac.resume();e.target.setAttribute('aria-pressed',String(!s))}});
+</script>
+</body>
+</html>

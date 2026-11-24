@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOURGLASS — every grain makes its own decision</title>
+<meta name="description" content="A falling-sand world: pour sand, water and stone with your cursor and watch a cellular automaton turn three rules into dunes, floods and avalanches.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a1512'/%3E%3Cpath d='M9 6 H23 L17 16 L23 26 H9 L15 16 Z' fill='none' stroke='%23e9c27a' stroke-width='1.8'/%3E%3Cpath d='M11 24 H21 L16 18 Z' fill='%23e9c27a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Martian+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#1a1512;--ink:#f3e9d8;--dim:#9a8c78;--sand:#e9c27a;--line:rgba(243,233,216,.14)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Martian Mono',monospace;height:100vh;overflow:hidden}
+::selection{background:var(--sand);color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--sand);outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;cursor:crosshair;touch-action:none}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Young Serif',serif;font-size:1.2rem}
+.mark em{font-style:normal;color:var(--sand)}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.56rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--sand)}
+.plate{position:fixed;left:1.5rem;top:4.6rem;z-index:5;pointer-events:none}
+.plate h1{font-family:'Young Serif',serif;font-weight:400;font-size:clamp(1.3rem,3vw,2rem);line-height:1.2}
+.plate h1 em{font-style:normal;color:var(--sand)}
+.plate p{font-size:.52rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-top:.6rem}
+.deck{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);z-index:5;display:flex;gap:.45rem;background:rgba(26,21,18,.85);border:1px solid var(--line);border-radius:999px;padding:.45rem}
+.deck button{font:inherit;font-size:.54rem;letter-spacing:.12em;text-transform:uppercase;background:none;border:1px solid transparent;color:var(--ink);border-radius:999px;padding:.5rem .9rem;cursor:pointer;display:flex;align-items:center;gap:.45rem}
+.deck button i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.deck button.on{border-color:var(--sand);color:var(--sand)}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Falling sand simulation; drag to pour the selected material"></canvas>
+<header><span class="mark">Hour<em>glass</em></span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>Every grain makes<br>its own <em>decision.</em></h1><p>pick a material · drag to pour</p></div>
+<div class="deck" role="group" aria-label="Materials">
+  <button data-m="1" class="on"><i style="background:#e9c27a"></i>sand</button><button data-m="2"><i style="background:#4aa3d9"></i>water</button><button data-m="3"><i style="background:#8a8580"></i>stone</button><button data-m="0"><i style="background:#3a322c"></i>erase</button><button id="bClear">empty</button>
+</div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const S=5;let W,H,g,shade,img,frameN=0,mat=1;
+function alloc(){W=Math.ceil(innerWidth/S);H=Math.ceil(innerHeight/S);cv.width=W;cv.height=H;g=new Uint8Array(W*H);shade=new Uint8Array(W*H);img=x.createImageData(W,H);scene()}
+function put(px,py,m){if(px<0||px>=W||py<0||py>=H)return;const i=py*W+px;g[i]=m;shade[i]=Math.random()*40|0}
+function scene(){ // stone ledges with gaps so the pour cascades
+  const ledge=(y,x0,x1)=>{for(let px=x0;px<x1;px++)for(let t=0;t<3;t++)put(px,y+t,3)};
+  ledge(H*.42|0,W*.18|0,W*.46|0);ledge(H*.6|0,W*.5|0,W*.82|0);ledge(H*.78|0,W*.22|0,W*.56|0);
+  for(let py=H*.5|0;py<H*.6;py++){put(W*.82|0,py,3);put(W*.5|0,py,3)}}
+function swap(a,b){const t=g[a];g[a]=g[b];g[b]=t;const s=shade[a];shade[a]=shade[b];shade[b]=s}
+function step(){frameN++;
+  for(let y=H-2;y>=0;y--){const ltr=(frameN+y)&1;
+    for(let k=0;k<W;k++){const px=ltr?k:W-1-k,i=y*W+px,m=g[i];if(m!==1&&m!==2)continue;const b=i+W;
+      if(m===1){if(g[b]===0||g[b]===2){swap(i,b);continue}
+        const d=Math.random()<.5?-1:1;
+        if(px+d>=0&&px+d<W&&(g[b+d]===0||g[b+d]===2)){swap(i,b+d);continue}
+        if(px-d>=0&&px-d<W&&(g[b-d]===0||g[b-d]===2))swap(i,b-d)}
+      else{if(g[b]===0){swap(i,b);continue}
+        const d=Math.random()<.5?-1:1;
+        if(px+d>=0&&px+d<W&&g[b+d]===0){swap(i,b+d);continue}
+        if(px+d>=0&&px+d<W&&g[i+d]===0){swap(i,i+d);continue}
+        if(px-d>=0&&px-d<W&&g[i-d]===0)swap(i,i-d)}}}
+  // the standing pour: a thin stream of sand, and a trickle of water
+  if(frameN%2===0)put((W*.3|0)+(Math.random()*3|0),1,1);
+  if(frameN%3===0)put((W*.68|0)+(Math.random()*2|0),1,2)}
+const COL=[[26,21,18],[233,194,122],[74,163,217],[138,133,128]];
+function draw(){const d=img.data;for(let i=0;i<g.length;i++){const c=COL[g[i]],s=g[i]?shade[i]-20:0;d[i*4]=c[0]+s;d[i*4+1]=c[1]+s;d[i*4+2]=c[2]+s;d[i*4+3]=255}x.putImageData(img,0,0)}
+let down=false,mx=0,my=0;
+function pour(){if(!down)return;const cx=mx/S|0,cy=my/S|0,r=mat===3||mat===0?3:2;
+  for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++)if(dx*dx+dy*dy<=r*r&&(mat===3||mat===0||Math.random()<.5))put(cx+dx,cy+dy,mat)}
+function loop(){requestAnimationFrame(loop);pour();if(!reduce){step();step()}draw()}
+addEventListener('resize',alloc);alloc();
+if(reduce)for(let i=0;i<1400;i++)step();
+requestAnimationFrame(loop);
+cv.addEventListener('pointerdown',e=>{down=true;mx=e.clientX;my=e.clientY});cv.addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY});addEventListener('pointerup',()=>down=false);
+document.querySelectorAll('[data-m]').forEach(b=>b.addEventListener('click',()=>{mat=+b.dataset.m;document.querySelectorAll('[data-m]').forEach(o=>o.classList.toggle('on',o===b))}));
+document.getElementById('bClear').addEventListener('click',()=>{g.fill(0);scene()});
+</script>
+</body>
+</html>

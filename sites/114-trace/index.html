@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRACE — a circuit board that routes itself</title>
+<meta name="description" content="A generative PCB: copper traces grow from pads in 45° bends, dodge each other, end in vias — then signals race along them. Click to etch a new board.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230c3b2a'/%3E%3Cpath d='M6 10 H16 L22 16 V26' fill='none' stroke='%23e6c15a' stroke-width='2'/%3E%3Ccircle cx='6' cy='10' r='3' fill='%23e6c15a'/%3E%3Ccircle cx='22' cy='26' r='3' fill='%23e6c15a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Saira+Condensed:wght@500;800&display=swap" rel="stylesheet">
+<style>
+:root{--mask:#0c3b2a;--ink:#eaf6ee;--dim:#7fb39a;--cu:#e6c15a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--mask);color:var(--ink);font-family:'Share Tech Mono',monospace;height:100vh;overflow:hidden}
+::selection{background:var(--cu);color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--cu);outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%;cursor:pointer}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.3rem;letter-spacing:.3em;color:var(--cu)}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--cu)}
+.silk{position:fixed;left:1.5rem;bottom:1.3rem;z-index:5;pointer-events:none;background:rgba(12,59,42,.86);padding:.8rem 1rem;border:1px solid rgba(234,246,238,.5)}
+.silk h1{font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:clamp(1.3rem,3vw,2rem);line-height:1.05;text-transform:uppercase;letter-spacing:.04em}
+.silk p{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-top:.5rem;line-height:1.7}
+.silk b{color:var(--cu);font-weight:400}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Generative circuit board; click to route a new one"></canvas>
+<header><span class="mark">TRACE</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="silk"><h1>A circuit board<br>that routes itself.</h1><p>REV <b id="rev">A</b> · NETS <b id="nets">0</b> · VIAS <b id="vias">0</b><br>click anywhere to etch a new board</p></div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const G=18;let W,H,cols,rows,occ,nets,growing,rev=0;
+const DIRS=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+function board(){W=cv.width=innerWidth;H=cv.height=innerHeight;cols=Math.floor(W/G);rows=Math.floor(H/G);occ=new Uint8Array(cols*rows);nets=[];growing=[];
+  // a few chips: rows of pads that traces fan out from
+  for(let c=0;c<5;c++){const cw=6+Math.random()*6|0,gx=4+Math.random()*(cols-cw-8)|0,gy=4+Math.random()*(rows-10)|0;
+    for(let i=0;i<cw;i++){start(gx+i,gy,6);start(gx+i,gy+3,2)}
+    for(let i=0;i<cw;i++)for(let j=1;j<3;j++)occ[(gy+j)*cols+gx+i]=2;nets.chips=(nets.chips||[]);nets.chips.push([gx,gy,cw])}
+  for(let i=0;i<26;i++)start(2+Math.random()*(cols-4)|0,2+Math.random()*(rows-4)|0,Math.random()*8|0);
+  rev++;document.getElementById('rev').textContent=String.fromCharCode(64+((rev-1)%26)+1)}
+function start(gx,gy,dir){if(gx<1||gy<1||gx>=cols-1||gy>=rows-1||occ[gy*cols+gx])return;occ[gy*cols+gx]=1;const n={pts:[[gx,gy]],dir,len:14+Math.random()*40|0,done:false,pulse:Math.random()};nets.push(n);growing.push(n)}
+function grow(n){const[gx,gy]=n.pts[n.pts.length-1];
+  let opts=[n.dir,n.dir,n.dir,(n.dir+1)%8,(n.dir+7)%8];if(Math.random()<.5)opts.reverse();
+  for(const d of opts){const nx=gx+DIRS[d][0],ny=gy+DIRS[d][1];
+    if(nx<1||ny<1||nx>=cols-1||ny>=rows-1||occ[ny*cols+nx])continue;
+    // diagonals may not squeeze between two occupied orthogonals
+    if(d%2&&occ[gy*cols+nx]&&occ[ny*cols+gx])continue;
+    occ[ny*cols+nx]=1;n.pts.push([nx,ny]);n.dir=d;if(n.pts.length>=n.len)n.done=true;return}
+  n.done=true}
+function draw(t){x.fillStyle='#0c3b2a';x.fillRect(0,0,W,H);
+  x.fillStyle='rgba(234,246,238,.05)';for(let gy=0;gy<rows;gy++)for(let gx=0;gx<cols;gx++)x.fillRect(gx*G+G/2,gy*G+G/2,1,1);
+  for(const[gx,gy,cw]of nets.chips||[]){x.fillStyle='#0a0d0c';x.fillRect(gx*G+2,(gy+.7)*G,cw*G-4,G*2.6);x.fillStyle='rgba(234,246,238,.6)';x.font='10px "Share Tech Mono"';x.fillText('FB'+(gx*7+gy)%900,gx*G+8,(gy+2.2)*G)}
+  let vias=0;x.lineWidth=3.2;x.lineCap='round';x.lineJoin='round';
+  for(const n of nets){x.strokeStyle='#c9a646';x.beginPath();n.pts.forEach(([gx,gy],i)=>{const px=gx*G+G/2,py=gy*G+G/2;i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();
+    const a=n.pts[0],b=n.pts[n.pts.length-1];
+    for(const[q,end]of[[a,0],[b,1]]){if(end&&!n.done)continue;vias++;x.fillStyle='#e6c15a';x.beginPath();x.arc(q[0]*G+G/2,q[1]*G+G/2,5,0,7);x.fill();x.fillStyle='#0c3b2a';x.beginPath();x.arc(q[0]*G+G/2,q[1]*G+G/2,2,0,7);x.fill()}
+    if(n.done&&n.pts.length>3&&!reduce){const f=(t*.25+n.pulse)%1,idx=f*(n.pts.length-1),i=Math.floor(idx),k=idx-i,p=n.pts[i],q=n.pts[Math.min(n.pts.length-1,i+1)];
+      const px=(p[0]+(q[0]-p[0])*k)*G+G/2,py=(p[1]+(q[1]-p[1])*k)*G+G/2;x.shadowBlur=12;x.shadowColor='#fff3c4';x.fillStyle='#fff8dd';x.beginPath();x.arc(px,py,3,0,7);x.fill();x.shadowBlur=0}}
+  document.getElementById('nets').textContent=nets.length;document.getElementById('vias').textContent=vias}
+function frame(now){requestAnimationFrame(frame);
+  for(let k=0;k<3;k++){for(const n of growing)grow(n);growing=growing.filter(n=>!n.done)}
+  draw(now/1000)}
+board();if(reduce)while(growing.length){for(const n of growing)grow(n);growing=growing.filter(n=>!n.done)}
+requestAnimationFrame(frame);
+cv.addEventListener('click',board);addEventListener('resize',board);
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PENDULA — a drawing machine made of two swings</title>
+<meta name="description" content="A harmonograph: two decaying pendulums drive one pen. Tune the frequency ratio like a musical interval and the machine inks a different rosette every time.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f1ead9'/%3E%3Cellipse cx='16' cy='16' rx='11' ry='5' fill='none' stroke='%231b3a6b' stroke-width='1.2'/%3E%3Cellipse cx='16' cy='16' rx='5' ry='11' fill='none' stroke='%231b3a6b' stroke-width='1.2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Petit+Formal+Script&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Inconsolata:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f1ead9;--ink:#1b3a6b;--dim:#8a8170;--line:rgba(27,58,107,.2)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:#2a2620;font-family:'Old Standard TT',serif;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+::selection{background:var(--ink);color:#fff}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem}
+.mark{font-family:'Petit Formal Script',cursive;font-size:1.4rem;color:var(--ink)}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'Inconsolata',monospace;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--ink)}
+main{flex:1;display:flex;gap:2.4rem;align-items:center;justify-content:center;flex-wrap:wrap;padding:0 1.2rem 1.4rem}
+#c{width:min(86vw,560px);height:auto;aspect-ratio:1;background:#f8f3e6;border:1px solid var(--line);box-shadow:0 20px 50px rgba(42,38,32,.18)}
+.side{max-width:300px;display:flex;flex-direction:column;gap:1.1rem}
+h1{font-weight:400;font-size:clamp(1.6rem,3.6vw,2.4rem);line-height:1.12}
+h1 em{color:var(--ink)}
+.side p{font-size:1rem;line-height:1.6;color:#4a4438}
+.grp label{font-family:'Inconsolata',monospace;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between}
+.grp label b{color:var(--ink);font-weight:600}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--line);margin-top:.6rem;cursor:ew-resize}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--ink)}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:var(--ink)}
+.row{display:flex;gap:.5rem;flex-wrap:wrap}
+.row button{font-family:'Inconsolata',monospace;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;background:none;border:1px solid var(--ink);color:var(--ink);padding:.5rem .9rem;cursor:pointer}
+.row button:hover{background:var(--ink);color:var(--paper)}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:.8rem 1.5rem 1.2rem;font-family:'Inconsolata',monospace;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+footer a{color:var(--ink)}
+</style>
+</head>
+<body>
+<header><span class="mark">Pendula</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<main>
+  <canvas id="c" width="1120" height="1120" aria-label="Harmonograph drawing in progress"></canvas>
+  <div class="side">
+    <h1>A drawing machine made of <em>two swings.</em></h1>
+    <p>Victorian parlours had these: two pendulums, one pen. The ratio between them is a musical interval, drawn instead of heard.</p>
+    <div class="grp"><label>interval <b id="vR">3 : 2 — a fifth</b></label><input type="range" id="rR" min="0" max="5" step="1" value="1" aria-label="Frequency ratio"></div>
+    <div class="grp"><label>detune <b id="vD">0.004</b></label><input type="range" id="rD" min="0" max="20" value="4" aria-label="Detune"></div>
+    <div class="grp"><label>decay <b id="vK">slow</b></label><input type="range" id="rK" min="1" max="8" value="3" aria-label="Decay"></div>
+    <div class="row"><button id="bNew">new sheet</button><button id="bRnd">surprise me</button></div>
+  </div>
+</main>
+<footer><span>site 112 / fable 25 · built by claude (fable 5)</span><span><a href="guide/">how it was made</a></span></footer>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const RAT=[[1,1,'1 : 1 — unison'],[3,2,'3 : 2 — a fifth'],[4,3,'4 : 3 — a fourth'],[5,4,'5 : 4 — a third'],[2,1,'2 : 1 — an octave'],[5,3,'5 : 3 — a sixth']];
+let P={r:1,det:.004,k:3,ph:Math.PI/2,ph2:.6},t=0,prev=null;
+function pos(tt){const[a,b]=RAT[P.r];const d=Math.exp(-tt*P.k*.0011),A=cv.width*.42;
+  const xx=Math.sin(tt*a+P.ph)*d*.62+Math.sin(tt*(b+P.det)*1.0+P.ph2)*d*.38;
+  const yy=Math.sin(tt*(b+P.det))*d*.62+Math.sin(tt*a+P.ph*.5)*d*.38;
+  return[cv.width/2+xx*A,cv.height/2+yy*A,d]}
+function fresh(){x.fillStyle='#f8f3e6';x.fillRect(0,0,cv.width,cv.height);t=0;prev=null}
+function draw(steps){x.lineWidth=1.1;x.lineCap='round';
+  for(let i=0;i<steps;i++){const[px,py,d]=pos(t);if(d<.012)return;
+    if(prev){x.strokeStyle=`rgba(27,58,107,${.28+.5*d})`;x.beginPath();x.moveTo(prev[0],prev[1]);x.lineTo(px,py);x.stroke()}
+    prev=[px,py];t+=.012}}
+function loop(){requestAnimationFrame(loop);draw(70)}
+fresh();if(reduce)draw(60000);else requestAnimationFrame(loop);
+const lab=()=>{document.getElementById('vR').textContent=RAT[P.r][2];document.getElementById('vD').textContent=P.det.toFixed(3);document.getElementById('vK').textContent=P.k<3?'very slow':P.k<5?'slow':P.k<7?'brisk':'fast'};
+const on=(id,f)=>document.getElementById(id).addEventListener('input',e=>{f(+e.target.value);lab();fresh();if(reduce)draw(60000)});
+on('rR',v=>P.r=v);on('rD',v=>P.det=v/1000);on('rK',v=>P.k=v);
+document.getElementById('bNew').addEventListener('click',()=>{fresh();if(reduce)draw(60000)});
+document.getElementById('bRnd').addEventListener('click',()=>{P.r=Math.random()*RAT.length|0;P.det=(Math.random()*14|0)/1000;P.ph=Math.random()*6.28;P.ph2=Math.random()*6.28;
+  document.getElementById('rR').value=P.r;document.getElementById('rD').value=P.det*1000;lab();fresh();if(reduce)draw(60000)});
+lab();
+</script>
+</body>
+</html>

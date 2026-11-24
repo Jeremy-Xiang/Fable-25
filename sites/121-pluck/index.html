@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLUCK — a harp strung across your screen</title>
+<meta name="description" content="Fourteen strings, a pentatonic scale, and a physical-modelling synth in forty lines: drag across the strings to play them and watch each one ring and settle.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231d1a2b'/%3E%3Cpath d='M9 5 V27 M16 5 Q20 16 16 27 M23 5 V27' fill='none' stroke='%23f5c26b' stroke-width='1.8'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#f6efe2;--dim:#9a93ad;--gold:#f5c26b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:linear-gradient(160deg,#241f38,#14121f 70%);color:var(--ink);font-family:'Jost',sans-serif;height:100vh;overflow:hidden}
+::selection{background:var(--gold);color:#111}
+a:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+#c{position:fixed;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;pointer-events:none}
+header *{pointer-events:auto}
+.mark{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:1.6rem;color:var(--gold)}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--gold)}
+.plate{position:fixed;left:1.5rem;bottom:1.3rem;z-index:5;pointer-events:none;background:rgba(20,18,31,.78);padding:.9rem 1.1rem;border-radius:10px}
+.plate h1{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(1.5rem,3.4vw,2.4rem);line-height:1.05}
+.plate h1 em{color:var(--gold)}
+.plate p{font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-top:.5rem}
+.plate b{color:var(--ink);font-weight:500}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Fourteen harp strings; drag across them to play"></canvas>
+<header><span class="mark">Pluck</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>A harp strung across<br><em>your screen.</em></h1><p>drag across the strings · <b id="st">sound starts on your first touch</b></p></div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NS=14,SCALE=[0,2,4,7,9];let W,H,D,strings=[],ac=null,last=null,user=false,autoT=0,autoI=0;
+function resize(){D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*D;cv.height=H*D;x.setTransform(D,0,0,D,0,0);
+  strings=[];for(let i=0;i<NS;i++){const semis=SCALE[i%5]+12*Math.floor(i/5);
+    strings.push({x:W*(.14+.72*i/(NS-1)),y0:H*.1,y1:H*(.9-.3*i/(NS-1)),f:130.81*Math.pow(2,semis/12),amp:0,ph:0,at:.5})}}
+// Karplus–Strong: a burst of noise in a delay line, averaged each pass, sounds like a plucked string
+function ks(freq){const sr=ac.sampleRate,len=sr*2.2|0,buf=ac.createBuffer(1,len,sr),d=buf.getChannelData(0),n=Math.round(sr/freq);
+  for(let i=0;i<n;i++)d[i]=Math.random()*2-1;
+  for(let i=n;i<len;i++)d[i]=(d[i-n]+d[i-n+1])*.4975;
+  const s=ac.createBufferSource(),g=ac.createGain();s.buffer=buf;g.gain.value=.3;s.connect(g).connect(ac.destination);s.start()}
+function pluck(s,at,loud){s.amp=Math.min(26,14*loud+8);s.ph=0;s.at=at;if(ac&&ac.state==='running')ks(s.f)}
+function frame(now){requestAnimationFrame(frame);x.clearRect(0,0,W,H);
+  // frame of the harp
+  x.strokeStyle='rgba(245,194,107,.5)';x.lineWidth=5;x.lineCap='round';x.beginPath();x.moveTo(strings[0].x-26,strings[0].y0-8);x.lineTo(strings[NS-1].x+26,strings[NS-1].y0-8);x.stroke();
+  x.beginPath();x.moveTo(strings[0].x-26,strings[0].y1+10);x.lineTo(strings[NS-1].x+26,strings[NS-1].y1+10);x.stroke();
+  for(const s of strings){s.ph+=.9;s.amp*=.972;const L=s.y1-s.y0;
+    x.strokeStyle=`rgba(246,239,226,${.55+Math.min(.45,s.amp/20)})`;x.lineWidth=1.2+ (1-s.f/900)*1.4;x.shadowBlur=s.amp>1?14:0;x.shadowColor='#f5c26b';
+    x.beginPath();for(let k=0;k<=40;k++){const u=k/40,y=s.y0+u*L;
+      // triangle shape peaking at the pluck point, flipping sign as it rings
+      const tri=u<s.at?u/s.at:(1-u)/(1-s.at),dx=tri*s.amp*Math.cos(s.ph)*(reduce?0:1);k?x.lineTo(s.x+dx,y):x.moveTo(s.x+dx,y)}
+    x.stroke();x.shadowBlur=0;
+    x.fillStyle='#f5c26b';x.beginPath();x.arc(s.x,s.y0,3,0,7);x.arc(s.x,s.y1,3,0,7);x.fill()}
+  // a silent demonstration strum until someone plays
+  if(!user&&!reduce&&now-autoT>170){autoT=now;const i=autoI++%(NS*2+8);if(i<NS)pluck(strings[i],.5,.6);else if(i>=NS+4&&i<NS*2+4)pluck(strings[NS*2+3-i],.4,.5)}}
+addEventListener('resize',resize);resize();requestAnimationFrame(frame);
+function cross(px,py,qx,qy){for(const s of strings){if((px-s.x)*(qx-s.x)<=0&&px!==qx){const y=(py+qy)/2;if(y>s.y0&&y<s.y1)pluck(s,Math.max(.1,Math.min(.9,(y-s.y0)/(s.y1-s.y0))),Math.min(1,Math.abs(qx-px)/30))}}}
+cv.addEventListener('pointerdown',e=>{user=true;if(!ac){ac=new(window.AudioContext||window.webkitAudioContext)();document.getElementById('st').textContent='c major pentatonic · three octaves'}
+  if(ac.state==='suspended')ac.resume();last=[e.clientX,e.clientY];cross(e.clientX-6,e.clientY,e.clientX+6,e.clientY)});
+cv.addEventListener('pointermove',e=>{if(!last)return;cross(last[0],last[1],e.clientX,e.clientY);last=[e.clientX,e.clientY]});
+addEventListener('pointerup',()=>last=null);
+</script>
+</body>
+</html>

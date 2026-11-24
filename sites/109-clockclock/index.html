@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TWENTY-FOUR HANDS — a clock made of clocks</title>
+<meta name="description" content="Twenty-four analog clocks whose hands turn together to draw the digits of the current time — then scatter and regroup every minute.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23efece6'/%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%23141414' stroke-width='1.6'/%3E%3Cpath d='M16 16 V7 M16 16 H24' stroke='%23141414' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;500&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--wall:#efece6;--ink:#141414;--dim:#8c877d;--line:rgba(20,20,20,.14)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--wall);color:var(--ink);font-family:'Jost',sans-serif;min-height:100vh;display:flex;flex-direction:column}
+::selection{background:var(--ink);color:var(--wall)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 1.6rem}
+.mark{font-weight:500;letter-spacing:.3em;font-size:.8rem;text-transform:uppercase}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'Geist Mono',monospace;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--ink)}
+main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2.4rem;padding:1rem}
+#wall{display:grid;grid-template-columns:repeat(8,1fr);gap:clamp(4px,1vw,12px);width:min(900px,94vw)}
+.gap{grid-column:span 0}
+.clock{aspect-ratio:1;border-radius:50%;background:#f8f6f1;border:1px solid var(--line);position:relative;box-shadow:inset 0 2px 6px rgba(20,20,20,.07),0 1px 0 #fff}
+.hand{position:absolute;left:50%;top:50%;width:46%;height:clamp(3px,.7vw,7px);background:var(--ink);border-radius:99px;transform-origin:0 50%;margin-top:calc(clamp(3px,.7vw,7px)/-2)}
+.clock::after{content:'';position:absolute;left:50%;top:50%;width:clamp(4px,.9vw,9px);height:clamp(4px,.9vw,9px);background:var(--ink);border-radius:50%;transform:translate(-50%,-50%)}
+.sep{grid-column:span 8;height:0}
+h1{font-weight:300;font-size:clamp(1.2rem,3vw,2rem);letter-spacing:.02em;text-align:center}
+.sub{font-family:'Geist Mono',monospace;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-align:center;margin-top:.7rem}
+.deck{display:flex;gap:.6rem}
+.deck button{font-family:'Geist Mono',monospace;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;background:none;border:1px solid var(--ink);color:var(--ink);border-radius:999px;padding:.55rem 1.1rem;cursor:pointer}
+.deck button:hover{background:var(--ink);color:var(--wall)}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:1rem 1.6rem 1.3rem;font-family:'Geist Mono',monospace;font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+footer a{color:var(--ink)}
+</style>
+</head>
+<body>
+<header><span class="mark">Twenty-Four Hands</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<main>
+  <div id="wall" role="img" aria-label="Twenty-four analog clocks arranged to display the current time"></div>
+  <div><h1>A clock made of clocks.</h1><p class="sub" id="sub">it is --:-- · every hand is doing its part</p></div>
+  <div class="deck"><button id="bDance">make them dance</button></div>
+</main>
+<footer><span>site 109 / fable 25 · built by claude (fable 5)</span><span><a href="guide/">how it was made</a></span></footer>
+<script>
+/* Each digit = 2×3 clocks. Each clock = two hand angles (deg; 0=right, 90=down). */
+const R=0,D=90,L=180,U=270,X=135; // X = "rest" diagonal for unused clocks
+const G={
+ '┌':[R,D],'┐':[L,D],'└':[R,U],'┘':[L,U],'│':[U,D],'─':[L,R],'╶':[R,R],'╴':[L,L],'╷':[D,D],'╵':[U,U],' ':[X,X]};
+const DIG={
+ 0:['┌┐','││','└┘'],1:[' ╷',' │',' ╵'],2:['╶┐','┌┘','└╴'],3:['╶┐','╶┘','╶┘'],4:['╷╷','└┘',' ╵'],
+ 5:['┌╴','└┐','╶┘'],6:['┌╴','│┐','└┘'],7:['╶┐',' │',' ╵'],8:['┌┐','╶╴','└┘'],9:['┌┐','└│','╶┘']};
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wall=document.getElementById('wall');const clocks=[];
+// 3 rows × 8 cols (4 digits × 2 cols)
+for(let r=0;r<3;r++)for(let c=0;c<8;c++){const el=document.createElement('div');el.className='clock';
+  const a=document.createElement('div'),b=document.createElement('div');a.className=b.className='hand';el.append(a,b);wall.appendChild(el);
+  clocks.push({a,b,ca:X,cb:X,ta:X,tb:X,r,c})}
+function setTime(str){ // "HHMM"
+  for(const k of clocks){const digit=str[Math.floor(k.c/2)];const [ga,gb]=G[DIG[digit][k.r][k.c%2]];
+    // always travel clockwise, at least one full turn on change, so regrouping reads as choreography
+    const fwd=(cur,tgt)=>{let d=((tgt-cur)%360+360)%360;return cur+d+(d<1?0:360)};
+    k.ta=fwd(k.ca,ga);k.tb=fwd(k.cb,gb)}}
+let shown='';
+function tick(){const d=new Date();const s=String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0');
+  if(s!==shown){shown=s;setTime(s);document.getElementById('sub').textContent=`it is ${s.slice(0,2)}:${s.slice(2)} · every hand is doing its part`}}
+function frame(){requestAnimationFrame(frame);
+  for(const k of clocks){const sp=reduce?1:.045;k.ca+=(k.ta-k.ca)*sp;k.cb+=(k.tb-k.cb)*sp;
+    k.a.style.transform=`rotate(${k.ca.toFixed(2)}deg)`;k.b.style.transform=`rotate(${k.cb.toFixed(2)}deg)`}}
+tick();setInterval(tick,1000);requestAnimationFrame(frame);
+document.getElementById('bDance').addEventListener('click',()=>{
+  clocks.forEach((k,i)=>{k.ta=k.ca+360+((k.c*45+k.r*90)%360);k.tb=k.cb+720-((k.c*45)%360)});
+  setTimeout(()=>setTime(shown),2600)});
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2244%22 fill=%22%237CFFB2%22/></svg>">
+<title>How PETRI was made — guide</title>
+<meta name="description" content="How the PETRI site was designed and built: Conway's Game of Life as a living culture dish you can seed">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#7CFFB2; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0c; color:#f3efe9; font-family:'Bricolage Grotesque', sans-serif; font-size:1.05rem; line-height:1.72; padding:0 1.5rem}
+  .wrap{max-width:680px; margin:0 auto; padding:9vh 0 12vh}
+  .crumb{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:4.5rem}
+  .crumb a{color:#8f8b8d; text-decoration:none; border-bottom:1px solid #262327; padding-bottom:2px}
+  .crumb a:hover{color:var(--accent); border-color:var(--accent)}
+  .kicker{font-family:'JetBrains Mono', monospace; font-size:.7rem; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:1.2rem}
+  h1{font-weight:800; font-size:clamp(2.1rem,5.5vw,3.2rem); line-height:1.08; margin-bottom:.6rem; letter-spacing:-.01em}
+  .sub{color:#a19c9d; font-size:1.12rem; margin-bottom:3.6rem}
+  h2{font-size:1.05rem; font-weight:800; letter-spacing:.01em; margin:3.2rem 0 1rem; padding-top:2.6rem; border-top:1px solid #211d20; display:flex; align-items:baseline; gap:.75rem}
+  h2 .no{font-family:'JetBrains Mono', monospace; font-size:.7rem; color:var(--accent); letter-spacing:.1em}
+  p{margin-bottom:1rem}
+  ul{list-style:none; margin-bottom:1rem}
+  ul li{padding-left:1.6rem; position:relative; margin-bottom:.85rem}
+  ul li::before{content:'—'; position:absolute; left:0; color:var(--accent)}
+  code{font-family:'JetBrains Mono', monospace; font-size:.88em; background:#17141a; padding:.1em .4em; border-radius:4px}
+  .meta{font-family:'JetBrains Mono', monospace; font-size:.8rem; line-height:1.9; color:#cfc9cb; background:#141216; border:1px solid #211d20; border-left:3px solid var(--accent); padding:1.1rem 1.4rem; border-radius:6px}
+  .foot{margin-top:5rem; padding-top:2.4rem; border-top:1px solid #211d20; font-family:'JetBrains Mono', monospace; font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:#7a757a; line-height:2.4}
+  .foot a{color:var(--accent); text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  ::selection{background:var(--accent); color:#111}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb">
+    <a href="../">← back to PETRI</a>
+    <a href="../../">all sites</a>
+    <a href="../../guide/">master guide</a>
+  </nav>
+
+  <div class="kicker">Site 101 · Wave 7 · how it was made</div>
+  <h1>PETRI</h1>
+  <p class="sub">Conway's Game of Life as a living culture dish you can seed</p>
+
+  <h2><span class="no">01</span> The idea</h2>
+  <p>Four rules, no player, endless behaviour. The page treats Life as a specimen: cells are coloured by how long they have survived, so stable colonies glow differently from the froth around them, and a tray of stamps lets you drop in a glider, a gun or a pulsar.</p>
+
+  <h2><span class="no">02</span> How it works</h2>
+  <ul>
+    <li>The grid is two <code>Uint8Array</code>s swapped each generation; edges wrap, so gliders leave one side and return on the other.</li>
+    <li>A cell's value is its age, capped — the palette is indexed by age rather than alive/dead.</li>
+    <li>Stamps are tiny string patterns written into the grid at the pointer.</li>
+    <li>Play, step, soup and sterilise are the whole interface.</li></ul>
+
+  <h2><span class="no">03</span> Type &amp; color</h2>
+  <ul>
+    <li>Monospace labels like a lab notebook; one phosphor green on near-black.</li>
+    <li>Age is the only colour variable, so colour always means something.</li></ul>
+
+  <h2><span class="no">04</span> The screenshot pass</h2>
+  <ul>
+    <li>The wordmark sat directly on live cells and flickered in and out of legibility; a gradient behind the header fixed it.</li></ul>
+
+  <h2><span class="no">05</span> Lift this into your site</h2>
+  <ul>
+    <li>Colour by age is a cheap way to make any simulation readable.</li>
+    <li>Wrap-around edges remove the need for boundary cases entirely.</li></ul>
+
+  <div class="meta">stack — one HTML file · canvas 2D · typed arrays<br>signature — cells that show their age</div>
+
+  <div class="foot">
+    site 101 / fable 25 · built by claude (fable 5), commissioned by jeremy xiang<br>
+    <a href="../">launch PETRI</a> · <a href="../../">the other sites</a>
+  </div>
+</div>
+</body>
+</html>

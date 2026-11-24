@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ENCORE — pull the lever, visit a site</title>
+<meta name="description" content="Site 125 is a slot reel over the other 124: pull the lever, the reel spins down and lands on one site from the exhibition, and the door opens.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23a3122a'/%3E%3Ctext x='16' y='22' font-family='Georgia' font-size='16' font-weight='700' text-anchor='middle' fill='%23ffe9a8'%3EE%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Bitter:wght@400;700&family=Azeret+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--red:#a3122a;--deep:#5c0a17;--gold:#ffe9a8;--ink:#fff6e0;--dim:#e3a9a0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(ellipse at 50% 20%,#c21a36,var(--deep) 80%);color:var(--ink);font-family:'Bitter',serif;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+::selection{background:var(--gold);color:#5c0a17}
+a:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem}
+.mark{font-family:'Limelight',serif;font-size:1.5rem;letter-spacing:.1em;color:var(--gold)}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'Azeret Mono',monospace;font-size:.64rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--gold)}
+main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4rem;padding:0 1.2rem;text-align:center}
+h1{font-family:'Limelight',serif;font-weight:400;font-size:clamp(1.8rem,5vw,3.6rem);line-height:1.05;color:var(--gold);text-shadow:0 3px 0 rgba(0,0,0,.25)}
+.sub{font-family:'Azeret Mono',monospace;font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+.machine{display:flex;align-items:center;gap:1.2rem}
+.window{position:relative;width:min(78vw,560px);height:210px;overflow:hidden;background:#fff6e0;color:#3a0a12;border:6px solid var(--gold);border-radius:14px;box-shadow:inset 0 0 0 3px #b8892c,0 20px 50px rgba(0,0,0,.45)}
+.window::before,.window::after{content:'';position:absolute;left:0;right:0;height:70px;z-index:2;pointer-events:none}
+.window::before{top:0;background:linear-gradient(rgba(60,10,18,.55),transparent)}
+.window::after{bottom:0;background:linear-gradient(transparent,rgba(60,10,18,.55))}
+.tick{position:absolute;left:0;right:0;top:50%;height:70px;margin-top:-35px;border-top:2px solid var(--red);border-bottom:2px solid var(--red);z-index:3;pointer-events:none}
+#reel{position:absolute;left:0;right:0;top:0;will-change:transform}
+.cell{height:70px;display:flex;align-items:center;justify-content:center;gap:1rem;font-weight:700;font-size:clamp(1.2rem,3.4vw,2rem);letter-spacing:.06em;text-transform:uppercase}
+.cell small{font-family:'Azeret Mono',monospace;font-weight:400;font-size:.7rem;color:var(--red);letter-spacing:.14em}
+.lever{font-family:'Limelight',serif;font-size:1rem;letter-spacing:.08em;background:var(--gold);color:#5c0a17;border:none;border-radius:999px;width:92px;height:92px;cursor:pointer;box-shadow:0 7px 0 #b8892c,0 14px 24px rgba(0,0,0,.35);transition:transform .1s,box-shadow .1s}
+.lever:active,.lever.down{transform:translateY(6px);box-shadow:0 1px 0 #b8892c}
+.go{font-family:'Azeret Mono',monospace;font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;color:#5c0a17;background:var(--gold);text-decoration:none;padding:.8rem 1.4rem;border-radius:999px;font-weight:600;opacity:0;transform:translateY(8px);transition:opacity .4s,transform .4s;pointer-events:none}
+.go.show{opacity:1;transform:none;pointer-events:auto}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:1rem 1.5rem 1.2rem;font-family:'Azeret Mono',monospace;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+footer a{color:var(--gold)}
+@media(max-width:620px){.machine{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><span class="mark">ENCORE</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<main>
+  <h1>One hundred twenty-four doors.<br>Pull the lever.</h1>
+  <p class="sub">site 125 is a reel over all the others · spins <span id="spins">0</span></p>
+  <div class="machine"><div class="window" aria-live="polite"><div id="reel"></div><div class="tick"></div></div><button class="lever" id="lever" aria-label="Spin the reel">SPIN</button></div>
+  <a class="go" id="go" href="../">open the door →</a>
+</main>
+<footer><span>site 125 / fable 25 · built by claude (fable 5)</span><span><a href="guide/">how it was made</a></span></footer>
+<script>
+const SITES=["01-lumen", "02-monolith", "03-raw", "04-raster", "05-celeste", "06-orbital", "07-phosphor", "08-gilded", "09-ma", "10-chroma", "11-goo", "12-ascii", "13-spielplatz", "14-obsidienne", "15-missionctrl", "16-papier", "17-nimbus", "18-verba", "19-herbarium", "20-nightledger", "21-neondistrict", "22-tekton", "23-liquida", "24-meadow", "25-resonance", "26-aurora", "27-terrazzo", "28-kintsugi", "29-glacier", "30-mycelium", "31-riso", "32-oscilloscope", "33-tessera", "34-cartograph", "35-orrery", "36-coral", "37-murmuration", "38-facet", "39-manuscript", "40-thunderhead", "41-loom", "42-inkwash", "43-holotype", "44-magneto", "45-dunes", "46-cathedral", "47-cassette", "48-murano", "49-transit", "50-eclipse", "51-mercury", "52-marionette", "53-salvo", "54-censer", "55-automaton", "56-gloaming", "57-drape", "58-revenant", "59-lathe", "60-drift", "61-observatory", "62-zenith", "63-splash", "64-flowmenu", "65-curveloop", "66-magnetic", "67-tilt", "68-decode", "69-morph", "70-shatter", "71-reel", "72-ripple", "73-ironhand", "74-atelier", "75-butter", "76-chromatic", "77-unfold", "78-raymarch", "79-flowfield", "80-typestretch", "81-departures", "82-xerox", "83-contour", "84-system9", "85-refract", "86-pixelsort", "87-tarot", "88-weave", "89-zoom", "90-metamorph", "91-ledwall", "92-origami", "93-antigrav", "94-halftone", "95-caustics", "96-marquee", "97-diorama", "98-inkblot", "99-eras", "100-centenary", "101-petri", "102-morphogen", "103-chaos", "104-tempest", "105-vitrail", "106-kaleido", "107-slingshot", "108-platen", "109-clockclock", "110-hourglass", "111-deepfield", "112-pendula", "113-raincheck", "114-trace", "115-hanabi", "116-twoslits", "117-epicycle", "118-telegraph", "119-labyrinth", "120-islet", "121-pluck", "122-sixfold", "123-thinfilm", "124-tremor"];
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reel=document.getElementById('reel'),go=document.getElementById('go'),lever=document.getElementById('lever');
+const CH=70,name=s=>s.replace(/^\d+-/,''),num=s=>s.match(/^\d+/)[0].padStart(3,'0');
+// the reel is the list three times over, so it can spin past the end and still have cells to show
+const strip=[...SITES,...SITES,...SITES];
+reel.innerHTML=strip.map(s=>'<div class="cell"><small>No. '+num(s)+'</small>'+name(s)+'</div>').join('');
+let y=0,spinning=false,spins=0;
+const place=()=>reel.style.transform='translateY('+(-y+CH)+'px)';   // +CH centres the chosen cell in the 3-row window
+function land(i){const s=SITES[i];go.href='../'+s+'/';go.textContent='open '+name(s)+' →';go.classList.add('show')}
+function spin(){if(spinning)return;spinning=true;go.classList.remove('show');spins++;document.getElementById('spins').textContent=spins;
+  const pick=Math.random()*SITES.length|0,from=y%(SITES.length*CH),to=(SITES.length+pick)*CH+(reduce?0:SITES.length*CH*0);
+  const start=from,dist=to-start+(to-start<CH*30?SITES.length*CH:0),t0=performance.now(),dur=reduce?0:3200;
+  lever.classList.add('down');setTimeout(()=>lever.classList.remove('down'),200);
+  (function step(now){const k=dur?Math.min(1,(now-t0)/dur):1,e=1-Math.pow(1-k,4);   // quartic ease-out: fast, then a long settle
+    y=start+dist*e;place();if(k<1)requestAnimationFrame(step);else{y=y%(SITES.length*CH)+ (y>=SITES.length*CH*2?SITES.length*CH:0);y=(SITES.length+pick)*CH;place();spinning=false;land(pick)}})(performance.now())}
+y=(SITES.length+(Math.random()*SITES.length|0))*CH;place();
+lever.addEventListener('click',spin);addEventListener('keydown',e=>{if(e.code==='Space'&&document.activeElement!==lever){e.preventDefault();spin()}});
+setTimeout(spin,reduce?0:500);
+</script>
+</body>
+</html>

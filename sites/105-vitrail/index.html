@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VITRAIL — a window that keeps re-leading itself</title>
+<meta name="description" content="Living stained glass: forty drifting panes cut by a Voronoi shader, leaded in black and lit from behind. Your cursor is a pane of its own.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23120d0a'/%3E%3Cpath d='M4 4 L18 4 L12 16 Z' fill='%23d93a3a'/%3E%3Cpath d='M18 4 L28 4 L28 18 L12 16 Z' fill='%232e6fd9'/%3E%3Cpath d='M4 4 L12 16 L28 18 L28 28 L4 28 Z' fill='%23e8b53a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&family=Cormorant:ital,wght@0,500;1,500&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#f6efe2;--dim:#b8ab95;--gold:#e8b53a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#120d0a;color:var(--ink);font-family:'Cormorant',serif;height:100vh;overflow:hidden}
+::selection{background:var(--gold);color:#111}
+a:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+#gl{position:fixed;inset:0;width:100%;height:100%}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;background:linear-gradient(rgba(18,13,10,.85),transparent)}
+.mark{font-family:'UnifrakturCook',serif;font-size:1.6rem;color:var(--gold)}
+nav{display:flex;gap:1.4rem}
+nav a{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);text-decoration:none;opacity:.8}
+nav a:hover{color:var(--gold);opacity:1}
+.plate{position:fixed;left:50%;bottom:1.6rem;transform:translateX(-50%);z-index:5;pointer-events:none;text-align:center;background:rgba(18,13,10,.86);border:1px solid rgba(232,181,58,.4);padding:.9rem 1.6rem;white-space:nowrap}
+.plate h1{font-weight:500;font-style:italic;font-size:clamp(1.1rem,2.6vw,1.7rem)}
+.plate p{font-family:'Space Mono',monospace;font-size:.56rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-top:.4rem}
+@media(max-width:640px){.plate{white-space:normal;width:86vw}}
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="Animated stained glass window; the cursor moves one pane"></canvas>
+<header><span class="mark">Vitrail</span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="plate"><h1>A window that keeps re-leading itself.</h1><p>forty panes · voronoi shader · your cursor is one of them</p></div>
+<script>
+const cv=document.getElementById('gl'),gl=cv.getContext('webgl');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const N=40;
+const VS=`attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`;
+const FS=`precision highp float;
+uniform vec2 res;uniform float t;uniform vec3 seeds[${N}];
+vec3 pal(float h){ // cathedral palette: ruby, cobalt, amber, emerald, violet
+  h=fract(h)*5.;
+  if(h<1.)return vec3(.78,.13,.15);if(h<2.)return vec3(.12,.30,.78);if(h<3.)return vec3(.93,.66,.14);if(h<4.)return vec3(.10,.55,.36);return vec3(.48,.20,.66);}
+float hash(vec2 q){return fract(sin(dot(q,vec2(127.1,311.7)))*43758.5453);}
+void main(){
+  vec2 uv=gl_FragCoord.xy/res.y;float d1=9.,d2=9.;float hue=0.;vec2 c=vec2(0.);
+  for(int i=0;i<${N};i++){vec2 s=seeds[i].xy;s.x*=res.x/res.y;float d=distance(uv,s);
+    if(d<d1){d2=d1;d1=d;hue=seeds[i].z;c=s;}else if(d<d2){d2=d;}}
+  vec3 col=pal(hue);
+  // hand-blown variation: seedy texture + brighter toward pane center + slow light behind
+  float grain=hash(floor(gl_FragCoord.xy/3.))*.10;
+  float light=.62+.38*sin(t*.5+hue*40.+uv.x*2.);
+  col*=(.55+.6*smoothstep(.22,0.,d1))*light+grain;
+  col+=vec3(1.,.95,.8)*.10*smoothstep(.06,0.,d1);
+  // lead came
+  float lead=smoothstep(.006,.016,d2-d1);
+  col*=lead;col+= (1.-lead)*vec3(.03,.025,.02);
+  // rose-window vignette
+  vec2 v=gl_FragCoord.xy/res-.5;col*=1.-dot(v,v)*.9;
+  gl_FragColor=vec4(col,1.);}`;
+function sh(ty,s){const o=gl.createShader(ty);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(o));return o}
+const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);gl.useProgram(pr);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const al=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(al);gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+const uRes=gl.getUniformLocation(pr,'res'),uT=gl.getUniformLocation(pr,'t'),uS=gl.getUniformLocation(pr,'seeds');
+const S=[];for(let i=0;i<N;i++)S.push({x:Math.random(),y:Math.random(),h:Math.random(),a:Math.random()*6.3,s:.2+Math.random()*.5,r:.02+Math.random()*.04});
+let mx=.5,my=.5;addEventListener('pointermove',e=>{mx=e.clientX/innerWidth;my=1-e.clientY/innerHeight});
+function resize(){const d=Math.min(devicePixelRatio||1,1.5);cv.width=innerWidth*d;cv.height=innerHeight*d;gl.viewport(0,0,cv.width,cv.height);gl.uniform2f(uRes,cv.width,cv.height)}
+addEventListener('resize',resize);resize();
+const data=new Float32Array(N*3),t0=performance.now();
+(function loop(){requestAnimationFrame(loop);const t=reduce?20:(performance.now()-t0)/1000;
+  S.forEach((s,i)=>{let px=s.x+Math.cos(t*s.s*.3+s.a)*s.r,py=s.y+Math.sin(t*s.s*.37+s.a*1.7)*s.r;if(i===0){px=mx;py=my}data[i*3]=px;data[i*3+1]=py;data[i*3+2]=s.h});
+  gl.uniform3fv(uS,data);gl.uniform1f(uT,t);gl.drawArrays(gl.TRIANGLES,0,3)})();
+</script>
+</body>
+</html>

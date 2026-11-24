@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MORPHOGEN — two chemicals, every animal print</title>
+<meta name="description" content="A live Gray–Scott reaction–diffusion dish: two virtual chemicals grow coral, mazes, spots and dividing cells. Paint with reagent and switch recipes mid-reaction.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f3ece0'/%3E%3Ccircle cx='11' cy='12' r='5' fill='%231f3a5f'/%3E%3Ccircle cx='21' cy='20' r='6' fill='%23d9482b'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f3ece0;--ink:#1f2a3a;--dim:#7a7468;--red:#d9482b;--line:rgba(31,42,58,.16)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:'DM Mono',monospace;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+::selection{background:var(--red);color:#fff}
+a:focus-visible,button:focus-visible{outline:2px solid var(--red);outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem}
+.mark{font-family:'DM Serif Display',serif;font-size:1.25rem}
+.mark em{color:var(--red)}
+nav{display:flex;gap:1.4rem}
+nav a{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none}
+nav a:hover{color:var(--red)}
+.hero{text-align:center;padding:.2rem 1.2rem 1.1rem}
+.hero h1{font-family:'DM Serif Display',serif;font-weight:400;font-size:clamp(1.7rem,4.6vw,3rem);line-height:1.1}
+.hero h1 em{color:var(--red)}
+.hero p{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-top:.6rem}
+main{flex:1;display:flex;flex-direction:column;align-items:center;gap:1rem;padding:0 1.2rem 1.4rem}
+.dish{border:1.5px solid var(--ink);border-radius:14px;overflow:hidden;box-shadow:8px 8px 0 rgba(31,42,58,.14);line-height:0}
+#c{width:min(92vw,960px);height:auto;aspect-ratio:22/13;cursor:crosshair;touch-action:none;display:block}
+.deck{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center}
+.deck button{font:inherit;font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;background:#fff8;border:1.5px solid var(--ink);color:var(--ink);border-radius:999px;padding:.55rem 1rem;cursor:pointer}
+.deck button.on,.deck button:hover{background:var(--ink);color:var(--paper)}
+.read{font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.read b{color:var(--red);font-weight:500}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;padding:.9rem 1.5rem 1.2rem;font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+footer a{color:var(--red);text-decoration:none}
+</style>
+</head>
+<body>
+<header><span class="mark">Morpho<em>gen</em></span><nav><a href="guide/">Guide</a><a href="../">Index</a></nav></header>
+<div class="hero"><h1>Two chemicals. <em>Every animal print.</em></h1><p>gray–scott reaction–diffusion · drag to add reagent</p></div>
+<main>
+  <div class="dish"><canvas id="c" width="220" height="130" aria-label="Reaction-diffusion simulation; drag to paint reagent"></canvas></div>
+  <div class="deck" role="group" aria-label="Recipes">
+    <button data-r="coral" class="on">coral</button><button data-r="maze">maze</button><button data-r="mitosis">mitosis</button><button data-r="spots">leopard</button><button data-r="waves">ripples</button><button id="bReset">rinse dish</button>
+  </div>
+  <span class="read">feed <b id="vF">0.0545</b> · kill <b id="vK">0.0620</b> · alan turing predicted this in 1952</span>
+</main>
+<footer><span>site 102 / fable 25 · built by claude (fable 5)</span><span><a href="guide/">how it was made</a></span></footer>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const W=cv.width,H=cv.height,N=W*H;
+let A=new Float32Array(N),B=new Float32Array(N),A2=new Float32Array(N),B2=new Float32Array(N);
+const RECIPES={coral:[.0545,.062],maze:[.029,.057],mitosis:[.0367,.0649],spots:[.035,.065],waves:[.014,.045]};
+let F=.0545,K=.062;
+function seed(){A.fill(1);B.fill(0);for(let s=0;s<14;s++){const cx=10+Math.random()*(W-20)|0,cy=10+Math.random()*(H-20)|0;for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++)B[(cy+dy)*W+cx+dx]=1}}
+function step(){
+  for(let y=1;y<H-1;y++){for(let xx=1;xx<W-1;xx++){const i=y*W+xx;const a=A[i],b=B[i];
+    const la=(A[i-1]+A[i+1]+A[i-W]+A[i+W])*.2+(A[i-W-1]+A[i-W+1]+A[i+W-1]+A[i+W+1])*.05-a;
+    const lb=(B[i-1]+B[i+1]+B[i-W]+B[i+W])*.2+(B[i-W-1]+B[i-W+1]+B[i+W-1]+B[i+W+1])*.05-b;
+    const r=a*b*b;
+    A2[i]=a+(la-r+F*(1-a));B2[i]=b+(.5*lb+r-(K+F)*b)}}
+  [A,A2]=[A2,A];[B,B2]=[B2,B]}
+const img=x.createImageData(W,H);
+// palette: paper → navy → red
+function draw(){const d=img.data;for(let i=0;i<N;i++){let v=Math.min(1,Math.max(0,(A[i]-B[i])));const t=1-v;
+    let r,g,b;if(t<.5){const k=t*2;r=243+(31-243)*k;g=236+(58-236)*k;b=224+(95-224)*k}else{const k=(t-.5)*2;r=31+(217-31)*k;g=58+(72-58)*k;b=95+(43-95)*k}
+    d[i*4]=r;d[i*4+1]=g;d[i*4+2]=b;d[i*4+3]=255}
+  x.putImageData(img,0,0)}
+seed();if(reduce){for(let i=0;i<2600;i++)step();draw()}
+else (function loop(){requestAnimationFrame(loop);for(let i=0;i<10;i++)step();draw()})();
+let down=false;
+function paint(e){const r=cv.getBoundingClientRect();const cx=(e.clientX-r.left)/r.width*W|0,cy=(e.clientY-r.top)/r.height*H|0;
+  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const px=cx+dx,py=cy+dy;if(px>0&&px<W-1&&py>0&&py<H-1)B[py*W+px]=1}}
+cv.addEventListener('pointerdown',e=>{down=true;paint(e)});cv.addEventListener('pointermove',e=>{if(down)paint(e)});addEventListener('pointerup',()=>down=false);
+document.querySelectorAll('[data-r]').forEach(b=>b.addEventListener('click',()=>{[F,K]=RECIPES[b.dataset.r];
+  document.querySelectorAll('[data-r]').forEach(o=>o.classList.toggle('on',o===b));
+  document.getElementById('vF').textContent=F.toFixed(4);document.getElementById('vK').textContent=K.toFixed(4)}));
+document.getElementById('bReset').addEventListener('click',seed);
+</script>
+</body>
+</html>
